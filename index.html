@@ -198,6 +198,54 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
   .form-row{grid-template-columns:1fr;}
 }
 </style>
+
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCVK3yF15Udps1l046kv6M1TASIwVEPcVs",
+    authDomain: "duraspinvest.firebaseapp.com",
+    projectId: "duraspinvest",
+    storageBucket: "duraspinvest.firebasestorage.app",
+    messagingSenderId: "280764832749",
+    appId: "1:280764832749:web:a1fa6c44cf59518541a5e4",
+    measurementId: "G-4X4VSG1M2L"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // Exponer funciones globales para que el resto del código las use
+  window.db = db;
+  window.fsCollection = collection;
+  window.fsDoc = doc;
+  window.fsSetDoc = setDoc;
+  window.fsDeleteDoc = deleteDoc;
+  window.fsOnSnapshot = onSnapshot;
+  window.fsUpdateDoc = updateDoc;
+
+  // Escuchar cambios en tiempo real en tareas
+  onSnapshot(collection(db, "tasks"), (snapshot) => {
+    window.tasks = [];
+    snapshot.forEach(d => window.tasks.push({...d.data(), id: d.id}));
+    if(typeof renderDashboard === 'function') renderDashboard();
+    if(typeof renderEisenhower === 'function') renderEisenhower();
+    if(typeof renderCalendar === 'function') renderCalendar();
+  });
+
+  // Escuchar cambios en tiempo real en clientes
+  onSnapshot(collection(db, "clients"), (snapshot) => {
+    window.clients = [];
+    snapshot.forEach(d => window.clients.push({...d.data(), id: d.id}));
+    if(typeof renderClientesList === 'function' && document.getElementById('clientesList')) renderClientesList();
+  });
+
+  window.firebaseReady = true;
+  console.log("Firebase conectado correctamente");
+</script>
+
 </head>
 <body>
 <header>
@@ -377,6 +425,22 @@ let tasks=[], clients=[], calYear, calMonth, currentSection='dashboard';
 
 function load(){ try{tasks=JSON.parse(localStorage.getItem(TASKS_KEY)||'[]');}catch(e){tasks=[];} try{clients=JSON.parse(localStorage.getItem(CLIENTS_KEY)||'[]');}catch(e){clients=[];} }
 function saveTasks(){ localStorage.setItem(TASKS_KEY,JSON.stringify(tasks)); }
+async function saveTaskToCloud(task){
+  if(!window.db) return;
+  try { await window.fsSetDoc(window.fsDoc(window.db,"tasks",String(task.id)), task); } catch(e){ console.error(e); }
+}
+async function deleteTaskFromCloud(id){
+  if(!window.db) return;
+  try { await window.fsDeleteDoc(window.fsDoc(window.db,"tasks",String(id))); } catch(e){ console.error(e); }
+}
+async function saveClientToCloud(client){
+  if(!window.db) return;
+  try { await window.fsSetDoc(window.fsDoc(window.db,"clients",String(client.id)), client); } catch(e){ console.error(e); }
+}
+async function deleteClientFromCloud(id){
+  if(!window.db) return;
+  try { await window.fsDeleteDoc(window.fsDoc(window.db,"clients",String(id))); } catch(e){ console.error(e); }
+}
 function saveClients(){ localStorage.setItem(CLIENTS_KEY,JSON.stringify(clients)); }
 
 function showSection(id,btn){
@@ -448,12 +512,12 @@ function saveCliente(){
     servicios:document.getElementById('cServicios').value,notas:[],docs:[]};
   if(id){ const i=clients.findIndex(x=>x.id==id); if(i>=0){c.notas=clients[i].notas||[];c.docs=clients[i].docs||[];clients[i]=c;} }
   else clients.push(c);
-  saveClients(); closeModal('clienteModalOverlay'); renderClientesList();
+  saveClients(); saveClientToCloud(c); closeModal('clienteModalOverlay'); renderClientesList();
 }
 
-function deleteTask(id){ tasks=tasks.filter(t=>t.id!==id); saveTasks(); renderDashboard(); renderEisenhower(); renderCalendar(); }
-function completeTask(id){ const t=tasks.find(t=>t.id===id); if(t){t.estado=t.estado==='Completada'?'Pendiente':'Completada';saveTasks();renderDashboard();renderEisenhower();} }
-function deleteCliente(id){ if(!confirm('¿Eliminar este cliente?')) return; clients=clients.filter(c=>c.id!=id); saveClients(); renderClientesList(); }
+function deleteTask(id){ tasks=tasks.filter(t=>t.id!==id); saveTasks(); deleteTaskFromCloud(id); renderDashboard(); renderEisenhower(); renderCalendar(); }
+function completeTask(id){ const t=tasks.find(t=>t.id===id); if(t){t.estado=t.estado==='Completada'?'Pendiente':'Completada';saveTasks();saveTaskToCloud(t);renderDashboard();renderEisenhower();} }
+function deleteCliente(id){ if(!confirm('¿Eliminar este cliente?')) return; clients=clients.filter(c=>c.id!=id); saveClients(); deleteClientFromCloud(id); renderClientesList(); }
 
 function qClass(q){ if(q.includes('Q1')) return 'q1'; if(q.includes('Q2')) return 'q2'; if(q.includes('Q3')) return 'q3'; return 'q4'; }
 function daysUntil(d){ if(!d) return null; const a=new Date(d),b=new Date(); a.setHours(0,0,0,0);b.setHours(0,0,0,0); return Math.round((a-b)/86400000); }
@@ -617,12 +681,12 @@ function addNota(cid){
   const c=clients.find(x=>x.id==cid); if(!c) return;
   if(!c.notas) c.notas=[];
   c.notas.unshift({texto,fecha:new Date().toISOString()});
-  saveClients(); inp.value=''; showFicha(cid);
+  saveClients(); saveClientToCloud(c); inp.value=''; showFicha(cid);
 }
 
 function deleteNota(cid,idx){
   const c=clients.find(x=>x.id==cid); if(!c) return;
-  c.notas.splice(idx,1); saveClients(); showFicha(cid);
+  c.notas.splice(idx,1); saveClients(); saveClientToCloud(c); showFicha(cid);
 }
 
 function addDoc(cid){
@@ -631,12 +695,12 @@ function addDoc(cid){
   const c=clients.find(x=>x.id==cid); if(!c) return;
   if(!c.docs) c.docs=[];
   c.docs.unshift({nombre,fecha:new Date().toISOString()});
-  saveClients(); inp.value=''; showFicha(cid);
+  saveClients(); saveClientToCloud(c); inp.value=''; showFicha(cid);
 }
 
 function deleteDoc(cid,idx){
   const c=clients.find(x=>x.id==cid); if(!c) return;
-  c.docs.splice(idx,1); saveClients(); showFicha(cid);
+  c.docs.splice(idx,1); saveClients(); saveClientToCloud(c); showFicha(cid);
 }
 
 document.getElementById('headerDate').textContent=new Date().toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
