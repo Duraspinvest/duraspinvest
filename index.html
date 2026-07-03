@@ -202,6 +202,7 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
 <!-- Firebase SDK -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
   import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -216,6 +217,22 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
 
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
+  const auth = getAuth(app);
+  window.auth = auth;
+  window.fsSignIn = signInWithEmailAndPassword;
+  window.fsSignOut = signOut;
+
+  // Controlar estado de autenticación
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('appContent').style.display = 'flex';
+      document.getElementById('userEmail').textContent = user.email;
+    } else {
+      document.getElementById('loginScreen').style.display = 'flex';
+      document.getElementById('appContent').style.display = 'none';
+    }
+  });
 
   // Exponer funciones globales para que el resto del código las use
   window.db = db;
@@ -248,6 +265,36 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
 
 </head>
 <body>
+
+<!-- PANTALLA DE LOGIN -->
+<div id="loginScreen" style="display:none;position:fixed;inset:0;background:#0A2540;z-index:1000;align-items:center;justify-content:center;flex-direction:column;gap:24px;">
+  <div style="text-align:center;margin-bottom:8px;">
+    <div style="width:80px;height:80px;background:#12345A;border-radius:18px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
+      <svg viewBox="0 0 36 36" fill="none" width="80" height="80">
+        <text x="2" y="24" font-family="Georgia,serif" font-size="22" font-weight="700" fill="white" opacity="0.90">E</text>
+        <text x="14" y="24" font-family="Georgia,serif" font-size="22" font-weight="700" fill="white" opacity="0.30">D</text>
+        <text x="8" y="33" font-family="Georgia,serif" font-size="22" font-weight="700" fill="white" opacity="0.60">G</text>
+      </svg>
+    </div>
+    <div style="color:white;font-size:22px;font-weight:600;letter-spacing:0.5px;">Duraspinvest</div>
+    <div style="color:#5A7FA8;font-size:12px;letter-spacing:1px;text-transform:uppercase;margin-top:4px;">Asesoría · Fiscal · Contable · Laboral</div>
+  </div>
+  <div style="background:white;border-radius:16px;padding:28px 32px;width:100%;max-width:360px;box-shadow:0 8px 32px rgba(0,0,0,0.3);">
+    <div style="font-size:16px;font-weight:600;color:#0A2540;margin-bottom:20px;text-align:center;">Acceder</div>
+    <div style="margin-bottom:14px;">
+      <label style="font-size:12px;font-weight:600;color:#4A5A6B;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:6px;">Email</label>
+      <input type="email" id="loginEmail" placeholder="tu@email.com" style="width:100%;padding:10px 12px;border:1.5px solid #D6DEE8;border-radius:8px;font-size:14px;outline:none;font-family:inherit;">
+    </div>
+    <div style="margin-bottom:20px;">
+      <label style="font-size:12px;font-weight:600;color:#4A5A6B;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:6px;">Contraseña</label>
+      <input type="password" id="loginPassword" placeholder="••••••••" style="width:100%;padding:10px 12px;border:1.5px solid #D6DEE8;border-radius:8px;font-size:14px;outline:none;font-family:inherit;">
+    </div>
+    <div id="loginError" style="color:#EF4444;font-size:13px;margin-bottom:12px;display:none;text-align:center;">Email o contraseña incorrectos</div>
+    <button onclick="doLogin()" style="width:100%;padding:12px;background:#0A2540;color:white;border:none;border-radius:8px;font-size:15px;font-weight:500;cursor:pointer;font-family:inherit;">Entrar</button>
+  </div>
+</div>
+
+<div id="appContent" style="display:none;flex-direction:column;min-height:100vh;">
 <header>
   <div class="logo">
     <div class="logo-icon">
@@ -262,7 +309,11 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
       <div class="logo-sub">Asesoría · Fiscal · Contable · Laboral</div>
     </div>
   </div>
-  <div class="header-date" id="headerDate"></div>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <div class="header-date" id="headerDate"></div>
+    <span id="userEmail" style="color:#5A7FA8;font-size:11px;display:none;"></span>
+    <button onclick="doLogout()" style="background:rgba(255,255,255,0.1);color:#8A9BB0;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;">Salir</button>
+  </div>
 </header>
 <nav>
   <button class="nav-btn active" onclick="showSection('dashboard',this)">⊞ Inicio</button>
@@ -417,6 +468,7 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
 </div>
 
 <button class="fab" id="fabBtn" onclick="onFab()" title="Nuevo">+</button>
+</div>
 
 <script>
 const TASKS_KEY='duraspinvest_tasks';
@@ -704,6 +756,23 @@ function deleteDoc(cid,idx){
 }
 
 document.getElementById('headerDate').textContent=new Date().toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+
+function doLogin(){
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  document.getElementById('loginError').style.display = 'none';
+  if(!email||!password) return;
+  window.fsSignIn(window.auth, email, password).catch(e => {
+    document.getElementById('loginError').style.display = 'block';
+  });
+}
+
+function doLogout(){
+  window.fsSignOut(window.auth);
+}
+
+document.getElementById('loginEmail').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('loginPassword').focus(); });
+document.getElementById('loginPassword').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
 load(); renderDashboard();
 </script>
 </body>
