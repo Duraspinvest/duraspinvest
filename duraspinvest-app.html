@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#0A2540">
 <title>Duraspinvest</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMAAAADACAYAAABS3GwHAAAE50lEQVR4nO3dTVbjRhiGUdknI1hBFgDrgHGPstKMMoZ1wAKyApiSQYc+tPGPZJWkqnrvHXfb8jnfoyrJP+yGDdzcPXxs8bzU7f31ebf2c67yhAaea6wRxGJPYOgpaakYij6ooWcNJWPYl3ogw89aSs7a7JIMPluauxrMWgEMP1ubO4NX1WPwqdE1q8HkFcDwU6trZnNSAIaf2k2d0dEBGH5aMWVWRwVg+GnN2Jm9GIDhp1VjZvdsAIaf1l2a4WLvBEOLTgbg7E8vzs3y0QAMP705NdO2QET7FoCzP706Ntv7S/8AenI447ZARBMA0X4FYPtDiq+z/kfJB357efq35OO14vb+8c8lH//t5emvJR+/Vrf3j38v/Ry2QETbD4PtD3k+Z94KQDQBEE0ARNvb/5Pq5u7hwwpANAEQTQBEEwDRBEA0ARBNAEQTANEEQDQBEK3oF2JKWPrLJanW+HLJV618iccKQDQBEE0ARBMA0aq7CN7ilyVceOeyAhBNAEQTANEEQDQBEE0ARBMA0QRANAEQTQBEEwDRBEA0ARBNAEQTANEEQLTqvhDjyymsyQpANAEQTQBEEwDRBEC06u4CbfGzKHO1cOeqld/qXJsVgGgCIJoAiCYAogmAaAIgmgCIJgCiCYBoAiCaAIgmAKIJgGgCIJoAiCYAou1u7h4+tj4I2IoVgGgCIJoAiCYAogmAaAIgmgCIJgCiCYBoAiCaAIgmAKIJgGgCIJoAiCYAogmAaAIgmgCIJgCiCYBo1f2Z1J68vTz9M/X/3N4//ljiWDjOz6IUdM3AXyKIZQlgpiWG/hQxlCeAK6w59KeIoQwBTFDD4B8SwjwCGKHGwT8khOu4DXpBC8M/DO0cZ20EcEZrQ9Xa8dbAFuiIHgbJlmgcK8CBHoZ/GPp5HUsTwBe9DU1vr2cJAvhfr8PS6+sqRQBD/0PS++ubIz6AlOFIeZ1TRQeQNhRpr3eM6AAg9n2A2j7FWdvxpIgMYOlhKzFgLRxjD3wjrKCSQ/X5WPbty4pbAVr91larx107K8AMaw6QFWEZUXeBSg7PVmfPks8rprAASg3P1luHrZ+/J3HXAF+1/rMlJc7gNb2eLUQH8GnKILVwi3Oq5AhcBA+/D8C54UwelF5FXQOMcXv/+MOg57ACnHC4KoiiT1aAEXof/tquSdYkAKIJgGgCIJoAiCYAogmAaAIgmgCIJgCiCYDu3+k+RwBEEwDRfBp0A1O3HMkfVluaFSBc8v5/GARAOAEQTQDB0rc/wyAAwgmgckvdAXL2/8lt0Eq59bkOAVTCH8jYhgBWUNPZ3PD/zjUA0QSwMGf/ugkghOE/TgBEEwDR9u+vz7utDwK28P76vLMCEM37AJ1xsTuNFWBBa98CNfzT7Yfh515o6wNhHsM/zefM2wI1zuDPI4BGGfwyfgXw/vrsT6ZWztCX8XXLbwWonKFflgAqY+DX9e3uj20QPTu84/ntfQC3ROnVsdn2RhjRjgZgFaA3p2b65AogAnpxbpZtgYh2NgCrAK27NMMXVwAR0KoxsztqCyQCWjN2ZkdfA4iAVkyZ1UkXwSKgdlNndPJdIBFQq2tmc9Yw+9wQNZhzUp71PoDVgK3NncFiA2w1YE2lTr7F3gm2GrCWkrO22NBaEShpqRPsKmdtMXCNNXYVm2xbBMExW2yj/wNHKI0+MOfFLAAAAABJRU5ErkJggg==">
+<link rel="icon" type="image/png" sizes="192x192" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMAAAADACAYAAABS3GwHAAAE50lEQVR4nO3dTVbjRhiGUdknI1hBFgDrgHGPstKMMoZ1wAKyApiSQYc+tPGPZJWkqnrvHXfb8jnfoyrJP+yGDdzcPXxs8bzU7f31ebf2c67yhAaea6wRxGJPYOgpaakYij6ooWcNJWPYl3ogw89aSs7a7JIMPluauxrMWgEMP1ubO4NX1WPwqdE1q8HkFcDwU6trZnNSAIaf2k2d0dEBGH5aMWVWRwVg+GnN2Jm9GIDhp1VjZvdsAIaf1l2a4WLvBEOLTgbg7E8vzs3y0QAMP705NdO2QET7FoCzP706Ntv7S/8AenI447ZARBMA0X4FYPtDiq+z/kfJB357efq35OO14vb+8c8lH//t5emvJR+/Vrf3j38v/Ry2QETbD4PtD3k+Z94KQDQBEE0ARNvb/5Pq5u7hwwpANAEQTQBEEwDRBEA0ARBNAEQTANEEQDQBEK3oF2JKWPrLJanW+HLJV618iccKQDQBEE0ARBMA0aq7CN7ilyVceOeyAhBNAEQTANEEQDQBEE0ARBMA0QRANAEQTQBEEwDRBEA0ARBNAEQTANEEQLTqvhDjyymsyQpANAEQTQBEEwDRBEC06u4CbfGzKHO1cOeqld/qXJsVgGgCIJoAiCYAogmAaAIgmgCIJgCiCYBoAiCaAIgmAKIJgGgCIJoAiCYAou1u7h4+tj4I2IoVgGgCIJoAiCYAogmAaAIgmgCIJgCiCYBoAiCaAIgmAKIJgGgCIJoAiCYAogmAaAIgmgCIJgCiCYBo1f2Z1J68vTz9M/X/3N4//ljiWDjOz6IUdM3AXyKIZQlgpiWG/hQxlCeAK6w59KeIoQwBTFDD4B8SwjwCGKHGwT8khOu4DXpBC8M/DO0cZ20EcEZrQ9Xa8dbAFuiIHgbJlmgcK8CBHoZ/GPp5HUsTwBe9DU1vr2cJAvhfr8PS6+sqRQBD/0PS++ubIz6AlOFIeZ1TRQeQNhRpr3eM6AAg9n2A2j7FWdvxpIgMYOlhKzFgLRxjD3wjrKCSQ/X5WPbty4pbAVr91larx107K8AMaw6QFWEZUXeBSg7PVmfPks8rprAASg3P1luHrZ+/J3HXAF+1/rMlJc7gNb2eLUQH8GnKILVwi3Oq5AhcBA+/D8C54UwelF5FXQOMcXv/+MOg57ACnHC4KoiiT1aAEXof/tquSdYkAKIJgGgCIJoAiCYAogmAaAIgmgCIJgCiCYDu3+k+RwBEEwDRfBp0A1O3HMkfVluaFSBc8v5/GARAOAEQTQDB0rc/wyAAwgmgckvdAXL2/8lt0Eq59bkOAVTCH8jYhgBWUNPZ3PD/zjUA0QSwMGf/ugkghOE/TgBEEwDR9u+vz7utDwK28P76vLMCEM37AJ1xsTuNFWBBa98CNfzT7Yfh515o6wNhHsM/zefM2wI1zuDPI4BGGfwyfgXw/vrsT6ZWztCX8XXLbwWonKFflgAqY+DX9e3uj20QPTu84/ntfQC3ROnVsdn2RhjRjgZgFaA3p2b65AogAnpxbpZtgYh2NgCrAK27NMMXVwAR0KoxsztqCyQCWjN2ZkdfA4iAVkyZ1UkXwSKgdlNndPJdIBFQq2tmc9Yw+9wQNZhzUp71PoDVgK3NncFiA2w1YE2lTr7F3gm2GrCWkrO22NBaEShpqRPsKmdtMXCNNXYVm2xbBMExW2yj/wNHKI0+MOfFLAAAAABJRU5ErkJggg==">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Duraspinvest">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -192,8 +199,103 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
   .form-row{grid-template-columns:1fr;}
 }
 </style>
+
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCVK3yF15Udps1l046kv6M1TASIwVEPcVs",
+    authDomain: "duraspinvest.firebaseapp.com",
+    projectId: "duraspinvest",
+    storageBucket: "duraspinvest.firebasestorage.app",
+    messagingSenderId: "280764832749",
+    appId: "1:280764832749:web:a1fa6c44cf59518541a5e4",
+    measurementId: "G-4X4VSG1M2L"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const auth = getAuth(app);
+  window.auth = auth;
+  window.fsSignIn = signInWithEmailAndPassword;
+  window.fsSignOut = signOut;
+
+  // Controlar estado de autenticación
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('appContent').style.display = 'flex';
+      document.getElementById('userEmail').textContent = user.email;
+    } else {
+      document.getElementById('loginScreen').style.display = 'flex';
+      document.getElementById('appContent').style.display = 'none';
+    }
+  });
+
+  // Exponer funciones globales para que el resto del código las use
+  window.db = db;
+  window.fsCollection = collection;
+  window.fsDoc = doc;
+  window.fsSetDoc = setDoc;
+  window.fsDeleteDoc = deleteDoc;
+  window.fsOnSnapshot = onSnapshot;
+  window.fsUpdateDoc = updateDoc;
+
+  // Escuchar cambios en tiempo real en tareas
+  onSnapshot(collection(db, "tasks"), (snapshot) => {
+    window.tasks = [];
+    snapshot.forEach(d => window.tasks.push({...d.data(), id: d.id}));
+    if(typeof renderDashboard === 'function') renderDashboard();
+    if(typeof renderEisenhower === 'function') renderEisenhower();
+    if(typeof renderCalendar === 'function') renderCalendar();
+  });
+
+  // Escuchar cambios en tiempo real en clientes
+  onSnapshot(collection(db, "clients"), (snapshot) => {
+    window.clients = [];
+    snapshot.forEach(d => window.clients.push({...d.data(), id: d.id}));
+    if(typeof renderClientesList === 'function' && document.getElementById('clientesList')) renderClientesList();
+  });
+
+  window.firebaseReady = true;
+  console.log("Firebase conectado correctamente");
+</script>
+
 </head>
 <body>
+
+<!-- PANTALLA DE LOGIN -->
+<div id="loginScreen" style="display:none;position:fixed;inset:0;background:#0A2540;z-index:1000;align-items:center;justify-content:center;flex-direction:column;gap:24px;">
+  <div style="text-align:center;margin-bottom:8px;">
+    <div style="width:80px;height:80px;background:#12345A;border-radius:18px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
+      <svg viewBox="0 0 36 36" fill="none" width="80" height="80">
+        <text x="2" y="24" font-family="Georgia,serif" font-size="22" font-weight="700" fill="white" opacity="0.90">E</text>
+        <text x="14" y="24" font-family="Georgia,serif" font-size="22" font-weight="700" fill="white" opacity="0.30">D</text>
+        <text x="8" y="33" font-family="Georgia,serif" font-size="22" font-weight="700" fill="white" opacity="0.60">G</text>
+      </svg>
+    </div>
+    <div style="color:white;font-size:22px;font-weight:600;letter-spacing:0.5px;">Duraspinvest</div>
+    <div style="color:#5A7FA8;font-size:12px;letter-spacing:1px;text-transform:uppercase;margin-top:4px;">Asesoría · Fiscal · Contable · Laboral</div>
+  </div>
+  <div style="background:white;border-radius:16px;padding:28px 32px;width:100%;max-width:360px;box-shadow:0 8px 32px rgba(0,0,0,0.3);">
+    <div style="font-size:16px;font-weight:600;color:#0A2540;margin-bottom:20px;text-align:center;">Acceder</div>
+    <div style="margin-bottom:14px;">
+      <label style="font-size:12px;font-weight:600;color:#4A5A6B;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:6px;">Email</label>
+      <input type="email" id="loginEmail" placeholder="tu@email.com" style="width:100%;padding:10px 12px;border:1.5px solid #D6DEE8;border-radius:8px;font-size:14px;outline:none;font-family:inherit;">
+    </div>
+    <div style="margin-bottom:20px;">
+      <label style="font-size:12px;font-weight:600;color:#4A5A6B;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:6px;">Contraseña</label>
+      <input type="password" id="loginPassword" placeholder="••••••••" style="width:100%;padding:10px 12px;border:1.5px solid #D6DEE8;border-radius:8px;font-size:14px;outline:none;font-family:inherit;">
+    </div>
+    <div id="loginError" style="color:#EF4444;font-size:13px;margin-bottom:12px;display:none;text-align:center;">Email o contraseña incorrectos</div>
+    <button onclick="doLogin()" style="width:100%;padding:12px;background:#0A2540;color:white;border:none;border-radius:8px;font-size:15px;font-weight:500;cursor:pointer;font-family:inherit;">Entrar</button>
+  </div>
+</div>
+
+<div id="appContent" style="display:none;flex-direction:column;min-height:100vh;">
 <header>
   <div class="logo">
     <div class="logo-icon">
@@ -208,7 +310,11 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
       <div class="logo-sub">Asesoría · Fiscal · Contable · Laboral</div>
     </div>
   </div>
-  <div class="header-date" id="headerDate"></div>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <div class="header-date" id="headerDate"></div>
+    <span id="userEmail" style="color:#5A7FA8;font-size:11px;display:none;"></span>
+    <button onclick="doLogout()" style="background:rgba(255,255,255,0.1);color:#8A9BB0;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;">Salir</button>
+  </div>
 </header>
 <nav>
   <button class="nav-btn active" onclick="showSection('dashboard',this)">⊞ Inicio</button>
@@ -282,7 +388,13 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
   <div id="clientesLista">
     <div class="clientes-header">
       <span class="clientes-title">Clientes</span>
-      <button class="btn btn-primary btn-sm" onclick="openClienteModal()">+ Nuevo cliente</button>
+      <div style="display:flex;gap:8px;">
+        <div id="importBtnWrap">
+          <input type="file" id="excelInput" accept=".xlsx,.xls" style="display:none;" onchange="importarExcel(this)">
+          <button class="btn btn-sm" style="background:var(--q2-bg);color:var(--q2);border:1px solid var(--q2-border);" onclick="document.getElementById('excelInput').click()">⬆ Importar Excel</button>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="openClienteModal()">+ Nuevo cliente</button>
+      </div>
     </div>
     <div class="search-bar">
       <input type="text" class="search-input" placeholder="Buscar cliente..." oninput="filterClientes(this.value)">
@@ -363,6 +475,7 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
 </div>
 
 <button class="fab" id="fabBtn" onclick="onFab()" title="Nuevo">+</button>
+</div>
 
 <script>
 const TASKS_KEY='duraspinvest_tasks';
@@ -371,6 +484,22 @@ let tasks=[], clients=[], calYear, calMonth, currentSection='dashboard';
 
 function load(){ try{tasks=JSON.parse(localStorage.getItem(TASKS_KEY)||'[]');}catch(e){tasks=[];} try{clients=JSON.parse(localStorage.getItem(CLIENTS_KEY)||'[]');}catch(e){clients=[];} }
 function saveTasks(){ localStorage.setItem(TASKS_KEY,JSON.stringify(tasks)); }
+async function saveTaskToCloud(task){
+  if(!window.db) return;
+  try { await window.fsSetDoc(window.fsDoc(window.db,"tasks",String(task.id)), task); } catch(e){ console.error(e); }
+}
+async function deleteTaskFromCloud(id){
+  if(!window.db) return;
+  try { await window.fsDeleteDoc(window.fsDoc(window.db,"tasks",String(id))); } catch(e){ console.error(e); }
+}
+async function saveClientToCloud(client){
+  if(!window.db) return;
+  try { await window.fsSetDoc(window.fsDoc(window.db,"clients",String(client.id)), client); } catch(e){ console.error(e); }
+}
+async function deleteClientFromCloud(id){
+  if(!window.db) return;
+  try { await window.fsDeleteDoc(window.fsDoc(window.db,"clients",String(id))); } catch(e){ console.error(e); }
+}
 function saveClients(){ localStorage.setItem(CLIENTS_KEY,JSON.stringify(clients)); }
 
 function showSection(id,btn){
@@ -442,12 +571,12 @@ function saveCliente(){
     servicios:document.getElementById('cServicios').value,notas:[],docs:[]};
   if(id){ const i=clients.findIndex(x=>x.id==id); if(i>=0){c.notas=clients[i].notas||[];c.docs=clients[i].docs||[];clients[i]=c;} }
   else clients.push(c);
-  saveClients(); closeModal('clienteModalOverlay'); renderClientesList();
+  saveClients(); saveClientToCloud(c); closeModal('clienteModalOverlay'); renderClientesList();
 }
 
-function deleteTask(id){ tasks=tasks.filter(t=>t.id!==id); saveTasks(); renderDashboard(); renderEisenhower(); renderCalendar(); }
-function completeTask(id){ const t=tasks.find(t=>t.id===id); if(t){t.estado=t.estado==='Completada'?'Pendiente':'Completada';saveTasks();renderDashboard();renderEisenhower();} }
-function deleteCliente(id){ if(!confirm('¿Eliminar este cliente?')) return; clients=clients.filter(c=>c.id!=id); saveClients(); renderClientesList(); }
+function deleteTask(id){ tasks=tasks.filter(t=>t.id!==id); saveTasks(); deleteTaskFromCloud(id); renderDashboard(); renderEisenhower(); renderCalendar(); }
+function completeTask(id){ const t=tasks.find(t=>t.id===id); if(t){t.estado=t.estado==='Completada'?'Pendiente':'Completada';saveTasks();saveTaskToCloud(t);renderDashboard();renderEisenhower();} }
+function deleteCliente(id){ if(!confirm('¿Eliminar este cliente?')) return; clients=clients.filter(c=>c.id!=id); saveClients(); deleteClientFromCloud(id); renderClientesList(); }
 
 function qClass(q){ if(q.includes('Q1')) return 'q1'; if(q.includes('Q2')) return 'q2'; if(q.includes('Q3')) return 'q3'; return 'q4'; }
 function daysUntil(d){ if(!d) return null; const a=new Date(d),b=new Date(); a.setHours(0,0,0,0);b.setHours(0,0,0,0); return Math.round((a-b)/86400000); }
@@ -514,6 +643,11 @@ function renderCalendar(){
 function changeMonth(dir){ calMonth+=dir; if(calMonth>11){calMonth=0;calYear++;}if(calMonth<0){calMonth=11;calYear--;} renderCalendar(); }
 
 function renderClientesList(filter=''){
+  // Ocultar botón importar si ya se usó antes
+  if(localStorage.getItem('duraspinvest_imported')){
+    const wrap=document.getElementById('importBtnWrap');
+    if(wrap) wrap.style.display='none';
+  }
   const el=document.getElementById('clientesList');
   const list=clients.filter(c=>!filter||c.nombre.toLowerCase().includes(filter.toLowerCase())||( c.nif&&c.nif.toLowerCase().includes(filter.toLowerCase())));
   if(!list.length){el.innerHTML='<div class="empty"><div class="empty-icon">👤</div><div class="empty-text">No hay clientes. Añade el primero.</div></div>';return;}
@@ -536,6 +670,75 @@ function renderClientesList(filter=''){
 }
 
 function filterClientes(v){ renderClientesList(v); }
+
+function importarExcel(input){
+  const file = input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, {type:'array'});
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, {header:1});
+      
+      // Saltar filas de cabecera (fila 1 título, fila 2 instrucciones, fila 3 encabezados, fila 4 valores permitidos)
+      let importados = 0;
+      let errores = 0;
+      
+      for(let i=4; i<rows.length; i++){
+        const row = rows[i];
+        if(!row || !row[0] || String(row[0]).trim()==='') continue;
+        
+        const nombre = String(row[0]||'').trim();
+        if(!nombre) continue;
+        
+        // Verificar si ya existe
+        const existe = clients.find(c=>c.nombre.toLowerCase()===nombre.toLowerCase());
+        if(existe){ errores++; continue; }
+        
+        const cliente = {
+          id: Date.now() + i,
+          nombre: nombre,
+          nif: String(row[1]||'').trim(),
+          tipo: String(row[2]||'Sociedad').trim(),
+          servicios: String(row[3]||'Fiscal').trim(),
+          tel: String(row[4]||'').trim(),
+          email: String(row[5]||'').trim(),
+          iva: String(row[6]||'General').trim(),
+          notas: row[7] ? [{texto:String(row[7]).trim(), fecha:new Date().toISOString()}] : [],
+          docs: []
+        };
+        
+        // Documentos iniciales
+        if(row[8] && String(row[8]).trim()) cliente.docs.push({nombre:String(row[8]).trim(), url:'', fecha:new Date().toISOString()});
+        if(row[9] && String(row[9]).trim()) cliente.docs.push({nombre:String(row[9]).trim(), url:'', fecha:new Date().toISOString()});
+        
+        clients.push(cliente);
+        saveClientToCloud(cliente);
+        importados++;
+      }
+      
+      saveClients();
+      
+      // Ocultar botón de importar después del primer uso
+      const wrap = document.getElementById('importBtnWrap');
+      if(wrap) wrap.style.display='none';
+      localStorage.setItem('duraspinvest_imported','true');
+      
+      renderClientesList();
+      
+      let msg = importados + ' cliente(s) importado(s) correctamente.';
+      if(errores>0) msg += ' ' + errores + ' omitido(s) por nombre duplicado.';
+      alert(msg);
+      
+    } catch(err){
+      alert('Error al leer el archivo. Asegúrate de que es el Excel de Duraspinvest.');
+      console.error(err);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
 function showClientesList(){ document.getElementById('clientesLista').style.display=''; document.getElementById('clienteFicha').style.display='none'; document.getElementById('fabBtn').style.display='flex'; }
 
 function showFicha(id){
@@ -591,11 +794,30 @@ function showFicha(id){
     <div class="ficha-section">
       <div class="ficha-section-header"><span class="ficha-section-title">Documentos</span></div>
       <div id="docsList_${c.id}">
-        ${(c.docs||[]).length?(c.docs||[]).map((d,i)=>`<div class="doc-item"><div class="doc-icon">📄</div><div class="doc-info"><div class="doc-nombre">${d.nombre}</div><div class="doc-fecha">${new Date(d.fecha).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'})}</div></div><button class="icon-btn" onclick="deleteDoc(${c.id},${i})">×</button></div>`).join(''):'<div class="empty" style="padding:16px;">Sin documentos</div>'}
+        ${(c.docs||[]).length?(c.docs||[]).map((d,i)=>`
+        <div class="doc-item">
+          <div class="doc-icon">📄</div>
+          <div class="doc-info">
+            <div class="doc-nombre">${d.nombre}</div>
+            <div class="doc-fecha">${new Date(d.fecha).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'})}</div>
+          </div>
+          <div style="display:flex;gap:4px;flex-shrink:0;align-items:center;">
+            ${d.url?`<a href="${d.url}" target="_blank" class="btn btn-sm" style="background:var(--q2-bg);color:var(--q2);text-decoration:none;font-size:11px;" title="Abrir">Abrir</a>`:''}
+            ${d.url?`<a href="mailto:?subject=${encodeURIComponent(d.nombre)}&body=${encodeURIComponent('Te comparto el documento: '+d.nombre+'\n\n'+d.url)}" class="btn btn-sm" style="background:var(--bg-success,#F0FDF4);color:#059669;text-decoration:none;font-size:11px;" title="Compartir por email">Email</a>`:''}
+            ${d.url?`<a href="https://wa.me/?text=${encodeURIComponent(d.nombre+': '+d.url)}" target="_blank" class="btn btn-sm" style="background:#F0FDF4;color:#25D366;text-decoration:none;font-size:11px;" title="Compartir por WhatsApp">WA</a>`:''}
+            <button class="icon-btn" onclick="deleteDoc(${c.id},${i})" title="Eliminar">×</button>
+          </div>
+        </div>`).join(''):'<div class="empty" style="padding:16px;">Sin documentos. Añade el enlace de Google Drive.</div>'}
       </div>
-      <div class="nota-input-row">
-        <input type="text" class="nota-input" id="docInput_${c.id}" placeholder="Nombre del documento (ej: Modelo 303 T1 2026)">
-        <button class="btn btn-primary btn-sm" style="align-self:flex-end;" onclick="addDoc(${c.id})">Añadir</button>
+      <div style="padding:12px 18px;border-top:0.5px solid var(--gray-100);">
+        <div style="font-size:11px;color:var(--gray-400);margin-bottom:8px;">Sube el PDF a Google Drive, copia el enlace y pégalo aquí.</div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <input type="text" class="nota-input" id="docNombre_${c.id}" placeholder="Nombre del documento (ej: Modelo 303 T1 2026)" style="width:100%;">
+          <input type="text" class="nota-input" id="docUrl_${c.id}" placeholder="Enlace de Google Drive (https://drive.google.com/...)" style="width:100%;">
+          <div style="display:flex;justify-content:flex-end;">
+            <button class="btn btn-primary btn-sm" onclick="addDoc(${c.id})">Añadir documento</button>
+          </div>
+        </div>
       </div>
     </div>`;
 }
@@ -611,29 +833,50 @@ function addNota(cid){
   const c=clients.find(x=>x.id==cid); if(!c) return;
   if(!c.notas) c.notas=[];
   c.notas.unshift({texto,fecha:new Date().toISOString()});
-  saveClients(); inp.value=''; showFicha(cid);
+  saveClients(); saveClientToCloud(c); inp.value=''; showFicha(cid);
 }
 
 function deleteNota(cid,idx){
   const c=clients.find(x=>x.id==cid); if(!c) return;
-  c.notas.splice(idx,1); saveClients(); showFicha(cid);
+  c.notas.splice(idx,1); saveClients(); saveClientToCloud(c); showFicha(cid);
 }
 
 function addDoc(cid){
-  const inp=document.getElementById('docInput_'+cid);
-  const nombre=inp.value.trim(); if(!nombre) return;
+  const inpNombre=document.getElementById('docNombre_'+cid);
+  const inpUrl=document.getElementById('docUrl_'+cid);
+  const nombre=inpNombre.value.trim(); if(!nombre) return;
+  const url=inpUrl.value.trim();
   const c=clients.find(x=>x.id==cid); if(!c) return;
   if(!c.docs) c.docs=[];
-  c.docs.unshift({nombre,fecha:new Date().toISOString()});
-  saveClients(); inp.value=''; showFicha(cid);
+  c.docs.unshift({nombre,url,fecha:new Date().toISOString()});
+  saveClients(); saveClientToCloud(c);
+  inpNombre.value=''; inpUrl.value='';
+  showFicha(cid);
 }
 
 function deleteDoc(cid,idx){
   const c=clients.find(x=>x.id==cid); if(!c) return;
-  c.docs.splice(idx,1); saveClients(); showFicha(cid);
+  c.docs.splice(idx,1); saveClients(); saveClientToCloud(c); showFicha(cid);
 }
 
 document.getElementById('headerDate').textContent=new Date().toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+
+function doLogin(){
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  document.getElementById('loginError').style.display = 'none';
+  if(!email||!password) return;
+  window.fsSignIn(window.auth, email, password).catch(e => {
+    document.getElementById('loginError').style.display = 'block';
+  });
+}
+
+function doLogout(){
+  window.fsSignOut(window.auth);
+}
+
+document.getElementById('loginEmail').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('loginPassword').focus(); });
+document.getElementById('loginPassword').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
 load(); renderDashboard();
 </script>
 </body>
