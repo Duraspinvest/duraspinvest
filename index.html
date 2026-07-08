@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#0A2540">
 <title>Duraspinvest</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMAAAADACAYAAABS3GwHAAAE50lEQVR4nO3dTVbjRhiGUdknI1hBFgDrgHGPstKMMoZ1wAKyApiSQYc+tPGPZJWkqnrvHXfb8jnfoyrJP+yGDdzcPXxs8bzU7f31ebf2c67yhAaea6wRxGJPYOgpaakYij6ooWcNJWPYl3ogw89aSs7a7JIMPluauxrMWgEMP1ubO4NX1WPwqdE1q8HkFcDwU6trZnNSAIaf2k2d0dEBGH5aMWVWRwVg+GnN2Jm9GIDhp1VjZvdsAIaf1l2a4WLvBEOLTgbg7E8vzs3y0QAMP705NdO2QET7FoCzP706Ntv7S/8AenI447ZARBMA0X4FYPtDiq+z/kfJB357efq35OO14vb+8c8lH//t5emvJR+/Vrf3j38v/Ry2QETbD4PtD3k+Z94KQDQBEE0ARNvb/5Pq5u7hwwpANAEQTQBEEwDRBEA0ARBNAEQTANEEQDQBEK3oF2JKWPrLJanW+HLJV618iccKQDQBEE0ARBMA0aq7CN7ilyVceOeyAhBNAEQTANEEQDQBEE0ARBMA0QRANAEQTQBEEwDRBEA0ARBNAEQTANEEQLTqvhDjyymsyQpANAEQTQBEEwDRBEC06u4CbfGzKHO1cOeqld/qXJsVgGgCIJoAiCYAogmAaAIgmgCIJgCiCYBoAiCaAIgmAKIJgGgCIJoAiCYAou1u7h4+tj4I2IoVgGgCIJoAiCYAogmAaAIgmgCIJgCiCYBoAiCaAIgmAKIJgGgCIJoAiCYAogmAaAIgmgCIJgCiCYBo1f2Z1J68vTz9M/X/3N4//ljiWDjOz6IUdM3AXyKIZQlgpiWG/hQxlCeAK6w59KeIoQwBTFDD4B8SwjwCGKHGwT8khOu4DXpBC8M/DO0cZ20EcEZrQ9Xa8dbAFuiIHgbJlmgcK8CBHoZ/GPp5HUsTwBe9DU1vr2cJAvhfr8PS6+sqRQBD/0PS++ubIz6AlOFIeZ1TRQeQNhRpr3eM6AAg9n2A2j7FWdvxpIgMYOlhKzFgLRxjD3wjrKCSQ/X5WPbty4pbAVr91larx107K8AMaw6QFWEZUXeBSg7PVmfPks8rprAASg3P1luHrZ+/J3HXAF+1/rMlJc7gNb2eLUQH8GnKILVwi3Oq5AhcBA+/D8C54UwelF5FXQOMcXv/+MOg57ACnHC4KoiiT1aAEXof/tquSdYkAKIJgGgCIJoAiCYAogmAaAIgmgCIJgCiCYDu3+k+RwBEEwDRfBp0A1O3HMkfVluaFSBc8v5/GARAOAEQTQDB0rc/wyAAwgmgckvdAXL2/8lt0Eq59bkOAVTCH8jYhgBWUNPZ3PD/zjUA0QSwMGf/ugkghOE/TgBEEwDR9u+vz7utDwK28P76vLMCEM37AJ1xsTuNFWBBa98CNfzT7Yfh515o6wNhHsM/zefM2wI1zuDPI4BGGfwyfgXw/vrsT6ZWztCX8XXLbwWonKFflgAqY+DX9e3uj20QPTu84/ntfQC3ROnVsdn2RhjRjgZgFaA3p2b65AogAnpxbpZtgYh2NgCrAK27NMMXVwAR0KoxsztqCyQCWjN2ZkdfA4iAVkyZ1UkXwSKgdlNndPJdIBFQq2tmc9Yw+9wQNZhzUp71PoDVgK3NncFiA2w1YE2lTr7F3gm2GrCWkrO22NBaEShpqRPsKmdtMXCNNXYVm2xbBMExW2yj/wNHKI0+MOfFLAAAAABJRU5ErkJggg==">
 <link rel="icon" type="image/png" sizes="192x192" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMAAAADACAYAAABS3GwHAAAE50lEQVR4nO3dTVbjRhiGUdknI1hBFgDrgHGPstKMMoZ1wAKyApiSQYc+tPGPZJWkqnrvHXfb8jnfoyrJP+yGDdzcPXxs8bzU7f31ebf2c67yhAaea6wRxGJPYOgpaakYij6ooWcNJWPYl3ogw89aSs7a7JIMPluauxrMWgEMP1ubO4NX1WPwqdE1q8HkFcDwU6trZnNSAIaf2k2d0dEBGH5aMWVWRwVg+GnN2Jm9GIDhp1VjZvdsAIaf1l2a4WLvBEOLTgbg7E8vzs3y0QAMP705NdO2QET7FoCzP706Ntv7S/8AenI447ZARBMA0X4FYPtDiq+z/kfJB357efq35OO14vb+8c8lH//t5emvJR+/Vrf3j38v/Ry2QETbD4PtD3k+Z94KQDQBEE0ARNvb/5Pq5u7hwwpANAEQTQBEEwDRBEA0ARBNAEQTANEEQDQBEK3oF2JKWPrLJanW+HLJV618iccKQDQBEE0ARBMA0aq7CN7ilyVceOeyAhBNAEQTANEEQDQBEE0ARBMA0QRANAEQTQBEEwDRBEA0ARBNAEQTANEEQLTqvhDjyymsyQpANAEQTQBEEwDRBEC06u4CbfGzKHO1cOeqld/qXJsVgGgCIJoAiCYAogmAaAIgmgCIJgCiCYBoAiCaAIgmAKIJgGgCIJoAiCYAou1u7h4+tj4I2IoVgGgCIJoAiCYAogmAaAIgmgCIJgCiCYBoAiCaAIgmAKIJgGgCIJoAiCYAogmAaAIgmgCIJgCiCYBo1f2Z1J68vTz9M/X/3N4//ljiWDjOz6IUdM3AXyKIZQlgpiWG/hQxlCeAK6w59KeIoQwBTFDD4B8SwjwCGKHGwT8khOu4DXpBC8M/DO0cZ20EcEZrQ9Xa8dbAFuiIHgbJlmgcK8CBHoZ/GPp5HUsTwBe9DU1vr2cJAvhfr8PS6+sqRQBD/0PS++ubIz6AlOFIeZ1TRQeQNhRpr3eM6AAg9n2A2j7FWdvxpIgMYOlhKzFgLRxjD3wjrKCSQ/X5WPbty4pbAVr91larx107K8AMaw6QFWEZUXeBSg7PVmfPks8rprAASg3P1luHrZ+/J3HXAF+1/rMlJc7gNb2eLUQH8GnKILVwi3Oq5AhcBA+/D8C54UwelF5FXQOMcXv/+MOg57ACnHC4KoiiT1aAEXof/tquSdYkAKIJgGgCIJoAiCYAogmAaAIgmgCIJgCiCYDu3+k+RwBEEwDRfBp0A1O3HMkfVluaFSBc8v5/GARAOAEQTQDB0rc/wyAAwgmgckvdAXL2/8lt0Eq59bkOAVTCH8jYhgBWUNPZ3PD/zjUA0QSwMGf/ugkghOE/TgBEEwDR9u+vz7utDwK28P76vLMCEM37AJ1xsTuNFWBBa98CNfzT7Yfh515o6wNhHsM/zefM2wI1zuDPI4BGGfwyfgXw/vrsT6ZWztCX8XXLbwWonKFflgAqY+DX9e3uj20QPTu84/ntfQC3ROnVsdn2RhjRjgZgFaA3p2b65AogAnpxbpZtgYh2NgCrAK27NMMXVwAR0KoxsztqCyQCWjN2ZkdfA4iAVkyZ1UkXwSKgdlNndPJdIBFQq2tmc9Yw+9wQNZhzUp71PoDVgK3NncFiA2w1YE2lTr7F3gm2GrCWkrO22NBaEShpqRPsKmdtMXCNNXYVm2xbBMExW2yj/wNHKI0+MOfFLAAAAABJRU5ErkJggg==">
@@ -387,7 +388,13 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
   <div id="clientesLista">
     <div class="clientes-header">
       <span class="clientes-title">Clientes</span>
-      <button class="btn btn-primary btn-sm" onclick="openClienteModal()">+ Nuevo cliente</button>
+      <div style="display:flex;gap:8px;">
+        <div id="importBtnWrap">
+          <input type="file" id="excelInput" accept=".xlsx,.xls" style="display:none;" onchange="importarExcel(this)">
+          <button class="btn btn-sm" style="background:var(--q2-bg);color:var(--q2);border:1px solid var(--q2-border);" onclick="document.getElementById('excelInput').click()">⬆ Importar Excel</button>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="openClienteModal()">+ Nuevo cliente</button>
+      </div>
     </div>
     <div class="search-bar">
       <input type="text" class="search-input" placeholder="Buscar cliente..." oninput="filterClientes(this.value)">
@@ -636,6 +643,11 @@ function renderCalendar(){
 function changeMonth(dir){ calMonth+=dir; if(calMonth>11){calMonth=0;calYear++;}if(calMonth<0){calMonth=11;calYear--;} renderCalendar(); }
 
 function renderClientesList(filter=''){
+  // Ocultar botón importar si ya se usó antes
+  if(localStorage.getItem('duraspinvest_imported')){
+    const wrap=document.getElementById('importBtnWrap');
+    if(wrap) wrap.style.display='none';
+  }
   const el=document.getElementById('clientesList');
   const list=clients.filter(c=>!filter||c.nombre.toLowerCase().includes(filter.toLowerCase())||( c.nif&&c.nif.toLowerCase().includes(filter.toLowerCase())));
   if(!list.length){el.innerHTML='<div class="empty"><div class="empty-icon">👤</div><div class="empty-text">No hay clientes. Añade el primero.</div></div>';return;}
@@ -658,6 +670,75 @@ function renderClientesList(filter=''){
 }
 
 function filterClientes(v){ renderClientesList(v); }
+
+function importarExcel(input){
+  const file = input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, {type:'array'});
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, {header:1});
+      
+      // Saltar filas de cabecera (fila 1 título, fila 2 instrucciones, fila 3 encabezados, fila 4 valores permitidos)
+      let importados = 0;
+      let errores = 0;
+      
+      for(let i=4; i<rows.length; i++){
+        const row = rows[i];
+        if(!row || !row[0] || String(row[0]).trim()==='') continue;
+        
+        const nombre = String(row[0]||'').trim();
+        if(!nombre) continue;
+        
+        // Verificar si ya existe
+        const existe = clients.find(c=>c.nombre.toLowerCase()===nombre.toLowerCase());
+        if(existe){ errores++; continue; }
+        
+        const cliente = {
+          id: Date.now() + i,
+          nombre: nombre,
+          nif: String(row[1]||'').trim(),
+          tipo: String(row[2]||'Sociedad').trim(),
+          servicios: String(row[3]||'Fiscal').trim(),
+          tel: String(row[4]||'').trim(),
+          email: String(row[5]||'').trim(),
+          iva: String(row[6]||'General').trim(),
+          notas: row[7] ? [{texto:String(row[7]).trim(), fecha:new Date().toISOString()}] : [],
+          docs: []
+        };
+        
+        // Documentos iniciales
+        if(row[8] && String(row[8]).trim()) cliente.docs.push({nombre:String(row[8]).trim(), url:'', fecha:new Date().toISOString()});
+        if(row[9] && String(row[9]).trim()) cliente.docs.push({nombre:String(row[9]).trim(), url:'', fecha:new Date().toISOString()});
+        
+        clients.push(cliente);
+        saveClientToCloud(cliente);
+        importados++;
+      }
+      
+      saveClients();
+      
+      // Ocultar botón de importar después del primer uso
+      const wrap = document.getElementById('importBtnWrap');
+      if(wrap) wrap.style.display='none';
+      localStorage.setItem('duraspinvest_imported','true');
+      
+      renderClientesList();
+      
+      let msg = importados + ' cliente(s) importado(s) correctamente.';
+      if(errores>0) msg += ' ' + errores + ' omitido(s) por nombre duplicado.';
+      alert(msg);
+      
+    } catch(err){
+      alert('Error al leer el archivo. Asegúrate de que es el Excel de Duraspinvest.');
+      console.error(err);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
 function showClientesList(){ document.getElementById('clientesLista').style.display=''; document.getElementById('clienteFicha').style.display='none'; document.getElementById('fabBtn').style.display='flex'; }
 
 function showFicha(id){
@@ -713,11 +794,30 @@ function showFicha(id){
     <div class="ficha-section">
       <div class="ficha-section-header"><span class="ficha-section-title">Documentos</span></div>
       <div id="docsList_${c.id}">
-        ${(c.docs||[]).length?(c.docs||[]).map((d,i)=>`<div class="doc-item"><div class="doc-icon">📄</div><div class="doc-info"><div class="doc-nombre">${d.nombre}</div><div class="doc-fecha">${new Date(d.fecha).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'})}</div></div><button class="icon-btn" onclick="deleteDoc(${c.id},${i})">×</button></div>`).join(''):'<div class="empty" style="padding:16px;">Sin documentos</div>'}
+        ${(c.docs||[]).length?(c.docs||[]).map((d,i)=>`
+        <div class="doc-item">
+          <div class="doc-icon">📄</div>
+          <div class="doc-info">
+            <div class="doc-nombre">${d.nombre}</div>
+            <div class="doc-fecha">${new Date(d.fecha).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'})}</div>
+          </div>
+          <div style="display:flex;gap:4px;flex-shrink:0;align-items:center;">
+            ${d.url?`<a href="${d.url}" target="_blank" class="btn btn-sm" style="background:var(--q2-bg);color:var(--q2);text-decoration:none;font-size:11px;" title="Abrir">Abrir</a>`:''}
+            ${d.url?`<a href="mailto:?subject=${encodeURIComponent(d.nombre)}&body=${encodeURIComponent('Te comparto el documento: '+d.nombre+'\n\n'+d.url)}" class="btn btn-sm" style="background:var(--bg-success,#F0FDF4);color:#059669;text-decoration:none;font-size:11px;" title="Compartir por email">Email</a>`:''}
+            ${d.url?`<a href="https://wa.me/?text=${encodeURIComponent(d.nombre+': '+d.url)}" target="_blank" class="btn btn-sm" style="background:#F0FDF4;color:#25D366;text-decoration:none;font-size:11px;" title="Compartir por WhatsApp">WA</a>`:''}
+            <button class="icon-btn" onclick="deleteDoc(${c.id},${i})" title="Eliminar">×</button>
+          </div>
+        </div>`).join(''):'<div class="empty" style="padding:16px;">Sin documentos. Añade el enlace de Google Drive.</div>'}
       </div>
-      <div class="nota-input-row">
-        <input type="text" class="nota-input" id="docInput_${c.id}" placeholder="Nombre del documento (ej: Modelo 303 T1 2026)">
-        <button class="btn btn-primary btn-sm" style="align-self:flex-end;" onclick="addDoc(${c.id})">Añadir</button>
+      <div style="padding:12px 18px;border-top:0.5px solid var(--gray-100);">
+        <div style="font-size:11px;color:var(--gray-400);margin-bottom:8px;">Sube el PDF a Google Drive, copia el enlace y pégalo aquí.</div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <input type="text" class="nota-input" id="docNombre_${c.id}" placeholder="Nombre del documento (ej: Modelo 303 T1 2026)" style="width:100%;">
+          <input type="text" class="nota-input" id="docUrl_${c.id}" placeholder="Enlace de Google Drive (https://drive.google.com/...)" style="width:100%;">
+          <div style="display:flex;justify-content:flex-end;">
+            <button class="btn btn-primary btn-sm" onclick="addDoc(${c.id})">Añadir documento</button>
+          </div>
+        </div>
       </div>
     </div>`;
 }
@@ -742,12 +842,16 @@ function deleteNota(cid,idx){
 }
 
 function addDoc(cid){
-  const inp=document.getElementById('docInput_'+cid);
-  const nombre=inp.value.trim(); if(!nombre) return;
+  const inpNombre=document.getElementById('docNombre_'+cid);
+  const inpUrl=document.getElementById('docUrl_'+cid);
+  const nombre=inpNombre.value.trim(); if(!nombre) return;
+  const url=inpUrl.value.trim();
   const c=clients.find(x=>x.id==cid); if(!c) return;
   if(!c.docs) c.docs=[];
-  c.docs.unshift({nombre,fecha:new Date().toISOString()});
-  saveClients(); saveClientToCloud(c); inp.value=''; showFicha(cid);
+  c.docs.unshift({nombre,url,fecha:new Date().toISOString()});
+  saveClients(); saveClientToCloud(c);
+  inpNombre.value=''; inpUrl.value='';
+  showFicha(cid);
 }
 
 function deleteDoc(cid,idx){
