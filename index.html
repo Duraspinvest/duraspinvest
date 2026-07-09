@@ -257,7 +257,16 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
   onSnapshot(collection(db, "clients"), (snapshot) => {
     window.clients = [];
     snapshot.forEach(d => window.clients.push({...d.data(), id: d.id}));
-    if(typeof renderClientesList === 'function' && document.getElementById('clientesList')) renderClientesList();
+    // Guardar también en localStorage como cache
+    localStorage.setItem('duraspinvest_clients', JSON.stringify(window.clients));
+    if(typeof renderClientesList === 'function' && document.getElementById('clientesList') && document.getElementById('clientes').classList.contains('active')) renderClientesList();
+  });
+
+  // Escuchar cambios en tiempo real en prospetos
+  onSnapshot(collection(db, "prospectos"), (snapshot) => {
+    window.prospectos = [];
+    snapshot.forEach(d => window.prospectos.push({...d.data(), id: d.id}));
+    if(typeof renderProspectos === 'function' && document.getElementById('prospectos') && document.getElementById('prospectos').classList.contains('active')) renderProspectos();
   });
 
   window.firebaseReady = true;
@@ -321,6 +330,7 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
   <button class="nav-btn" onclick="showSection('eisenhower',this)">⊕ Tareas</button>
   <button class="nav-btn" onclick="showSection('calendar',this)">▦ Calendario</button>
   <button class="nav-btn" onclick="showSection('clientes',this)">◉ Clientes</button>
+  <button class="nav-btn" onclick="showSection('prospectos',this)">◎ Prospectos</button>
 </nav>
 <main>
 
@@ -404,6 +414,20 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
   <div id="clienteFicha" style="display:none;"></div>
 </div>
 
+
+<!-- PROSPECTOS -->
+<div id="prospectos" class="section">
+  <div class="clientes-header" style="margin-bottom:16px;">
+    <span class="clientes-title">Prospectos y agenda personal</span>
+    <button class="btn btn-primary btn-sm" onclick="openProspectoModal()">+ Nuevo</button>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+    <div class="stat-card" style="border-left-color:#8B5CF6;"><div class="stat-num" id="statProspectos">0</div><div class="stat-label">Prospectos</div></div>
+    <div class="stat-card" style="border-left-color:#F59E0B;"><div class="stat-num" id="statLlamadas">0</div><div class="stat-label">Llamadas pendientes</div></div>
+  </div>
+  <div id="prospectosList"><div class="empty"><div class="empty-icon">◎</div><div class="empty-text">Sin prospectos. Añade posibles clientes o notas personales.</div></div></div>
+</div>
+
 </main>
 
 <!-- MODAL TAREA -->
@@ -462,14 +486,52 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
       </div>
       <div class="form-group"><label class="form-label">Servicios</label>
         <select class="form-select" id="cServicios">
-          <option>Fiscal</option><option>Fiscal | Contable</option><option>Fiscal | Laboral</option>
-          <option>Fiscal | Contable | Laboral</option><option>Contable</option><option>Laboral</option>
+          <option>Fiscal</option>
+          <option>Contable</option>
+          <option>Laboral</option>
+          <option>Fiscal | Contable</option>
+          <option>Fiscal | Laboral</option>
+          <option>Contable | Laboral</option>
+          <option>Fiscal | Contable | Laboral</option>
+          <option>Constitución de sociedades</option>
+          <option>Consultoría y asesoramiento</option>
+          <option>Otros</option>
         </select>
       </div>
     </div>
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="closeModal('clienteModalOverlay')">Cancelar</button>
       <button class="btn btn-primary" onclick="saveCliente()">Guardar cliente</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PROSPECTO -->
+<div class="modal-overlay" id="prospectoModalOverlay" onclick="closeModalOutside(event,'prospectoModalOverlay')">
+  <div class="modal">
+    <div class="modal-title" id="prospectoModalTitle">Nuevo prospecto</div>
+    <input type="hidden" id="pId">
+    <div class="form-group"><label class="form-label">Nombre / Empresa</label><input type="text" class="form-input" id="pNombre" placeholder="Ej: Juan García o Empresa XYZ"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Teléfono</label><input type="text" class="form-input" id="pTel" placeholder="600 000 000"></div>
+      <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" id="pEmail" placeholder="correo@ejemplo.com"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Tipo</label>
+        <select class="form-select" id="pTipo">
+          <option>Prospecto</option>
+          <option>Llamada pendiente</option>
+          <option>Reunión pendiente</option>
+          <option>Nota personal</option>
+          <option>Tarea propia</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Fecha seguimiento</label><input type="date" class="form-input" id="pFecha"></div>
+    </div>
+    <div class="form-group"><label class="form-label">Notas</label><textarea class="form-input" id="pNotas" rows="3" placeholder="Descripción, servicios de interés, cómo contactó..."></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('prospectoModalOverlay')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveProspecto()">Guardar</button>
     </div>
   </div>
 </div>
@@ -516,6 +578,7 @@ function showSection(id,btn){
 
 function onFab(){
   if(currentSection==='clientes') openClienteModal();
+  else if(currentSection==='prospectos') openProspectoModal();
   else openTaskModal('');
 }
 
@@ -860,6 +923,89 @@ function deleteDoc(cid,idx){
 }
 
 document.getElementById('headerDate').textContent=new Date().toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+
+function openProspectoModal(id){
+  document.getElementById('prospectoModalTitle').textContent = id ? 'Editar' : 'Nuevo prospecto';
+  document.getElementById('pId').value = id||'';
+  if(id){
+    const p=window.prospectos.find(x=>x.id==id)||{};
+    document.getElementById('pNombre').value=p.nombre||'';
+    document.getElementById('pTel').value=p.tel||'';
+    document.getElementById('pEmail').value=p.email||'';
+    document.getElementById('pTipo').value=p.tipo||'Prospecto';
+    document.getElementById('pFecha').value=p.fecha||'';
+    document.getElementById('pNotas').value=p.notas||'';
+  } else {
+    ['pNombre','pTel','pEmail','pNotas'].forEach(f=>document.getElementById(f).value='');
+    document.getElementById('pTipo').value='Prospecto';
+    document.getElementById('pFecha').value='';
+  }
+  document.getElementById('prospectoModalOverlay').classList.add('open');
+  document.getElementById('pNombre').focus();
+}
+
+async function saveProspecto(){
+  const nombre=document.getElementById('pNombre').value.trim();
+  if(!nombre) return document.getElementById('pNombre').focus();
+  const id=document.getElementById('pId').value;
+  const p={
+    id:id||String(Date.now()),
+    nombre,
+    tel:document.getElementById('pTel').value.trim(),
+    email:document.getElementById('pEmail').value.trim(),
+    tipo:document.getElementById('pTipo').value,
+    fecha:document.getElementById('pFecha').value,
+    notas:document.getElementById('pNotas').value.trim(),
+    creado:new Date().toISOString()
+  };
+  if(id){ const i=window.prospectos.findIndex(x=>x.id==id); if(i>=0) window.prospectos[i]=p; else window.prospectos.push(p); }
+  else window.prospectos.push(p);
+  if(window.db) await window.fsSetDoc(window.fsDoc(window.db,'prospectos',String(p.id)),p);
+  closeModal('prospectoModalOverlay');
+  renderProspectos();
+}
+
+async function deleteProspecto(id){
+  if(!confirm('¿Eliminar este registro?')) return;
+  window.prospectos=window.prospectos.filter(p=>p.id!=id);
+  if(window.db) await window.fsDeleteDoc(window.fsDoc(window.db,'prospectos',String(id)));
+  renderProspectos();
+}
+
+function renderProspectos(){
+  const list=window.prospectos||[];
+  document.getElementById('statProspectos').textContent=list.filter(p=>p.tipo==='Prospecto').length;
+  document.getElementById('statLlamadas').textContent=list.filter(p=>p.tipo==='Llamada pendiente').length;
+  const el=document.getElementById('prospectosList');
+  if(!list.length){ el.innerHTML='<div class="empty"><div class="empty-icon">◎</div><div class="empty-text">Sin prospectos. Añade posibles clientes o notas personales.</div></div>'; return; }
+  const sorted=[...list].sort((a,b)=>{
+    if(a.fecha&&b.fecha) return new Date(a.fecha)-new Date(b.fecha);
+    if(a.fecha) return -1; if(b.fecha) return 1; return 0;
+  });
+  const typeColors={'Prospecto':'#8B5CF6','Llamada pendiente':'#F59E0B','Reunión pendiente':'#2B7FFF','Nota personal':'#6B7280','Tarea propia':'#10B981'};
+  el.innerHTML=sorted.map(p=>{
+    const color=typeColors[p.tipo]||'#6B7280';
+    const ds=p.fecha?new Date(p.fecha+'T12:00:00').toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'}):'';
+    return `<div class="card" style="margin-bottom:10px;border-left:3px solid ${color};">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+        <div style="flex:1;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+            <span style="font-size:15px;font-weight:600;color:var(--gray-800);">${p.nombre}</span>
+            <span style="font-size:11px;padding:2px 8px;border-radius:20px;font-weight:500;background:${color}20;color:${color};">${p.tipo}</span>
+          </div>
+          ${p.tel?`<div style="font-size:12px;color:var(--gray-400);">📞 ${p.tel}</div>`:''}
+          ${p.email?`<div style="font-size:12px;color:var(--gray-400);">✉ ${p.email}</div>`:''}
+          ${p.notas?`<div style="font-size:13px;color:var(--gray-600);margin-top:6px;line-height:1.5;">${p.notas}</div>`:''}
+          ${ds?`<div style="font-size:11px;color:var(--accent);font-weight:500;margin-top:4px;">📅 Seguimiento: ${ds}</div>`:''}
+        </div>
+        <div style="display:flex;gap:4px;flex-shrink:0;">
+          <button class="icon-btn" onclick="openProspectoModal('${p.id}')" title="Editar">✏</button>
+          <button class="icon-btn" onclick="deleteProspecto('${p.id}')" title="Eliminar">×</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
 
 function doLogin(){
   const email = document.getElementById('loginEmail').value.trim();
