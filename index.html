@@ -723,23 +723,46 @@ function renderClientesList(filter=''){
     if(wrap) wrap.style.display='none';
   }
   const el=document.getElementById('clientesList');
-  const list=clients.filter(c=>!filter||c.nombre.toLowerCase().includes(filter.toLowerCase())||( c.nif&&c.nif.toLowerCase().includes(filter.toLowerCase())));
-  if(!list.length){el.innerHTML='<div class="empty"><div class="empty-icon">👤</div><div class="empty-text">No hay clientes. Añade el primero.</div></div>';return;}
-  el.innerHTML=list.map(c=>{
-    const tp=tasks.filter(t=>t.cliente===c.nombre&&t.estado!=='Completada').length;
-    const svcs=(c.servicios||'').split('|').map(s=>s.trim()).filter(Boolean);
-    return `<div class="cliente-card" onclick="showFicha(${c.id})">
-      <div class="cliente-avatar">${initials(c.nombre)}</div>
-      <div class="cliente-info">
-        <div class="cliente-nombre">${c.nombre}</div>
-        <div class="cliente-nif">${c.nif||'Sin NIF'} · ${c.tipo||''}</div>
-        <div class="cliente-badges">
-          ${svcs.map(s=>`<span class="badge badge-${s.toLowerCase().trim()}">${s}</span>`).join('')}
-          <span class="badge badge-tipo">IVA ${c.iva||'General'}</span>
+  if(!el) return;
+  const allClients = window.clients || [];
+  const filterLow = (filter||'').toLowerCase();
+  const list = allClients.filter(c => {
+    if(!filterLow) return true;
+    return (c.nombre||'').toLowerCase().includes(filterLow) || (c.nif||'').toLowerCase().includes(filterLow);
+  });
+  if(!list.length){
+    el.innerHTML='<div class="empty"><div class="empty-icon">👤</div><div class="empty-text">No hay clientes. Añade el primero.</div></div>';
+    return;
+  }
+  const allTasks = window.tasks || [];
+  el.innerHTML = list.map(c => {
+    try {
+      const tp = allTasks.filter(t => t.cliente === c.nombre && t.estado !== 'Completada').length;
+      const svcs = (c.servicios||'').split('|').map(s=>s.trim()).filter(Boolean);
+      const badgeColors = {'fiscal':'#EFF6FF','contable':'#F0FDF4','laboral':'#FFF7ED'};
+      const badgeText = {'fiscal':'#2B7FFF','contable':'#059669','laboral':'#D97706'};
+      const badges = svcs.map(s => {
+        const key = s.toLowerCase().trim();
+        const bg = badgeColors[key] || '#F1F5F9';
+        const color = badgeText[key] || '#64748B';
+        return `<span class="badge" style="background:${bg};color:${color};">${s}</span>`;
+      }).join('');
+      return `<div class="cliente-card" onclick="showFicha('${c.id}')">
+        <div class="cliente-avatar">${initials(c.nombre)}</div>
+        <div class="cliente-info">
+          <div class="cliente-nombre">${c.nombre}</div>
+          <div class="cliente-nif">${c.nif||'Sin NIF'} · ${c.tipo||''}</div>
+          <div class="cliente-badges">
+            ${badges}
+            <span class="badge badge-tipo">IVA ${c.iva||'General'}</span>
+          </div>
         </div>
-      </div>
-      <div class="cliente-tareas"><div class="cliente-tareas-num">${tp}</div><div class="cliente-tareas-label">tareas</div></div>
-    </div>`;
+        <div class="cliente-tareas"><div class="cliente-tareas-num">${tp}</div><div class="cliente-tareas-label">tareas</div></div>
+      </div>`;
+    } catch(e) {
+      console.error('Error renderizando cliente:', c.nombre, e);
+      return '';
+    }
   }).join('');
 }
 
@@ -816,7 +839,7 @@ function importarExcel(input){
 function showClientesList(){ document.getElementById('clientesLista').style.display=''; document.getElementById('clienteFicha').style.display='none'; document.getElementById('fabBtn').style.display='flex'; }
 
 function showFicha(id){
-  const c=clients.find(x=>x.id==id); if(!c) return;
+  const c=(window.clients||[]).find(x=>String(x.id)===String(id)); if(!c) return;
   document.getElementById('clientesLista').style.display='none';
   document.getElementById('fabBtn').style.display='none';
   const ct=tasks.filter(t=>t.cliente===c.nombre&&t.estado!=='Completada');
