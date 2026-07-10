@@ -205,6 +205,7 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
   import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyCVK3yF15Udps1l046kv6M1TASIwVEPcVs",
@@ -228,6 +229,37 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
   window.fsSetDoc = setDoc;
   window.fsDeleteDoc = deleteDoc;
   window.fsCollection = collection;
+
+  // Inicializar Firebase Messaging
+  let messaging = null;
+  try {
+    messaging = getMessaging(app);
+    window.fcmMessaging = messaging;
+    window.fcmGetToken = getToken;
+    window.fcmVapidKey = "BPPHhtPm5fpqPT33raRVmt5CdhxTlZsFqCLCx2WDTzjEppIljbC7-sLrulGtOrzq4dafq6yLZMSKtzVc3KSDico";
+
+    // Registrar Service Worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/duraspinvest/firebase-messaging-sw.js')
+        .then(reg => {
+          console.log('Service Worker registrado:', reg.scope);
+        })
+        .catch(err => console.log('SW error:', err));
+    }
+
+    // Mostrar notificaciones cuando la app está en primer plano
+    onMessage(messaging, (payload) => {
+      const { title, body } = payload.notification || {};
+      if (Notification.permission === 'granted') {
+        new Notification(title || 'Duraspinvest', {
+          body: body || '',
+          icon: '/duraspinvest/icon-192.png'
+        });
+      }
+    });
+  } catch(e) {
+    console.log('FCM no disponible:', e);
+  }
 
   // Listeners activos - se activan tras login
   let unsubTasks, unsubClients, unsubProspectos;
@@ -346,6 +378,7 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
   <div style="display:flex;align-items:center;gap:12px;">
     <div class="header-date" id="headerDate"></div>
     <span id="userEmail" style="color:#5A7FA8;font-size:11px;display:none;"></span>
+    <button id="btnNotif" onclick="activarNotificaciones()" style="background:rgba(255,255,255,0.1);color:#8A9BB0;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;" title="Activar notificaciones">🔔</button>
     <button onclick="doLogout()" style="background:rgba(255,255,255,0.1);color:#8A9BB0;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;">Salir</button>
   </div>
 </header>
@@ -1336,8 +1369,48 @@ function doLogin() {
 
 function doLogout() { window.fsSignOut(window.auth); }
 
+async function activarNotificaciones() {
+  if (!window.fcmMessaging) {
+    alert('Las notificaciones no están disponibles en este dispositivo.');
+    return;
+  }
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') {
+      alert('Para recibir notificaciones, permite el acceso en la configuración del navegador.');
+      return;
+    }
+    const token = await window.fcmGetToken(window.fcmMessaging, {
+      vapidKey: window.fcmVapidKey,
+      serviceWorkerRegistration: await navigator.serviceWorker.ready
+    });
+    if (token) {
+      // Guardar token en Firestore
+      await window.fsSetDoc(window.fsDoc(window.db, 'fcm_tokens', 'user_token'), {
+        token,
+        updated: new Date().toISOString()
+      });
+      localStorage.setItem('duraspinvest_notif', 'true');
+      document.getElementById('btnNotif').textContent = '🔔';
+      document.getElementById('btnNotif').style.color = '#FFD700';
+      alert('✅ Notificaciones activadas. Recibirás avisos de tareas urgentes y vencimientos.');
+    }
+  } catch(e) {
+    console.error('Error notificaciones:', e);
+    alert('No se pudieron activar las notificaciones: ' + e.message);
+  }
+}
+
+function checkNotifStatus() {
+  if (localStorage.getItem('duraspinvest_notif') === 'true' && Notification.permission === 'granted') {
+    const btn = document.getElementById('btnNotif');
+    if (btn) { btn.textContent = '🔔'; btn.style.color = '#FFD700'; }
+  }
+}
+
 document.getElementById('headerDate').textContent = new Date().toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 checkBiometricAvailable();
+checkNotifStatus();
 document.getElementById('loginEmail').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('loginPassword').focus(); });
 document.getElementById('loginPassword').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
 </script>
