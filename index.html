@@ -351,10 +351,10 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
 </header>
 <nav>
   <button class="nav-btn active" onclick="showSection('dashboard',this)">⊞ Inicio</button>
-  <button class="nav-btn" onclick="showSection('eisenhower',this)">⊕ Tareas</button>
+  <button class="nav-btn" onclick="showSection('eisenhower',this)" id="navTareas">⊕ Tareas <span id="badgeTareas" style="display:none;background:#EF4444;color:white;border-radius:20px;font-size:10px;padding:1px 6px;font-weight:700;margin-left:2px;"></span></button>
   <button class="nav-btn" onclick="showSection('calendar',this)">▦ Calendario</button>
   <button class="nav-btn" onclick="showSection('clientes',this)">◉ Clientes</button>
-  <button class="nav-btn" onclick="showSection('prospectos',this)">◎ Prospectos</button>
+  <button class="nav-btn" onclick="showSection('prospectos',this)" id="navProspectos">◎ Prospectos <span id="badgeProspectos" style="display:none;background:#F59E0B;color:white;border-radius:20px;font-size:10px;padding:1px 6px;font-weight:700;margin-left:2px;"></span></button>
 </nav>
 <main>
 
@@ -366,6 +366,11 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
     <div class="stat-card q3"><div class="stat-num" id="statQ3">0</div><div class="stat-label">A delegar</div></div>
     <div class="stat-card" style="border-left-color:var(--success)"><div class="stat-num" id="statDone">0</div><div class="stat-label">Completadas</div></div>
   </div>
+  <div id="alertasPanel" style="display:none;background:#FEF2F2;border:1px solid #FECACA;border-radius:var(--radius);padding:14px 18px;margin-bottom:16px;">
+    <div style="font-size:13px;font-weight:600;color:#EF4444;margin-bottom:8px;">🔴 Alertas urgentes</div>
+    <div id="alertasList"></div>
+  </div>
+
   <div class="upcoming">
     <div class="upcoming-header"><span class="upcoming-title">Próximos vencimientos</span></div>
     <div id="upcomingList"><div class="empty"><div class="empty-icon">📋</div><div class="empty-text">No hay tareas con fecha próxima</div></div></div>
@@ -840,6 +845,84 @@ function renderDashboard() {
     const ds = t.fecha ? new Date(t.fecha + 'T12:00:00').toLocaleDateString('es-ES', {day:'2-digit',month:'short'}) : '';
     return `<div class="task-item"><div class="task-dot ${qClass(t.cuadrante)}"></div><div class="task-info"><div class="task-name">${t.nombre}</div><div class="task-meta">${t.area||''}${t.cliente ? ' · ' + t.cliente : ''}</div></div><div style="text-align:right"><div class="task-date">${ds}</div><span class="days-badge ${dc}">${dt}</span></div></div>`;
   }).join('');
+
+  // Actualizar badges y alertas
+  updateBadges();
+}
+
+function updateBadges() {
+  const allTasks = window.tasks || [];
+  const allProspectos = window.prospectos || [];
+
+  // Badge de tareas urgentes (Q1 que vencen en <= 2 días o ya vencidas)
+  const urgentes = allTasks.filter(t => {
+    if (t.estado === 'Completada') return false;
+    if (!(t.cuadrante||'').includes('Q1')) return false;
+    if (!t.fecha) return false;
+    const days = daysUntil(t.fecha);
+    return days !== null && days <= 2;
+  });
+
+  const badgeTareas = document.getElementById('badgeTareas');
+  if (badgeTareas) {
+    if (urgentes.length > 0) {
+      badgeTareas.textContent = urgentes.length;
+      badgeTareas.style.display = 'inline';
+    } else {
+      badgeTareas.style.display = 'none';
+    }
+  }
+
+  // Badge de prospectos con seguimiento vencido
+  const prospectosPendientes = allProspectos.filter(p => {
+    if (!p.fecha) return false;
+    const days = daysUntil(p.fecha);
+    return days !== null && days <= 0;
+  });
+
+  const badgeProspectos = document.getElementById('badgeProspectos');
+  if (badgeProspectos) {
+    if (prospectosPendientes.length > 0) {
+      badgeProspectos.textContent = prospectosPendientes.length;
+      badgeProspectos.style.display = 'inline';
+    } else {
+      badgeProspectos.style.display = 'none';
+    }
+  }
+
+  // Panel de alertas en dashboard
+  const alertasPanel = document.getElementById('alertasPanel');
+  const alertasList = document.getElementById('alertasList');
+  if (!alertasPanel || !alertasList) return;
+
+  const alertas = [];
+
+  // Tareas vencidas
+  allTasks.filter(t => t.estado !== 'Completada' && t.fecha).forEach(t => {
+    const days = daysUntil(t.fecha);
+    if (days !== null && days < 0) {
+      alertas.push(`<div style="font-size:13px;color:#7F1D1D;margin-bottom:4px;">⚠ <strong>${t.nombre}</strong> — venció hace ${Math.abs(days)} día(s)${t.cliente ? ' · ' + t.cliente : ''}</div>`);
+    } else if (days === 0) {
+      alertas.push(`<div style="font-size:13px;color:#991B1B;margin-bottom:4px;">🔴 <strong>${t.nombre}</strong> — vence HOY${t.cliente ? ' · ' + t.cliente : ''}</div>`);
+    } else if (days === 1) {
+      alertas.push(`<div style="font-size:13px;color:#B91C1C;margin-bottom:4px;">🟠 <strong>${t.nombre}</strong> — vence MAÑANA${t.cliente ? ' · ' + t.cliente : ''}</div>`);
+    }
+  });
+
+  // Seguimientos de prospectos vencidos
+  allProspectos.filter(p => p.fecha).forEach(p => {
+    const days = daysUntil(p.fecha);
+    if (days !== null && days <= 0) {
+      alertas.push(`<div style="font-size:13px;color:#92400E;margin-bottom:4px;">📞 <strong>${p.nombre}</strong> — seguimiento pendiente${days < 0 ? ' desde hace ' + Math.abs(days) + ' día(s)' : ' HOY'}</div>`);
+    }
+  });
+
+  if (alertas.length > 0) {
+    alertasPanel.style.display = 'block';
+    alertasList.innerHTML = alertas.join('');
+  } else {
+    alertasPanel.style.display = 'none';
+  }
 }
 
 function renderEisenhower() {
@@ -1060,6 +1143,7 @@ function renderProspectos() {
     if (a.fecha) return -1; if (b.fecha) return 1; return 0;
   });
   const typeColors = {'Prospecto':'#8B5CF6','Llamada pendiente':'#F59E0B','Reunión pendiente':'#2B7FFF','Nota personal':'#6B7280','Tarea propia':'#10B981'};
+  updateBadges();
   el.innerHTML = sorted.map(p => {
     const color = typeColors[p.tipo] || '#6B7280';
     const ds = p.fecha ? new Date(p.fecha+'T12:00:00').toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'}) : '';
