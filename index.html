@@ -305,12 +305,26 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
       <label style="font-size:12px;font-weight:600;color:#4A5A6B;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:6px;">Email</label>
       <input type="email" id="loginEmail" placeholder="tu@email.com" style="width:100%;padding:10px 12px;border:1.5px solid #D6DEE8;border-radius:8px;font-size:14px;outline:none;font-family:inherit;">
     </div>
-    <div style="margin-bottom:20px;">
+    <div style="margin-bottom:16px;">
       <label style="font-size:12px;font-weight:600;color:#4A5A6B;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:6px;">Contraseña</label>
       <input type="password" id="loginPassword" placeholder="••••••••" style="width:100%;padding:10px 12px;border:1.5px solid #D6DEE8;border-radius:8px;font-size:14px;outline:none;font-family:inherit;">
     </div>
     <div id="loginError" style="color:#EF4444;font-size:13px;margin-bottom:12px;display:none;text-align:center;">Email o contraseña incorrectos</div>
     <button onclick="doLogin()" style="width:100%;padding:12px;background:#0A2540;color:white;border:none;border-radius:8px;font-size:15px;font-weight:500;cursor:pointer;font-family:inherit;">Entrar</button>
+    
+    <div id="biometricSection" style="display:none;margin-top:12px;">
+      <div style="display:flex;align-items:center;gap:8px;margin:12px 0;"><div style="flex:1;height:1px;background:#D6DEE8;"></div><span style="font-size:12px;color:#8A9BB0;">o</span><div style="flex:1;height:1px;background:#D6DEE8;"></div></div>
+      <button onclick="loginConHuella()" style="width:100%;padding:12px;background:#EFF6FF;color:#1B4F8A;border:1.5px solid #BFDBFE;border-radius:8px;font-size:15px;font-weight:500;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;">
+        <span style="font-size:20px;">👆</span> Entrar con huella dactilar
+      </button>
+    </div>
+    
+    <div id="biometricSetupSection" style="display:none;margin-top:12px;">
+      <div style="display:flex;align-items:center;gap:8px;margin:12px 0;"><div style="flex:1;height:1px;background:#D6DEE8;"></div><span style="font-size:12px;color:#8A9BB0;">acceso rápido</span><div style="flex:1;height:1px;background:#D6DEE8;"></div></div>
+      <button onclick="activarHuella()" style="width:100%;padding:10px;background:#F0FDF4;color:#059669;border:1.5px solid #BBF7D0;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;">
+        👆 Activar acceso con huella dactilar
+      </button>
+    </div>
   </div>
 </div>
 
@@ -1123,19 +1137,123 @@ function importarExcel(input) {
 
 // ── Login ────────────────────────────────────────────────────────────────────
 
+// ── Biometría WebAuthn ────────────────────────────────────────────────────────
+
+const BIOMETRIC_KEY = 'duraspinvest_biometric';
+const BIOMETRIC_CRED = 'duraspinvest_credential_id';
+
+function checkBiometricAvailable() {
+  if (window.PublicKeyCredential && localStorage.getItem(BIOMETRIC_KEY) === 'true') {
+    document.getElementById('biometricSection').style.display = 'block';
+  }
+}
+
+async function activarHuella() {
+  if (!window.PublicKeyCredential) {
+    alert('Tu dispositivo no soporta acceso biométrico.');
+    return;
+  }
+  try {
+    const challenge = new Uint8Array(32);
+    window.crypto.getRandomValues(challenge);
+    
+    const credential = await navigator.credentials.create({
+      publicKey: {
+        challenge,
+        rp: { name: 'Duraspinvest', id: window.location.hostname },
+        user: {
+          id: new TextEncoder().encode('duraspinvest-user'),
+          name: 'Duraspinvest',
+          displayName: 'Duraspinvest'
+        },
+        pubKeyCredParams: [{ alg: -7, type: 'public-key' }],
+        authenticatorSelection: {
+          authenticatorAttachment: 'platform',
+          userVerification: 'required'
+        },
+        timeout: 60000
+      }
+    });
+    
+    // Guardar el ID de la credencial
+    const credId = btoa(String.fromCharCode(...new Uint8Array(credential.rawId)));
+    localStorage.setItem(BIOMETRIC_CRED, credId);
+    localStorage.setItem(BIOMETRIC_KEY, 'true');
+    
+    document.getElementById('biometricSetupSection').style.display = 'none';
+    alert('✅ Huella dactilar activada. La próxima vez podrás entrar con tu huella.');
+  } catch(e) {
+    console.error('Error activando biometría:', e);
+    alert('No se pudo activar la huella. Asegúrate de tener huella configurada en tu dispositivo.');
+  }
+}
+
+async function loginConHuella() {
+  if (!window.PublicKeyCredential) return;
+  try {
+    const challenge = new Uint8Array(32);
+    window.crypto.getRandomValues(challenge);
+    
+    const credIdStr = localStorage.getItem(BIOMETRIC_CRED);
+    if (!credIdStr) { alert('No hay huella registrada.'); return; }
+    
+    const credId = Uint8Array.from(atob(credIdStr), c => c.charCodeAt(0));
+    
+    await navigator.credentials.get({
+      publicKey: {
+        challenge,
+        rpId: window.location.hostname,
+        allowCredentials: [{ type: 'public-key', id: credId }],
+        userVerification: 'required',
+        timeout: 60000
+      }
+    });
+    
+    // Huella verificada — recuperar credenciales guardadas y hacer login
+    const savedEmail = localStorage.getItem('duraspinvest_saved_email');
+    const savedPass = localStorage.getItem('duraspinvest_saved_pass');
+    
+    if (savedEmail && savedPass) {
+      window.fsSignIn(window.auth, savedEmail, savedPass).catch(() => {
+        alert('Error al iniciar sesión. Por favor usa email y contraseña.');
+      });
+    } else {
+      alert('No hay sesión guardada. Inicia sesión con email y contraseña primero.');
+    }
+  } catch(e) {
+    console.error('Error biometría:', e);
+    document.getElementById('loginError').style.display = 'block';
+    document.getElementById('loginError').textContent = 'Huella no reconocida. Usa email y contraseña.';
+  }
+}
+
+// ── Login ────────────────────────────────────────────────────────────────────
+
 function doLogin() {
   const email = document.getElementById('loginEmail').value.trim();
   const password = document.getElementById('loginPassword').value;
   document.getElementById('loginError').style.display = 'none';
   if (!email || !password) return;
-  window.fsSignIn(window.auth, email, password).catch(() => {
-    document.getElementById('loginError').style.display = 'block';
-  });
+  window.fsSignIn(window.auth, email, password)
+    .then(() => {
+      // Guardar credenciales para biometría (encriptadas en localStorage)
+      localStorage.setItem('duraspinvest_saved_email', email);
+      localStorage.setItem('duraspinvest_saved_pass', password);
+      // Mostrar opción de activar huella si no está activada
+      if (window.PublicKeyCredential && localStorage.getItem(BIOMETRIC_KEY) !== 'true') {
+        document.getElementById('biometricSetupSection').style.display = 'block';
+      }
+    })
+    .catch(() => {
+      document.getElementById('loginError').style.display = 'block';
+      document.getElementById('loginError').textContent = 'Email o contraseña incorrectos';
+    });
 }
 
 function doLogout() { window.fsSignOut(window.auth); }
 
 document.getElementById('headerDate').textContent = new Date().toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+checkBiometricAvailable();
 document.getElementById('loginEmail').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('loginPassword').focus(); });
 document.getElementById('loginPassword').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
 </script>
