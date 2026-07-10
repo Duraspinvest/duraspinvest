@@ -648,8 +648,8 @@ function saveCliente(){
   saveClients(); saveClientToCloud(c); closeModal('clienteModalOverlay'); renderClientesList();
 }
 
-function deleteTask(id){ tasks=tasks.filter(t=>t.id!==id); saveTasks(); deleteTaskFromCloud(id); renderDashboard(); renderEisenhower(); renderCalendar(); }
-function completeTask(id){ const t=tasks.find(t=>t.id===id); if(t){t.estado=t.estado==='Completada'?'Pendiente':'Completada';saveTasks();saveTaskToCloud(t);renderDashboard();renderEisenhower();} }
+function deleteTask(id){ window.tasks=(window.tasks||[]).filter(t=>t.id!==id); saveTasks(); deleteTaskFromCloud(id); renderDashboard(); renderEisenhower(); renderCalendar(); }
+function completeTask(id){ const t=(window.tasks||[]).find(t=>String(t.id)===String(id)); if(t){t.estado=t.estado==='Completada'?'Pendiente':'Completada';saveTasks();saveTaskToCloud(t);renderDashboard();renderEisenhower();} }
 function deleteCliente(id){ if(!confirm('¿Eliminar este cliente?')) return; clients=clients.filter(c=>c.id!=id); saveClients(); deleteClientFromCloud(id); renderClientesList(); }
 
 function qClass(q){ if(q.includes('Q1')) return 'q1'; if(q.includes('Q2')) return 'q2'; if(q.includes('Q3')) return 'q3'; return 'q4'; }
@@ -657,26 +657,33 @@ function daysUntil(d){ if(!d) return null; const a=new Date(d),b=new Date(); a.s
 function initials(n){ return n.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase(); }
 
 function renderDashboard(){
-  const p=tasks.filter(t=>t.estado!=='Completada');
-  document.getElementById('statQ1').textContent=p.filter(t=>t.cuadrante.includes('Q1')).length;
-  document.getElementById('statQ2').textContent=p.filter(t=>t.cuadrante.includes('Q2')).length;
-  document.getElementById('statQ3').textContent=p.filter(t=>t.cuadrante.includes('Q3')).length;
-  document.getElementById('statDone').textContent=tasks.filter(t=>t.estado==='Completada').length;
+  const allTasks = window.tasks || [];
+  const p = allTasks.filter(t=>t.estado!=='Completada');
+  const statQ1 = document.getElementById('statQ1');
+  const statQ2 = document.getElementById('statQ2');
+  const statQ3 = document.getElementById('statQ3');
+  const statDone = document.getElementById('statDone');
+  if(statQ1) statQ1.textContent=p.filter(t=>(t.cuadrante||'').includes('Q1')).length;
+  if(statQ2) statQ2.textContent=p.filter(t=>(t.cuadrante||'').includes('Q2')).length;
+  if(statQ3) statQ3.textContent=p.filter(t=>(t.cuadrante||'').includes('Q3')).length;
+  if(statDone) statDone.textContent=allTasks.filter(t=>t.estado==='Completada').length;
   const wd=p.filter(t=>t.fecha).sort((a,b)=>new Date(a.fecha)-new Date(b.fecha)).slice(0,8);
   const ul=document.getElementById('upcomingList');
+  if(!ul) return;
   if(!wd.length){ul.innerHTML='<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">No hay tareas con fecha próxima</div></div>';return;}
   ul.innerHTML=wd.map(t=>{
     const days=daysUntil(t.fecha);
     const dc=days<=2?'urgent':days<=7?'soon':'ok';
     const dt=days<0?`Venció hace ${Math.abs(days)}d`:days===0?'Hoy':days===1?'Mañana':`${days} días`;
     const ds=t.fecha?new Date(t.fecha+'T12:00:00').toLocaleDateString('es-ES',{day:'2-digit',month:'short'}):'';
-    return `<div class="task-item"><div class="task-dot ${qClass(t.cuadrante)}"></div><div class="task-info"><div class="task-name">${t.nombre}</div><div class="task-meta">${t.area}${t.cliente?' · '+t.cliente:''}</div></div><div style="text-align:right"><div class="task-date">${ds}</div><span class="days-badge ${dc}">${dt}</span></div></div>`;
+    return `<div class="task-item"><div class="task-dot ${qClass(t.cuadrante)}"></div><div class="task-info"><div class="task-name">${t.nombre}</div><div class="task-meta">${t.area||''}${t.cliente?' · '+t.cliente:''}</div></div><div style="text-align:right"><div class="task-date">${ds}</div><span class="days-badge ${dc}">${dt}</span></div></div>`;
   }).join('');
 }
 
 function renderEisenhower(){
+  const allTasks = window.tasks || [];
   [['Q1','Q1 Importante + urgente'],['Q2','Q2 Importante no urgente'],['Q3','Q3 Urgente no importante'],['Q4','Q4 Ni importante ni urgente']].forEach(([q,key])=>{
-    const list=tasks.filter(t=>t.cuadrante===key&&t.estado!=='Completada');
+    const list=allTasks.filter(t=>t.cuadrante===key&&t.estado!=='Completada');
     document.getElementById('count'+q).textContent=list.length;
     const el=document.getElementById('list'+q);
     if(!list.length){el.innerHTML='<div class="empty" style="padding:16px 0;font-size:12px;">Sin tareas</div>';return;}
@@ -704,7 +711,7 @@ function renderCalendar(){
   for(let i=0;i<sd;i++){const d=document.createElement('div');d.className='cal-day other-month';d.innerHTML=`<div class="cal-day-num">${dip-sd+i+1}</div>`;grid.appendChild(d);}
   for(let day=1;day<=dim;day++){
     const ds=`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-    const dt=tasks.filter(t=>t.fecha===ds&&t.estado!=='Completada');
+    const dt=(window.tasks||[]).filter(t=>t.fecha===ds&&t.estado!=='Completada');
     const d=document.createElement('div');
     d.className='cal-day'+(ds===todayStr?' today':'');
     d.innerHTML=`<div class="cal-day-num">${day}</div>`+dt.slice(0,3).map(t=>`<div class="cal-event ${qClass(t.cuadrante)}" title="${t.nombre}">${t.nombre}</div>`).join('')+(dt.length>3?`<div style="font-size:10px;color:var(--gray-400)">+${dt.length-3} más</div>`:'');
