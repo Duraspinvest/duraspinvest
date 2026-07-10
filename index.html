@@ -550,310 +550,417 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
 </div>
 
 <script>
-const TASKS_KEY='duraspinvest_tasks';
-const CLIENTS_KEY='duraspinvest_clients';
-let tasks=[], clients=[], calYear, calMonth, currentSection='dashboard';
+// Variables globales - gestionadas por Firebase
+window.tasks = window.tasks || [];
+window.clients = window.clients || [];
+window.prospectos = window.prospectos || [];
 
-function load(){ try{tasks=JSON.parse(localStorage.getItem(TASKS_KEY)||'[]');}catch(e){tasks=[];} try{clients=JSON.parse(localStorage.getItem(CLIENTS_KEY)||'[]');}catch(e){clients=[];} }
-function saveTasks(){ localStorage.setItem(TASKS_KEY,JSON.stringify(tasks)); }
-async function saveTaskToCloud(task){
-  if(!window.db) return;
-  try { await window.fsSetDoc(window.fsDoc(window.db,"tasks",String(task.id)), task); } catch(e){ console.error(e); }
-}
-async function deleteTaskFromCloud(id){
-  if(!window.db) return;
-  try { await window.fsDeleteDoc(window.fsDoc(window.db,"tasks",String(id))); } catch(e){ console.error(e); }
-}
-async function saveClientToCloud(client){
-  if(!window.db) return;
-  try { await window.fsSetDoc(window.fsDoc(window.db,"clients",String(client.id)), client); } catch(e){ console.error(e); }
-}
-async function deleteClientFromCloud(id){
-  if(!window.db) return;
-  try { await window.fsDeleteDoc(window.fsDoc(window.db,"clients",String(id))); } catch(e){ console.error(e); }
-}
-function saveClients(){ localStorage.setItem(CLIENTS_KEY,JSON.stringify(clients)); }
+let calYear, calMonth, currentSection = 'dashboard';
 
-function showSection(id,btn){
-  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
-  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+// ── Utilidades ──────────────────────────────────────────────────────────────
+
+function showSection(id, btn) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   document.getElementById(id).classList.add('active');
-  if(btn) btn.classList.add('active');
-  currentSection=id;
-  if(id==='calendar') renderCalendar();
-  else if(id==='eisenhower') renderEisenhower();
-  else if(id==='dashboard') renderDashboard();
-  else if(id==='clientes'){showClientesList();renderClientesList();}
-  else if(id==='prospectos') renderProspectos();
+  if (btn) btn.classList.add('active');
+  currentSection = id;
+  if (id === 'calendar') renderCalendar();
+  else if (id === 'eisenhower') renderEisenhower();
+  else if (id === 'dashboard') renderDashboard();
+  else if (id === 'clientes') { showClientesList(); renderClientesList(); }
+  else if (id === 'prospectos') renderProspectos();
 }
 
-function onFab(){
-  if(currentSection==='clientes') openClienteModal();
-  else if(currentSection==='prospectos') openProspectoModal();
+function onFab() {
+  if (currentSection === 'clientes') openClienteModal();
+  else if (currentSection === 'prospectos') openProspectoModal();
   else openTaskModal('');
 }
 
-function openTaskModal(q){
-  document.getElementById('tNombre').value='';document.getElementById('tCliente').value='';
-  document.getElementById('tNotas').value='';document.getElementById('tFecha').value='';
-  if(q) document.getElementById('tCuadrante').value=q;
+function openTaskModal(q) {
+  document.getElementById('tNombre').value = '';
+  document.getElementById('tCliente').value = '';
+  document.getElementById('tNotas').value = '';
+  document.getElementById('tFecha').value = '';
+  if (q) document.getElementById('tCuadrante').value = q;
   document.getElementById('taskModalOverlay').classList.add('open');
   document.getElementById('tNombre').focus();
 }
-function openClienteModal(id){
-  document.getElementById('clienteModalTitle').textContent= id?'Editar cliente':'Nuevo cliente';
-  document.getElementById('cId').value=id||'';
-  if(id){
-    const c=clients.find(x=>x.id==id)||{};
-    document.getElementById('cNombre').value=c.nombre||'';
-    document.getElementById('cNif').value=c.nif||'';
-    document.getElementById('cTipo').value=c.tipo||'Sociedad';
-    document.getElementById('cTel').value=c.tel||'';
-    document.getElementById('cEmail').value=c.email||'';
-    document.getElementById('cIva').value=c.iva||'General';
-    document.getElementById('cServicios').value=c.servicios||'Fiscal';
+
+function openTaskModalForClient(nombre) {
+  openTaskModal('Q1 Importante + urgente');
+  document.getElementById('tCliente').value = nombre;
+}
+
+function openClienteModal(id) {
+  document.getElementById('clienteModalTitle').textContent = id ? 'Editar cliente' : 'Nuevo cliente';
+  document.getElementById('cId').value = id || '';
+  if (id) {
+    const c = (window.clients || []).find(x => String(x.id) === String(id)) || {};
+    document.getElementById('cNombre').value = c.nombre || '';
+    document.getElementById('cNif').value = c.nif || '';
+    document.getElementById('cTipo').value = c.tipo || 'Sociedad';
+    document.getElementById('cTel').value = c.tel || '';
+    document.getElementById('cEmail').value = c.email || '';
+    document.getElementById('cIva').value = c.iva || 'General';
+    document.getElementById('cServicios').value = c.servicios || 'Fiscal';
   } else {
-    ['cNombre','cNif','cTel','cEmail'].forEach(f=>document.getElementById(f).value='');
-    document.getElementById('cTipo').value='Sociedad';
-    document.getElementById('cIva').value='General';
-    document.getElementById('cServicios').value='Fiscal';
+    ['cNombre','cNif','cTel','cEmail'].forEach(f => document.getElementById(f).value = '');
+    document.getElementById('cTipo').value = 'Sociedad';
+    document.getElementById('cIva').value = 'General';
+    document.getElementById('cServicios').value = 'Fiscal';
   }
   document.getElementById('clienteModalOverlay').classList.add('open');
   document.getElementById('cNombre').focus();
 }
-function closeModal(id){ document.getElementById(id).classList.remove('open'); }
-function closeModalOutside(e,id){ if(e.target===document.getElementById(id)) closeModal(id); }
 
-function saveTask(){
-  const nombre=document.getElementById('tNombre').value.trim();
-  if(!nombre) return document.getElementById('tNombre').focus();
-  tasks.push({id:Date.now(),nombre,cliente:document.getElementById('tCliente').value.trim(),
-    cuadrante:document.getElementById('tCuadrante').value,area:document.getElementById('tArea').value,
-    fecha:document.getElementById('tFecha').value,notas:document.getElementById('tNotas').value.trim(),
-    estado:'Pendiente',creado:new Date().toISOString()});
-  saveTasks(); closeModal('taskModalOverlay');
-  renderDashboard(); renderEisenhower();
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function closeModalOutside(e, id) { if (e.target === document.getElementById(id)) closeModal(id); }
+
+// ── Firebase helpers ─────────────────────────────────────────────────────────
+
+async function fbSet(col, id, data) {
+  if (!window.db) return;
+  try { await window.fsSetDoc(window.fsDoc(window.db, col, String(id)), data); }
+  catch(e) { console.error('fbSet error:', e); }
 }
 
-function saveCliente(){
-  const nombre=document.getElementById('cNombre').value.trim();
-  if(!nombre) return document.getElementById('cNombre').focus();
-  const id=document.getElementById('cId').value;
-  const c={id:id||Date.now(),nombre,nif:document.getElementById('cNif').value.trim(),
-    tipo:document.getElementById('cTipo').value,tel:document.getElementById('cTel').value.trim(),
-    email:document.getElementById('cEmail').value.trim(),iva:document.getElementById('cIva').value,
-    servicios:document.getElementById('cServicios').value,notas:[],docs:[]};
-  if(id){ const i=clients.findIndex(x=>x.id==id); if(i>=0){c.notas=clients[i].notas||[];c.docs=clients[i].docs||[];clients[i]=c;} }
-  else clients.push(c);
-  saveClients(); saveClientToCloud(c); closeModal('clienteModalOverlay'); renderClientesList();
+async function fbDelete(col, id) {
+  if (!window.db) return;
+  try { await window.fsDeleteDoc(window.fsDoc(window.db, col, String(id))); }
+  catch(e) { console.error('fbDelete error:', e); }
 }
 
-function deleteTask(id){ window.tasks=(window.tasks||[]).filter(t=>t.id!==id); saveTasks(); deleteTaskFromCloud(id); renderDashboard(); renderEisenhower(); renderCalendar(); }
-function completeTask(id){ const t=(window.tasks||[]).find(t=>String(t.id)===String(id)); if(t){t.estado=t.estado==='Completada'?'Pendiente':'Completada';saveTasks();saveTaskToCloud(t);renderDashboard();renderEisenhower();} }
-function deleteCliente(id){ if(!confirm('¿Eliminar este cliente?')) return; clients=clients.filter(c=>c.id!=id); saveClients(); deleteClientFromCloud(id); renderClientesList(); }
+// ── Tareas ───────────────────────────────────────────────────────────────────
 
-function qClass(q){ if(q.includes('Q1')) return 'q1'; if(q.includes('Q2')) return 'q2'; if(q.includes('Q3')) return 'q3'; return 'q4'; }
-function daysUntil(d){ if(!d) return null; const a=new Date(d),b=new Date(); a.setHours(0,0,0,0);b.setHours(0,0,0,0); return Math.round((a-b)/86400000); }
-function initials(n){ return n.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase(); }
+async function saveTask() {
+  const nombre = document.getElementById('tNombre').value.trim();
+  if (!nombre) return document.getElementById('tNombre').focus();
+  const task = {
+    id: String(Date.now()),
+    nombre,
+    cliente: document.getElementById('tCliente').value.trim(),
+    cuadrante: document.getElementById('tCuadrante').value,
+    area: document.getElementById('tArea').value,
+    fecha: document.getElementById('tFecha').value,
+    notas: document.getElementById('tNotas').value.trim(),
+    estado: 'Pendiente',
+    creado: new Date().toISOString()
+  };
+  await fbSet('tasks', task.id, task);
+  closeModal('taskModalOverlay');
+}
 
-function renderDashboard(){
+async function deleteTask(id) {
+  await fbDelete('tasks', id);
+}
+
+async function completeTask(id) {
+  const t = (window.tasks || []).find(t => String(t.id) === String(id));
+  if (t) {
+    t.estado = t.estado === 'Completada' ? 'Pendiente' : 'Completada';
+    await fbSet('tasks', id, t);
+  }
+}
+
+// ── Clientes ─────────────────────────────────────────────────────────────────
+
+async function saveCliente() {
+  const nombre = document.getElementById('cNombre').value.trim();
+  if (!nombre) return document.getElementById('cNombre').focus();
+  const id = document.getElementById('cId').value;
+  const existing = id ? (window.clients || []).find(x => String(x.id) === String(id)) : null;
+  const c = {
+    id: id || String(Date.now()),
+    nombre,
+    nif: document.getElementById('cNif').value.trim(),
+    tipo: document.getElementById('cTipo').value,
+    tel: document.getElementById('cTel').value.trim(),
+    email: document.getElementById('cEmail').value.trim(),
+    iva: document.getElementById('cIva').value,
+    servicios: document.getElementById('cServicios').value,
+    notas: existing ? (existing.notas || []) : [],
+    docs: existing ? (existing.docs || []) : []
+  };
+  await fbSet('clients', c.id, c);
+  closeModal('clienteModalOverlay');
+}
+
+async function deleteCliente(id) {
+  if (!confirm('¿Eliminar este cliente?')) return;
+  await fbDelete('clients', id);
+  showClientesList();
+  renderClientesList();
+}
+
+async function addNota(cid) {
+  const inp = document.getElementById('notaInput_' + cid);
+  const texto = inp.value.trim();
+  if (!texto) return;
+  const c = (window.clients || []).find(x => String(x.id) === String(cid));
+  if (!c) return;
+  if (!c.notas) c.notas = [];
+  c.notas.unshift({ texto, fecha: new Date().toISOString() });
+  await fbSet('clients', cid, c);
+  inp.value = '';
+  showFicha(cid);
+}
+
+async function deleteNota(cid, idx) {
+  const c = (window.clients || []).find(x => String(x.id) === String(cid));
+  if (!c) return;
+  c.notas.splice(idx, 1);
+  await fbSet('clients', cid, c);
+  showFicha(cid);
+}
+
+async function addDoc(cid) {
+  const inpNombre = document.getElementById('docNombre_' + cid);
+  const inpUrl = document.getElementById('docUrl_' + cid);
+  const nombre = inpNombre.value.trim();
+  if (!nombre) return;
+  const url = inpUrl.value.trim();
+  const c = (window.clients || []).find(x => String(x.id) === String(cid));
+  if (!c) return;
+  if (!c.docs) c.docs = [];
+  c.docs.unshift({ nombre, url, fecha: new Date().toISOString() });
+  await fbSet('clients', cid, c);
+  inpNombre.value = '';
+  inpUrl.value = '';
+  showFicha(cid);
+}
+
+async function deleteDoc(cid, idx) {
+  const c = (window.clients || []).find(x => String(x.id) === String(cid));
+  if (!c) return;
+  c.docs.splice(idx, 1);
+  await fbSet('clients', cid, c);
+  showFicha(cid);
+}
+
+// ── Prospectos ───────────────────────────────────────────────────────────────
+
+function openProspectoModal(id) {
+  document.getElementById('prospectoModalTitle').textContent = id ? 'Editar' : 'Nuevo prospecto';
+  document.getElementById('pId').value = id || '';
+  if (id) {
+    const p = (window.prospectos || []).find(x => String(x.id) === String(id)) || {};
+    document.getElementById('pNombre').value = p.nombre || '';
+    document.getElementById('pTel').value = p.tel || '';
+    document.getElementById('pEmail').value = p.email || '';
+    document.getElementById('pTipo').value = p.tipo || 'Prospecto';
+    document.getElementById('pFecha').value = p.fecha || '';
+    document.getElementById('pNotas').value = p.notas || '';
+  } else {
+    ['pNombre','pTel','pEmail','pNotas'].forEach(f => document.getElementById(f).value = '');
+    document.getElementById('pTipo').value = 'Prospecto';
+    document.getElementById('pFecha').value = '';
+  }
+  document.getElementById('prospectoModalOverlay').classList.add('open');
+  document.getElementById('pNombre').focus();
+}
+
+async function saveProspecto() {
+  const nombre = document.getElementById('pNombre').value.trim();
+  if (!nombre) return document.getElementById('pNombre').focus();
+  const id = document.getElementById('pId').value;
+  const p = {
+    id: id || String(Date.now()),
+    nombre,
+    tel: document.getElementById('pTel').value.trim(),
+    email: document.getElementById('pEmail').value.trim(),
+    tipo: document.getElementById('pTipo').value,
+    fecha: document.getElementById('pFecha').value,
+    notas: document.getElementById('pNotas').value.trim(),
+    creado: new Date().toISOString()
+  };
+  await fbSet('prospectos', p.id, p);
+  closeModal('prospectoModalOverlay');
+}
+
+async function deleteProspecto(id) {
+  if (!confirm('¿Eliminar este registro?')) return;
+  await fbDelete('prospectos', id);
+}
+
+// ── Renderizado ──────────────────────────────────────────────────────────────
+
+function qClass(q) {
+  if ((q||'').includes('Q1')) return 'q1';
+  if ((q||'').includes('Q2')) return 'q2';
+  if ((q||'').includes('Q3')) return 'q3';
+  return 'q4';
+}
+
+function daysUntil(d) {
+  if (!d) return null;
+  const a = new Date(d), b = new Date();
+  a.setHours(0,0,0,0); b.setHours(0,0,0,0);
+  return Math.round((a - b) / 86400000);
+}
+
+function initials(n) {
+  return (n||'').split(' ').slice(0,2).map(w => w[0]).join('').toUpperCase();
+}
+
+function renderDashboard() {
   const allTasks = window.tasks || [];
-  const p = allTasks.filter(t=>t.estado!=='Completada');
-  const statQ1 = document.getElementById('statQ1');
-  const statQ2 = document.getElementById('statQ2');
-  const statQ3 = document.getElementById('statQ3');
-  const statDone = document.getElementById('statDone');
-  if(statQ1) statQ1.textContent=p.filter(t=>(t.cuadrante||'').includes('Q1')).length;
-  if(statQ2) statQ2.textContent=p.filter(t=>(t.cuadrante||'').includes('Q2')).length;
-  if(statQ3) statQ3.textContent=p.filter(t=>(t.cuadrante||'').includes('Q3')).length;
-  if(statDone) statDone.textContent=allTasks.filter(t=>t.estado==='Completada').length;
-  const wd=p.filter(t=>t.fecha).sort((a,b)=>new Date(a.fecha)-new Date(b.fecha)).slice(0,8);
-  const ul=document.getElementById('upcomingList');
-  if(!ul) return;
-  if(!wd.length){ul.innerHTML='<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">No hay tareas con fecha próxima</div></div>';return;}
-  ul.innerHTML=wd.map(t=>{
-    const days=daysUntil(t.fecha);
-    const dc=days<=2?'urgent':days<=7?'soon':'ok';
-    const dt=days<0?`Venció hace ${Math.abs(days)}d`:days===0?'Hoy':days===1?'Mañana':`${days} días`;
-    const ds=t.fecha?new Date(t.fecha+'T12:00:00').toLocaleDateString('es-ES',{day:'2-digit',month:'short'}):'';
-    return `<div class="task-item"><div class="task-dot ${qClass(t.cuadrante)}"></div><div class="task-info"><div class="task-name">${t.nombre}</div><div class="task-meta">${t.area||''}${t.cliente?' · '+t.cliente:''}</div></div><div style="text-align:right"><div class="task-date">${ds}</div><span class="days-badge ${dc}">${dt}</span></div></div>`;
+  const p = allTasks.filter(t => t.estado !== 'Completada');
+  const set = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
+  set('statQ1', p.filter(t => (t.cuadrante||'').includes('Q1')).length);
+  set('statQ2', p.filter(t => (t.cuadrante||'').includes('Q2')).length);
+  set('statQ3', p.filter(t => (t.cuadrante||'').includes('Q3')).length);
+  set('statDone', allTasks.filter(t => t.estado === 'Completada').length);
+  const ul = document.getElementById('upcomingList');
+  if (!ul) return;
+  const wd = p.filter(t => t.fecha).sort((a,b) => new Date(a.fecha) - new Date(b.fecha)).slice(0, 8);
+  if (!wd.length) {
+    ul.innerHTML = '<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">No hay tareas con fecha próxima</div></div>';
+    return;
+  }
+  ul.innerHTML = wd.map(t => {
+    const days = daysUntil(t.fecha);
+    const dc = days <= 2 ? 'urgent' : days <= 7 ? 'soon' : 'ok';
+    const dt = days < 0 ? `Venció hace ${Math.abs(days)}d` : days === 0 ? 'Hoy' : days === 1 ? 'Mañana' : `${days} días`;
+    const ds = t.fecha ? new Date(t.fecha + 'T12:00:00').toLocaleDateString('es-ES', {day:'2-digit',month:'short'}) : '';
+    return `<div class="task-item"><div class="task-dot ${qClass(t.cuadrante)}"></div><div class="task-info"><div class="task-name">${t.nombre}</div><div class="task-meta">${t.area||''}${t.cliente ? ' · ' + t.cliente : ''}</div></div><div style="text-align:right"><div class="task-date">${ds}</div><span class="days-badge ${dc}">${dt}</span></div></div>`;
   }).join('');
 }
 
-function renderEisenhower(){
+function renderEisenhower() {
   const allTasks = window.tasks || [];
-  [['Q1','Q1 Importante + urgente'],['Q2','Q2 Importante no urgente'],['Q3','Q3 Urgente no importante'],['Q4','Q4 Ni importante ni urgente']].forEach(([q,key])=>{
-    const list=allTasks.filter(t=>t.cuadrante===key&&t.estado!=='Completada');
-    document.getElementById('count'+q).textContent=list.length;
-    const el=document.getElementById('list'+q);
-    if(!list.length){el.innerHTML='<div class="empty" style="padding:16px 0;font-size:12px;">Sin tareas</div>';return;}
-    el.innerHTML=list.map(t=>{
-      const days=daysUntil(t.fecha);
-      const ds=t.fecha?new Date(t.fecha+'T12:00:00').toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'}):'';
-      return `<div class="q-task"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;"><div class="q-task-name">${t.nombre}</div><div style="display:flex;gap:2px;flex-shrink:0;"><button class="icon-btn" onclick="completeTask(${t.id})" title="Completar">✓</button><button class="icon-btn" onclick="deleteTask(${t.id})" title="Eliminar">×</button></div></div><div class="q-task-meta"><span>${t.area}</span>${t.cliente?`<span>· ${t.cliente}</span>`:''} ${ds?`<span class="q-task-date">· ${ds}</span>`:''} ${days!==null&&days<=7&&days>=0?`<span style="color:var(--q1);font-weight:600;">· ${days===0?'Hoy':days===1?'Mañana':days+'d'}</span>`:''}</div></div>`;
+  [
+    ['Q1','Q1 Importante + urgente'],
+    ['Q2','Q2 Importante no urgente'],
+    ['Q3','Q3 Urgente no importante'],
+    ['Q4','Q4 Ni importante ni urgente']
+  ].forEach(([q, key]) => {
+    const list = allTasks.filter(t => t.cuadrante === key && t.estado !== 'Completada');
+    const countEl = document.getElementById('count' + q);
+    if (countEl) countEl.textContent = list.length;
+    const el = document.getElementById('list' + q);
+    if (!el) return;
+    if (!list.length) {
+      el.innerHTML = '<div class="empty" style="padding:16px 0;font-size:12px;">Sin tareas</div>';
+      return;
+    }
+    el.innerHTML = list.map(t => {
+      const days = daysUntil(t.fecha);
+      const ds = t.fecha ? new Date(t.fecha + 'T12:00:00').toLocaleDateString('es-ES', {day:'2-digit',month:'short',year:'numeric'}) : '';
+      return `<div class="q-task"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;"><div class="q-task-name">${t.nombre}</div><div style="display:flex;gap:2px;flex-shrink:0;"><button class="icon-btn" onclick="completeTask('${t.id}')" title="Completar">✓</button><button class="icon-btn" onclick="deleteTask('${t.id}')" title="Eliminar">×</button></div></div><div class="q-task-meta"><span>${t.area||''}</span>${t.cliente ? `<span>· ${t.cliente}</span>` : ''} ${ds ? `<span class="q-task-date">· ${ds}</span>` : ''} ${days !== null && days <= 7 && days >= 0 ? `<span style="color:var(--q1);font-weight:600;">· ${days === 0 ? 'Hoy' : days === 1 ? 'Mañana' : days + 'd'}</span>` : ''}</div></div>`;
     }).join('');
   });
 }
 
-function renderCalendar(){
-  const now=new Date();
-  if(calYear===undefined){calYear=now.getFullYear();calMonth=now.getMonth();}
-  const months=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-  document.getElementById('calMonth').textContent=`${months[calMonth]} ${calYear}`;
-  const grid=document.getElementById('calGrid');
-  const hdrs=Array.from(grid.querySelectorAll('.cal-day-header'));
-  grid.innerHTML=''; hdrs.forEach(h=>grid.appendChild(h));
-  const first=new Date(calYear,calMonth,1);
-  let sd=first.getDay()-1; if(sd<0) sd=6;
-  const dim=new Date(calYear,calMonth+1,0).getDate();
-  const dip=new Date(calYear,calMonth,0).getDate();
-  const todayStr=now.toISOString().slice(0,10);
-  for(let i=0;i<sd;i++){const d=document.createElement('div');d.className='cal-day other-month';d.innerHTML=`<div class="cal-day-num">${dip-sd+i+1}</div>`;grid.appendChild(d);}
-  for(let day=1;day<=dim;day++){
-    const ds=`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-    const dt=(window.tasks||[]).filter(t=>t.fecha===ds&&t.estado!=='Completada');
-    const d=document.createElement('div');
-    d.className='cal-day'+(ds===todayStr?' today':'');
-    d.innerHTML=`<div class="cal-day-num">${day}</div>`+dt.slice(0,3).map(t=>`<div class="cal-event ${qClass(t.cuadrante)}" title="${t.nombre}">${t.nombre}</div>`).join('')+(dt.length>3?`<div style="font-size:10px;color:var(--gray-400)">+${dt.length-3} más</div>`:'');
+function renderCalendar() {
+  const now = new Date();
+  if (calYear === undefined) { calYear = now.getFullYear(); calMonth = now.getMonth(); }
+  const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  document.getElementById('calMonth').textContent = `${months[calMonth]} ${calYear}`;
+  const grid = document.getElementById('calGrid');
+  const hdrs = Array.from(grid.querySelectorAll('.cal-day-header'));
+  grid.innerHTML = '';
+  hdrs.forEach(h => grid.appendChild(h));
+  const first = new Date(calYear, calMonth, 1);
+  let sd = first.getDay() - 1;
+  if (sd < 0) sd = 6;
+  const dim = new Date(calYear, calMonth + 1, 0).getDate();
+  const dip = new Date(calYear, calMonth, 0).getDate();
+  const todayStr = now.toISOString().slice(0, 10);
+  const allTasks = window.tasks || [];
+  for (let i = 0; i < sd; i++) {
+    const d = document.createElement('div');
+    d.className = 'cal-day other-month';
+    d.innerHTML = `<div class="cal-day-num">${dip - sd + i + 1}</div>`;
     grid.appendChild(d);
   }
-  const total=sd+dim; const rem=total%7===0?0:7-(total%7);
-  for(let i=1;i<=rem;i++){const d=document.createElement('div');d.className='cal-day other-month';d.innerHTML=`<div class="cal-day-num">${i}</div>`;grid.appendChild(d);}
+  for (let day = 1; day <= dim; day++) {
+    const ds = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const dt = allTasks.filter(t => t.fecha === ds && t.estado !== 'Completada');
+    const d = document.createElement('div');
+    d.className = 'cal-day' + (ds === todayStr ? ' today' : '');
+    d.innerHTML = `<div class="cal-day-num">${day}</div>` +
+      dt.slice(0, 3).map(t => `<div class="cal-event ${qClass(t.cuadrante)}" title="${t.nombre}">${t.nombre}</div>`).join('') +
+      (dt.length > 3 ? `<div style="font-size:10px;color:var(--gray-400)">+${dt.length - 3} más</div>` : '');
+    grid.appendChild(d);
+  }
+  const total = sd + dim;
+  const rem = total % 7 === 0 ? 0 : 7 - (total % 7);
+  for (let i = 1; i <= rem; i++) {
+    const d = document.createElement('div');
+    d.className = 'cal-day other-month';
+    d.innerHTML = `<div class="cal-day-num">${i}</div>`;
+    grid.appendChild(d);
+  }
 }
 
-function changeMonth(dir){ calMonth+=dir; if(calMonth>11){calMonth=0;calYear++;}if(calMonth<0){calMonth=11;calYear--;} renderCalendar(); }
+function changeMonth(dir) {
+  calMonth += dir;
+  if (calMonth > 11) { calMonth = 0; calYear++; }
+  if (calMonth < 0) { calMonth = 11; calYear--; }
+  renderCalendar();
+}
 
-function renderClientesList(filter=''){
-  // Ocultar botón importar si ya se usó antes
-  if(localStorage.getItem('duraspinvest_imported')){
-    const wrap=document.getElementById('importBtnWrap');
-    if(wrap) wrap.style.display='none';
+function renderClientesList(filter) {
+  if (localStorage.getItem('duraspinvest_imported')) {
+    const wrap = document.getElementById('importBtnWrap');
+    if (wrap) wrap.style.display = 'none';
   }
-  const el=document.getElementById('clientesList');
-  if(!el) return;
+  const el = document.getElementById('clientesList');
+  if (!el) return;
   const allClients = window.clients || [];
-  const filterLow = (filter||'').toLowerCase();
+  const filterLow = (filter || '').toLowerCase();
   const list = allClients.filter(c => {
-    if(!filterLow) return true;
+    if (!filterLow) return true;
     return (c.nombre||'').toLowerCase().includes(filterLow) || (c.nif||'').toLowerCase().includes(filterLow);
   });
-  if(!list.length){
-    el.innerHTML='<div class="empty"><div class="empty-icon">👤</div><div class="empty-text">No hay clientes. Añade el primero.</div></div>';
+  if (!list.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">👤</div><div class="empty-text">No hay clientes. Añade el primero.</div></div>';
     return;
   }
   const allTasks = window.tasks || [];
+  const badgeColors = {'fiscal':'#EFF6FF','contable':'#F0FDF4','laboral':'#FFF7ED'};
+  const badgeText = {'fiscal':'#2B7FFF','contable':'#059669','laboral':'#D97706'};
   el.innerHTML = list.map(c => {
     try {
       const tp = allTasks.filter(t => t.cliente === c.nombre && t.estado !== 'Completada').length;
-      const svcs = (c.servicios||'').split('|').map(s=>s.trim()).filter(Boolean);
-      const badgeColors = {'fiscal':'#EFF6FF','contable':'#F0FDF4','laboral':'#FFF7ED'};
-      const badgeText = {'fiscal':'#2B7FFF','contable':'#059669','laboral':'#D97706'};
+      const svcs = (c.servicios||'').split('|').map(s => s.trim()).filter(Boolean);
       const badges = svcs.map(s => {
-        const key = s.toLowerCase().trim();
-        const bg = badgeColors[key] || '#F1F5F9';
-        const color = badgeText[key] || '#64748B';
-        return `<span class="badge" style="background:${bg};color:${color};">${s}</span>`;
+        const key = s.toLowerCase();
+        return `<span class="badge" style="background:${badgeColors[key]||'#F1F5F9'};color:${badgeText[key]||'#64748B'};">${s}</span>`;
       }).join('');
       return `<div class="cliente-card" onclick="showFicha('${c.id}')">
         <div class="cliente-avatar">${initials(c.nombre)}</div>
         <div class="cliente-info">
           <div class="cliente-nombre">${c.nombre}</div>
           <div class="cliente-nif">${c.nif||'Sin NIF'} · ${c.tipo||''}</div>
-          <div class="cliente-badges">
-            ${badges}
-            <span class="badge badge-tipo">IVA ${c.iva||'General'}</span>
-          </div>
+          <div class="cliente-badges">${badges}<span class="badge badge-tipo">IVA ${c.iva||'General'}</span></div>
         </div>
         <div class="cliente-tareas"><div class="cliente-tareas-num">${tp}</div><div class="cliente-tareas-label">tareas</div></div>
       </div>`;
-    } catch(e) {
-      console.error('Error renderizando cliente:', c.nombre, e);
-      return '';
-    }
+    } catch(e) { console.error('Error cliente:', c.nombre, e); return ''; }
   }).join('');
 }
 
-function filterClientes(v){ renderClientesList(v); }
-
-function importarExcel(input){
-  const file = input.files[0];
-  if(!file) return;
-  const reader = new FileReader();
-  reader.onload = function(e){
-    try {
-      const data = new Uint8Array(e.target.result);
-      const workbook = XLSX.read(data, {type:'array'});
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(sheet, {header:1});
-      
-      // Saltar filas de cabecera (fila 1 título, fila 2 instrucciones, fila 3 encabezados, fila 4 valores permitidos)
-      let importados = 0;
-      let errores = 0;
-      
-      for(let i=4; i<rows.length; i++){
-        const row = rows[i];
-        if(!row || !row[0] || String(row[0]).trim()==='') continue;
-        
-        const nombre = String(row[0]||'').trim();
-        if(!nombre) continue;
-        
-        // Verificar si ya existe
-        const existe = clients.find(c=>c.nombre.toLowerCase()===nombre.toLowerCase());
-        if(existe){ errores++; continue; }
-        
-        const cliente = {
-          id: Date.now() + i,
-          nombre: nombre,
-          nif: String(row[1]||'').trim(),
-          tipo: String(row[2]||'Sociedad').trim(),
-          servicios: String(row[3]||'Fiscal').trim(),
-          tel: String(row[4]||'').trim(),
-          email: String(row[5]||'').trim(),
-          iva: String(row[6]||'General').trim(),
-          notas: row[7] ? [{texto:String(row[7]).trim(), fecha:new Date().toISOString()}] : [],
-          docs: []
-        };
-        
-        // Documentos iniciales
-        if(row[8] && String(row[8]).trim()) cliente.docs.push({nombre:String(row[8]).trim(), url:'', fecha:new Date().toISOString()});
-        if(row[9] && String(row[9]).trim()) cliente.docs.push({nombre:String(row[9]).trim(), url:'', fecha:new Date().toISOString()});
-        
-        clients.push(cliente);
-        saveClientToCloud(cliente);
-        importados++;
-      }
-      
-      saveClients();
-      
-      // Ocultar botón de importar después del primer uso
-      const wrap = document.getElementById('importBtnWrap');
-      if(wrap) wrap.style.display='none';
-      localStorage.setItem('duraspinvest_imported','true');
-      
-      renderClientesList();
-      
-      let msg = importados + ' cliente(s) importado(s) correctamente.';
-      if(errores>0) msg += ' ' + errores + ' omitido(s) por nombre duplicado.';
-      alert(msg);
-      
-    } catch(err){
-      alert('Error al leer el archivo. Asegúrate de que es el Excel de Duraspinvest.');
-      console.error(err);
-    }
-  };
-  reader.readAsArrayBuffer(file);
+function filterClientes(v) { renderClientesList(v); }
+function showClientesList() {
+  document.getElementById('clientesLista').style.display = '';
+  document.getElementById('clienteFicha').style.display = 'none';
+  document.getElementById('fabBtn').style.display = 'flex';
 }
-function showClientesList(){ document.getElementById('clientesLista').style.display=''; document.getElementById('clienteFicha').style.display='none'; document.getElementById('fabBtn').style.display='flex'; }
 
-function showFicha(id){
-  const c=(window.clients||[]).find(x=>String(x.id)===String(id)); if(!c) return;
-  document.getElementById('clientesLista').style.display='none';
-  document.getElementById('fabBtn').style.display='none';
-  const ct=tasks.filter(t=>t.cliente===c.nombre&&t.estado!=='Completada');
-  const svcs=(c.servicios||'').split('|').map(s=>`<span class="badge badge-${s.trim().toLowerCase()}">${s.trim()}</span>`).join('');
-  const fichaEl=document.getElementById('clienteFicha');
-  fichaEl.style.display='';
-  fichaEl.innerHTML=`
+function showFicha(id) {
+  const c = (window.clients || []).find(x => String(x.id) === String(id));
+  if (!c) return;
+  document.getElementById('clientesLista').style.display = 'none';
+  document.getElementById('fabBtn').style.display = 'none';
+  const allTasks = window.tasks || [];
+  const ct = allTasks.filter(t => t.cliente === c.nombre && t.estado !== 'Completada');
+  const svcs = (c.servicios||'').split('|').map(s => `<span class="badge badge-tipo">${s.trim()}</span>`).join('');
+  const fichaEl = document.getElementById('clienteFicha');
+  fichaEl.style.display = '';
+  fichaEl.innerHTML = `
     <button class="ficha-back" onclick="showClientesList();renderClientesList()">← Volver a clientes</button>
     <div class="ficha-header">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;">
@@ -864,8 +971,8 @@ function showFicha(id){
           <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">${svcs}</div>
         </div>
         <div style="display:flex;gap:6px;">
-          <button class="btn btn-sm" style="background:var(--navy-mid);color:white;" onclick="openClienteModal(${c.id})">Editar</button>
-          <button class="btn btn-sm btn-danger" onclick="deleteCliente(${c.id})">Eliminar</button>
+          <button class="btn btn-sm" style="background:var(--navy-mid);color:white;" onclick="openClienteModal('${c.id}')">Editar</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteCliente('${c.id}')">Eliminar</button>
         </div>
       </div>
       <div class="ficha-grid">
@@ -880,153 +987,68 @@ function showFicha(id){
         <span class="ficha-section-title">Tareas pendientes (${ct.length})</span>
         <button class="btn btn-sm btn-primary" onclick="openTaskModalForClient('${c.nombre}')">+ Tarea</button>
       </div>
-      ${ct.length?ct.map(t=>{
-        const ds=t.fecha?new Date(t.fecha+'T12:00:00').toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'}):'Sin fecha';
-        return `<div class="ficha-task-item"><div class="task-dot ${qClass(t.cuadrante)}"></div><div style="flex:1"><div style="font-size:13px;font-weight:500;">${t.nombre}</div><div style="font-size:11px;color:var(--gray-400);">${t.area} · ${ds}</div></div><button class="icon-btn" onclick="completeTask(${t.id});showFicha(${c.id})">✓</button></div>`;
-      }).join(''):'<div class="empty" style="padding:20px;">Sin tareas pendientes</div>'}
+      ${ct.length ? ct.map(t => {
+        const ds = t.fecha ? new Date(t.fecha+'T12:00:00').toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'}) : 'Sin fecha';
+        return `<div class="ficha-task-item"><div class="task-dot ${qClass(t.cuadrante)}"></div><div style="flex:1"><div style="font-size:13px;font-weight:500;">${t.nombre}</div><div style="font-size:11px;color:var(--gray-400);">${t.area||''} · ${ds}</div></div><button class="icon-btn" onclick="completeTask('${t.id}');setTimeout(()=>showFicha('${c.id}'),800)">✓</button></div>`;
+      }).join('') : '<div class="empty" style="padding:20px;">Sin tareas pendientes</div>'}
     </div>
-    <div class="ficha-section" id="notasSection_${c.id}">
+    <div class="ficha-section">
       <div class="ficha-section-header"><span class="ficha-section-title">Notas y comentarios</span></div>
       <div id="notasList_${c.id}">
-        ${(c.notas||[]).length?(c.notas||[]).map((n,i)=>`<div class="nota-item"><div class="nota-texto">${n.texto}</div><div style="display:flex;align-items:center;justify-content:space-between;"><div class="nota-fecha">${new Date(n.fecha).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div><button class="icon-btn" onclick="deleteNota(${c.id},${i})">×</button></div></div>`).join(''):'<div class="empty" style="padding:16px;">Sin notas</div>'}
+        ${(c.notas||[]).length ? (c.notas||[]).map((n,i) => `<div class="nota-item"><div class="nota-texto">${n.texto}</div><div style="display:flex;align-items:center;justify-content:space-between;"><div class="nota-fecha">${new Date(n.fecha).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'})}</div><button class="icon-btn" onclick="deleteNota('${c.id}',${i})">×</button></div></div>`).join('') : '<div class="empty" style="padding:16px;">Sin notas</div>'}
       </div>
       <div class="nota-input-row">
         <textarea class="nota-input" id="notaInput_${c.id}" rows="2" placeholder="Escribe una nota o comentario..."></textarea>
-        <button class="btn btn-primary btn-sm" style="align-self:flex-end;" onclick="addNota(${c.id})">Añadir</button>
+        <button class="btn btn-primary btn-sm" style="align-self:flex-end;" onclick="addNota('${c.id}')">Añadir</button>
       </div>
     </div>
     <div class="ficha-section">
       <div class="ficha-section-header"><span class="ficha-section-title">Documentos</span></div>
       <div id="docsList_${c.id}">
-        ${(c.docs||[]).length?(c.docs||[]).map((d,i)=>`
+        ${(c.docs||[]).length ? (c.docs||[]).map((d,i) => `
         <div class="doc-item">
           <div class="doc-icon">📄</div>
-          <div class="doc-info">
-            <div class="doc-nombre">${d.nombre}</div>
-            <div class="doc-fecha">${new Date(d.fecha).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'})}</div>
-          </div>
+          <div class="doc-info"><div class="doc-nombre">${d.nombre}</div><div class="doc-fecha">${new Date(d.fecha).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'})}</div></div>
           <div style="display:flex;gap:4px;flex-shrink:0;align-items:center;">
-            ${d.url?`<a href="${d.url}" target="_blank" class="btn btn-sm" style="background:var(--q2-bg);color:var(--q2);text-decoration:none;font-size:11px;" title="Abrir">Abrir</a>`:''}
-            ${d.url?`<a href="mailto:?subject=${encodeURIComponent(d.nombre)}&body=${encodeURIComponent('Te comparto el documento: '+d.nombre+'\n\n'+d.url)}" class="btn btn-sm" style="background:var(--bg-success,#F0FDF4);color:#059669;text-decoration:none;font-size:11px;" title="Compartir por email">Email</a>`:''}
-            ${d.url?`<a href="https://wa.me/?text=${encodeURIComponent(d.nombre+': '+d.url)}" target="_blank" class="btn btn-sm" style="background:#F0FDF4;color:#25D366;text-decoration:none;font-size:11px;" title="Compartir por WhatsApp">WA</a>`:''}
-            <button class="icon-btn" onclick="deleteDoc(${c.id},${i})" title="Eliminar">×</button>
+            ${d.url ? `<a href="${d.url}" target="_blank" class="btn btn-sm" style="background:var(--q2-bg);color:var(--q2);text-decoration:none;font-size:11px;">Abrir</a>` : ''}
+            ${d.url ? `<a href="mailto:?subject=${encodeURIComponent(d.nombre)}&body=${encodeURIComponent('Te comparto el documento: '+d.nombre+'\n\n'+d.url)}" class="btn btn-sm" style="background:#F0FDF4;color:#059669;text-decoration:none;font-size:11px;">Email</a>` : ''}
+            ${d.url ? `<a href="https://wa.me/?text=${encodeURIComponent(d.nombre+': '+d.url)}" target="_blank" class="btn btn-sm" style="background:#F0FDF4;color:#25D366;text-decoration:none;font-size:11px;">WA</a>` : ''}
+            <button class="icon-btn" onclick="deleteDoc('${c.id}',${i})">×</button>
           </div>
-        </div>`).join(''):'<div class="empty" style="padding:16px;">Sin documentos. Añade el enlace de Google Drive.</div>'}
+        </div>`).join('') : '<div class="empty" style="padding:16px;">Sin documentos. Añade el enlace de OneDrive.</div>'}
       </div>
       <div style="padding:12px 18px;border-top:0.5px solid var(--gray-100);">
-        <div style="font-size:11px;color:var(--gray-400);margin-bottom:8px;">Sube el PDF a Google Drive, copia el enlace y pégalo aquí.</div>
+        <div style="font-size:11px;color:var(--gray-400);margin-bottom:8px;">Sube el PDF a OneDrive, copia el enlace compartido y pégalo aquí.</div>
         <div style="display:flex;flex-direction:column;gap:6px;">
           <input type="text" class="nota-input" id="docNombre_${c.id}" placeholder="Nombre del documento (ej: Modelo 303 T1 2026)" style="width:100%;">
-          <input type="text" class="nota-input" id="docUrl_${c.id}" placeholder="Enlace de Google Drive (https://drive.google.com/...)" style="width:100%;">
+          <input type="text" class="nota-input" id="docUrl_${c.id}" placeholder="Enlace de OneDrive (https://...)" style="width:100%;">
           <div style="display:flex;justify-content:flex-end;">
-            <button class="btn btn-primary btn-sm" onclick="addDoc(${c.id})">Añadir documento</button>
+            <button class="btn btn-primary btn-sm" onclick="addDoc('${c.id}')">Añadir documento</button>
           </div>
         </div>
       </div>
     </div>`;
 }
 
-function openTaskModalForClient(nombre){
-  openTaskModal('Q1 Importante + urgente');
-  document.getElementById('tCliente').value=nombre;
-}
-
-function addNota(cid){
-  const inp=document.getElementById('notaInput_'+cid);
-  const texto=inp.value.trim(); if(!texto) return;
-  const c=clients.find(x=>x.id==cid); if(!c) return;
-  if(!c.notas) c.notas=[];
-  c.notas.unshift({texto,fecha:new Date().toISOString()});
-  saveClients(); saveClientToCloud(c); inp.value=''; showFicha(cid);
-}
-
-function deleteNota(cid,idx){
-  const c=clients.find(x=>x.id==cid); if(!c) return;
-  c.notas.splice(idx,1); saveClients(); saveClientToCloud(c); showFicha(cid);
-}
-
-function addDoc(cid){
-  const inpNombre=document.getElementById('docNombre_'+cid);
-  const inpUrl=document.getElementById('docUrl_'+cid);
-  const nombre=inpNombre.value.trim(); if(!nombre) return;
-  const url=inpUrl.value.trim();
-  const c=clients.find(x=>x.id==cid); if(!c) return;
-  if(!c.docs) c.docs=[];
-  c.docs.unshift({nombre,url,fecha:new Date().toISOString()});
-  saveClients(); saveClientToCloud(c);
-  inpNombre.value=''; inpUrl.value='';
-  showFicha(cid);
-}
-
-function deleteDoc(cid,idx){
-  const c=clients.find(x=>x.id==cid); if(!c) return;
-  c.docs.splice(idx,1); saveClients(); saveClientToCloud(c); showFicha(cid);
-}
-
-document.getElementById('headerDate').textContent=new Date().toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
-
-function openProspectoModal(id){
-  document.getElementById('prospectoModalTitle').textContent = id ? 'Editar' : 'Nuevo prospecto';
-  document.getElementById('pId').value = id||'';
-  if(id){
-    const p=window.prospectos.find(x=>x.id==id)||{};
-    document.getElementById('pNombre').value=p.nombre||'';
-    document.getElementById('pTel').value=p.tel||'';
-    document.getElementById('pEmail').value=p.email||'';
-    document.getElementById('pTipo').value=p.tipo||'Prospecto';
-    document.getElementById('pFecha').value=p.fecha||'';
-    document.getElementById('pNotas').value=p.notas||'';
-  } else {
-    ['pNombre','pTel','pEmail','pNotas'].forEach(f=>document.getElementById(f).value='');
-    document.getElementById('pTipo').value='Prospecto';
-    document.getElementById('pFecha').value='';
+function renderProspectos() {
+  const list = window.prospectos || [];
+  const set = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
+  set('statProspectos', list.filter(p => p.tipo === 'Prospecto').length);
+  set('statLlamadas', list.filter(p => p.tipo === 'Llamada pendiente').length);
+  const el = document.getElementById('prospectosList');
+  if (!el) return;
+  if (!list.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">◎</div><div class="empty-text">Sin prospectos. Añade posibles clientes o notas personales.</div></div>';
+    return;
   }
-  document.getElementById('prospectoModalOverlay').classList.add('open');
-  document.getElementById('pNombre').focus();
-}
-
-async function saveProspecto(){
-  const nombre=document.getElementById('pNombre').value.trim();
-  if(!nombre) return document.getElementById('pNombre').focus();
-  const id=document.getElementById('pId').value;
-  const p={
-    id:id||String(Date.now()),
-    nombre,
-    tel:document.getElementById('pTel').value.trim(),
-    email:document.getElementById('pEmail').value.trim(),
-    tipo:document.getElementById('pTipo').value,
-    fecha:document.getElementById('pFecha').value,
-    notas:document.getElementById('pNotas').value.trim(),
-    creado:new Date().toISOString()
-  };
-  if(id){ const i=window.prospectos.findIndex(x=>x.id==id); if(i>=0) window.prospectos[i]=p; else window.prospectos.push(p); }
-  else window.prospectos.push(p);
-  if(window.db) await window.fsSetDoc(window.fsDoc(window.db,'prospectos',String(p.id)),p);
-  closeModal('prospectoModalOverlay');
-  renderProspectos();
-}
-
-async function deleteProspecto(id){
-  if(!confirm('¿Eliminar este registro?')) return;
-  window.prospectos=window.prospectos.filter(p=>p.id!=id);
-  if(window.db) await window.fsDeleteDoc(window.fsDoc(window.db,'prospectos',String(id)));
-  renderProspectos();
-}
-
-function renderProspectos(){
-  const list=window.prospectos||[];
-  document.getElementById('statProspectos').textContent=list.filter(p=>p.tipo==='Prospecto').length;
-  document.getElementById('statLlamadas').textContent=list.filter(p=>p.tipo==='Llamada pendiente').length;
-  const el=document.getElementById('prospectosList');
-  if(!list.length){ el.innerHTML='<div class="empty"><div class="empty-icon">◎</div><div class="empty-text">Sin prospectos. Añade posibles clientes o notas personales.</div></div>'; return; }
-  const sorted=[...list].sort((a,b)=>{
-    if(a.fecha&&b.fecha) return new Date(a.fecha)-new Date(b.fecha);
-    if(a.fecha) return -1; if(b.fecha) return 1; return 0;
+  const sorted = [...list].sort((a,b) => {
+    if (a.fecha && b.fecha) return new Date(a.fecha) - new Date(b.fecha);
+    if (a.fecha) return -1; if (b.fecha) return 1; return 0;
   });
-  const typeColors={'Prospecto':'#8B5CF6','Llamada pendiente':'#F59E0B','Reunión pendiente':'#2B7FFF','Nota personal':'#6B7280','Tarea propia':'#10B981'};
-  el.innerHTML=sorted.map(p=>{
-    const color=typeColors[p.tipo]||'#6B7280';
-    const ds=p.fecha?new Date(p.fecha+'T12:00:00').toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'}):'';
+  const typeColors = {'Prospecto':'#8B5CF6','Llamada pendiente':'#F59E0B','Reunión pendiente':'#2B7FFF','Nota personal':'#6B7280','Tarea propia':'#10B981'};
+  el.innerHTML = sorted.map(p => {
+    const color = typeColors[p.tipo] || '#6B7280';
+    const ds = p.fecha ? new Date(p.fecha+'T12:00:00').toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'}) : '';
     return `<div class="card" style="margin-bottom:10px;border-left:3px solid ${color};">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
         <div style="flex:1;">
@@ -1034,10 +1056,10 @@ function renderProspectos(){
             <span style="font-size:15px;font-weight:600;color:var(--gray-800);">${p.nombre}</span>
             <span style="font-size:11px;padding:2px 8px;border-radius:20px;font-weight:500;background:${color}20;color:${color};">${p.tipo}</span>
           </div>
-          ${p.tel?`<div style="font-size:12px;color:var(--gray-400);">📞 ${p.tel}</div>`:''}
-          ${p.email?`<div style="font-size:12px;color:var(--gray-400);">✉ ${p.email}</div>`:''}
-          ${p.notas?`<div style="font-size:13px;color:var(--gray-600);margin-top:6px;line-height:1.5;">${p.notas}</div>`:''}
-          ${ds?`<div style="font-size:11px;color:var(--accent);font-weight:500;margin-top:4px;">📅 Seguimiento: ${ds}</div>`:''}
+          ${p.tel ? `<div style="font-size:12px;color:var(--gray-400);">📞 ${p.tel}</div>` : ''}
+          ${p.email ? `<div style="font-size:12px;color:var(--gray-400);">✉ ${p.email}</div>` : ''}
+          ${p.notas ? `<div style="font-size:13px;color:var(--gray-600);margin-top:6px;line-height:1.5;">${p.notas}</div>` : ''}
+          ${ds ? `<div style="font-size:11px;color:var(--accent);font-weight:500;margin-top:4px;">📅 Seguimiento: ${ds}</div>` : ''}
         </div>
         <div style="display:flex;gap:4px;flex-shrink:0;">
           <button class="icon-btn" onclick="openProspectoModal('${p.id}')" title="Editar">✏</button>
@@ -1048,23 +1070,74 @@ function renderProspectos(){
   }).join('');
 }
 
-function doLogin(){
+// ── Importar Excel ───────────────────────────────────────────────────────────
+
+function importarExcel(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, {type:'array'});
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, {header:1});
+      let importados = 0, errores = 0;
+      const existingNames = (window.clients||[]).map(c => (c.nombre||'').toLowerCase());
+      for (let i = 4; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row || !row[0] || String(row[0]).trim() === '') continue;
+        const nombre = String(row[0]).trim();
+        if (existingNames.includes(nombre.toLowerCase())) { errores++; continue; }
+        const cliente = {
+          id: String(Date.now() + i),
+          nombre,
+          nif: String(row[1]||'').trim(),
+          tipo: String(row[2]||'Sociedad').trim(),
+          servicios: String(row[3]||'Fiscal').trim(),
+          tel: String(row[4]||'').trim(),
+          email: String(row[5]||'').trim(),
+          iva: String(row[6]||'General').trim(),
+          notas: row[7] ? [{texto:String(row[7]).trim(), fecha:new Date().toISOString()}] : [],
+          docs: []
+        };
+        if (row[8] && String(row[8]).trim()) cliente.docs.push({nombre:String(row[8]).trim(), url:'', fecha:new Date().toISOString()});
+        if (row[9] && String(row[9]).trim()) cliente.docs.push({nombre:String(row[9]).trim(), url:'', fecha:new Date().toISOString()});
+        await fbSet('clients', cliente.id, cliente);
+        existingNames.push(nombre.toLowerCase());
+        importados++;
+      }
+      const wrap = document.getElementById('importBtnWrap');
+      if (wrap) wrap.style.display = 'none';
+      localStorage.setItem('duraspinvest_imported', 'true');
+      let msg = importados + ' cliente(s) importado(s) correctamente.';
+      if (errores > 0) msg += ' ' + errores + ' omitido(s) por nombre duplicado.';
+      alert(msg);
+    } catch(err) {
+      alert('Error al leer el archivo.');
+      console.error(err);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ── Login ────────────────────────────────────────────────────────────────────
+
+function doLogin() {
   const email = document.getElementById('loginEmail').value.trim();
   const password = document.getElementById('loginPassword').value;
   document.getElementById('loginError').style.display = 'none';
-  if(!email||!password) return;
-  window.fsSignIn(window.auth, email, password).catch(e => {
+  if (!email || !password) return;
+  window.fsSignIn(window.auth, email, password).catch(() => {
     document.getElementById('loginError').style.display = 'block';
   });
 }
 
-function doLogout(){
-  window.fsSignOut(window.auth);
-}
+function doLogout() { window.fsSignOut(window.auth); }
 
+document.getElementById('headerDate').textContent = new Date().toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 document.getElementById('loginEmail').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('loginPassword').focus(); });
 document.getElementById('loginPassword').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
-load(); renderDashboard();
 </script>
 </body>
 </html>
