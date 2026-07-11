@@ -229,6 +229,7 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
   window.fsSetDoc = setDoc;
   window.fsDeleteDoc = deleteDoc;
   window.fsCollection = collection;
+  window.fsOnSnapshot = onSnapshot;
 
   // Notificaciones nativas del navegador
   window.duraspinvestNotifReady = true;
@@ -361,6 +362,7 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
   <button class="nav-btn" onclick="showSection('calendar',this)">▦ Calendario</button>
   <button class="nav-btn" onclick="showSection('clientes',this)">◉ Clientes</button>
   <button class="nav-btn" onclick="showSection('prospectos',this)" id="navProspectos">◎ Prospectos <span id="badgeProspectos" style="display:none;background:#F59E0B;color:white;border-radius:20px;font-size:10px;padding:1px 6px;font-weight:700;margin-left:2px;"></span></button>
+  <button class="nav-btn" onclick="showSection('planning',this)">📊 Planning</button>
 </nav>
 <main>
 
@@ -461,6 +463,75 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
     <div class="stat-card" style="border-left-color:#F59E0B;"><div class="stat-num" id="statLlamadas">0</div><div class="stat-label">Llamadas pendientes</div></div>
   </div>
   <div id="prospectosList"><div class="empty"><div class="empty-icon">◎</div><div class="empty-text">Sin prospectos. Añade posibles clientes o notas personales.</div></div></div>
+</div>
+
+
+<!-- PLANNING FISCAL -->
+<div id="planning" class="section">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+    <span style="font-size:18px;font-weight:600;color:var(--navy);">Planning Fiscal 2026</span>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <select id="planningAnio" class="form-select" style="width:auto;" onchange="renderPlanning()">
+        <option value="2026">2026</option>
+        <option value="2027">2027</option>
+      </select>
+      <select id="planningFiltro" class="form-select" style="width:auto;" onchange="renderPlanning()">
+        <option value="todos">Todos los estados</option>
+        <option value="pendiente">🔴 Pendiente</option>
+        <option value="proceso">🟡 En proceso</option>
+        <option value="presentado">🟢 Presentado</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Leyenda -->
+  <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;font-size:12px;">
+    <span style="display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;border-radius:50%;background:#EF4444;display:inline-block;"></span> Pendiente</span>
+    <span style="display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;border-radius:50%;background:#F59E0B;display:inline-block;"></span> En proceso</span>
+    <span style="display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;border-radius:50%;background:#10B981;display:inline-block;"></span> Presentado</span>
+    <span style="display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;border-radius:50%;background:#6B7280;display:inline-block;"></span> No obligado</span>
+    <span style="display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;border-radius:50%;background:#BFDBFE;display:inline-block;"></span> S/A</span>
+  </div>
+
+  <div id="planningContainer" style="overflow-x:auto;">
+    <div class="empty"><div class="empty-icon">📊</div><div class="empty-text">Cargando planning...</div></div>
+  </div>
+</div>
+
+<!-- MODAL CELDA PLANNING -->
+<div class="modal-overlay" id="planningCeldaModal" onclick="closeModalOutside(event,'planningCeldaModal')">
+  <div class="modal" style="max-width:380px;">
+    <div class="modal-title" id="planningCeldaTitle">Modelo 303 — T1</div>
+    <input type="hidden" id="pcClienteId">
+    <input type="hidden" id="pcModelo">
+    <input type="hidden" id="pcPeriodo">
+    <div class="form-group">
+      <label class="form-label">Estado</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <button class="btn" id="pcBtnPendiente" onclick="setPcEstado('pendiente')" style="background:#FEF2F2;color:#EF4444;border:2px solid #FECACA;">🔴 Pendiente</button>
+        <button class="btn" id="pcBtnProceso" onclick="setPcEstado('proceso')" style="background:#FFFBEB;color:#D97706;border:2px solid #FDE68A;">🟡 En proceso</button>
+        <button class="btn" id="pcBtnPresentado" onclick="setPcEstado('presentado')" style="background:#F0FDF4;color:#059669;border:2px solid #BBF7D0;">🟢 Presentado</button>
+        <button class="btn" id="pcBtnNoOblig" onclick="setPcEstado('no_obligado')" style="background:#F9FAFB;color:#6B7280;border:2px solid #E5E7EB;">⬜ No obligado</button>
+      </div>
+    </div>
+    <div class="form-group" id="pcImporteGroup">
+      <label class="form-label">Importe (€)</label>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="number" step="0.01" class="form-input" id="pcImporte" placeholder="0.00" style="flex:1;">
+        <label style="display:flex;align-items:center;gap:4px;font-size:13px;white-space:nowrap;cursor:pointer;">
+          <input type="checkbox" id="pcSA" onchange="toggleSA()"> S/A
+        </label>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Comentario</label>
+      <input type="text" class="form-input" id="pcComentario" placeholder="Observaciones...">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('planningCeldaModal')">Cancelar</button>
+      <button class="btn btn-primary" onclick="savePlanningCelda()">Guardar</button>
+    </div>
+  </div>
 </div>
 
 </main>
@@ -1223,6 +1294,222 @@ function importarExcel(input) {
     }
   };
   reader.readAsArrayBuffer(file);
+}
+
+// ── Planning Fiscal ──────────────────────────────────────────────────────────
+
+window.planningData = {};
+
+const MODELOS = [
+  { grupo: 'Retenciones IRPF', modelos: [
+    { id: '111', label: '111', periodos: ['1T','2T','3T','4T'] },
+    { id: '190', label: '190', periodos: ['Anual'], resumen: true }
+  ]},
+  { grupo: 'Retenciones Alquiler', modelos: [
+    { id: '115', label: '115', periodos: ['1T','2T','3T','4T'] },
+    { id: '180', label: '180', periodos: ['Anual'], resumen: true }
+  ]},
+  { grupo: 'IRPF Autónomos', modelos: [
+    { id: '130', label: '130/131', periodos: ['1T','2T','3T','4T'] }
+  ]},
+  { grupo: 'IVA', modelos: [
+    { id: '303', label: '303', periodos: ['1T','2T','3T','4T'] },
+    { id: '390', label: '390', periodos: ['Anual'], resumen: true }
+  ]},
+  { grupo: 'IS / Pago Fraccionado', modelos: [
+    { id: '202', label: '202', periodos: ['Abril','Octubre','Diciembre'] },
+    { id: '200', label: '200', periodos: ['Julio'] }
+  ]},
+  { grupo: 'Op. Intracomunitarias', modelos: [
+    { id: '349', label: '349', periodos: ['1T','2T','3T','4T'] }
+  ]},
+  { grupo: 'Anual Independiente', modelos: [
+    { id: '347', label: '347', periodos: ['Febrero'] }
+  ]}
+];
+
+function planningKey(clienteId, modelo, periodo, anio) {
+  return `${anio}_${clienteId}_${modelo}_${periodo}`.replace(/[^a-zA-Z0-9_]/g,'_');
+}
+
+function getPlanningCelda(clienteId, modelo, periodo, anio) {
+  const key = planningKey(clienteId, modelo, periodo, anio);
+  return window.planningData[key] || null;
+}
+
+function estadoColor(estado) {
+  if (estado === 'presentado') return '#10B981';
+  if (estado === 'proceso') return '#F59E0B';
+  if (estado === 'no_obligado') return '#6B7280';
+  if (estado === 'sa') return '#93C5FD';
+  return '#EF4444'; // pendiente por defecto
+}
+
+function estadoLabel(celda) {
+  if (!celda) return '';
+  if (celda.estado === 'no_obligado') return '—';
+  if (celda.sa) return 'S/A';
+  if (celda.importe !== undefined && celda.importe !== '') return '€' + parseFloat(celda.importe || 0).toFixed(2);
+  return '•';
+}
+
+function renderPlanning() {
+  const container = document.getElementById('planningContainer');
+  if (!container) return;
+  const anio = document.getElementById('planningAnio').value || '2026';
+  const filtro = document.getElementById('planningFiltro').value || 'todos';
+  const allClients = (window.clients || []).filter(c => c.nombre);
+
+  if (!allClients.length) {
+    container.innerHTML = '<div class="empty"><div class="empty-icon">📊</div><div class="empty-text">No hay clientes. Añade clientes primero.</div></div>';
+    return;
+  }
+
+  // Construir columnas
+  const cols = [];
+  MODELOS.forEach(grupo => {
+    grupo.modelos.forEach(m => {
+      m.periodos.forEach(p => {
+        cols.push({ grupo: grupo.grupo, modelo: m.id, label: m.label, periodo: p, resumen: m.resumen || false });
+      });
+    });
+  });
+
+  // Filtrar clientes si hay filtro de estado
+  let clientesFiltrados = allClients;
+  if (filtro !== 'todos') {
+    clientesFiltrados = allClients.filter(c => {
+      return cols.some(col => {
+        const celda = getPlanningCelda(c.id, col.modelo, col.periodo, anio);
+        if (!celda) return filtro === 'pendiente';
+        return celda.estado === filtro;
+      });
+    });
+  }
+
+  // Agrupar columnas por grupo
+  const grupos = {};
+  cols.forEach(col => {
+    if (!grupos[col.grupo]) grupos[col.grupo] = [];
+    grupos[col.grupo].push(col);
+  });
+
+  let tableHTML = `<table style="border-collapse:collapse;min-width:100%;font-size:12px;">
+    <thead>
+      <tr style="background:var(--navy);color:white;">
+        <th style="padding:10px 14px;text-align:left;min-width:140px;position:sticky;left:0;background:var(--navy);z-index:2;">Cliente</th>`;
+
+  // Headers de grupos
+  Object.entries(grupos).forEach(([grupo, gcols]) => {
+    tableHTML += `<th colspan="${gcols.length}" style="padding:8px;text-align:center;border-left:2px solid rgba(255,255,255,0.2);font-size:11px;">${grupo}</th>`;
+  });
+  tableHTML += `<th style="padding:8px;min-width:180px;border-left:2px solid rgba(255,255,255,0.2);">Comentarios</th></tr>
+    <tr style="background:var(--navy-mid);color:var(--gray-400);">
+      <th style="padding:6px 14px;position:sticky;left:0;background:var(--navy-mid);z-index:2;"></th>`;
+
+  cols.forEach((col, i) => {
+    const isFirstInGroup = i === 0 || cols[i-1].grupo !== col.grupo;
+    tableHTML += `<th style="padding:6px 8px;text-align:center;white-space:nowrap;${isFirstInGroup?'border-left:2px solid rgba(255,255,255,0.1);':''}${col.resumen?'background:rgba(255,255,255,0.05);':''}">${col.label}<br><span style="font-size:10px;opacity:0.7;">${col.periodo}</span></th>`;
+  });
+  tableHTML += `<th style="border-left:2px solid rgba(255,255,255,0.1);"></th></tr></thead><tbody>`;
+
+  // Filas de clientes
+  clientesFiltrados.forEach((c, ci) => {
+    const rowBg = ci % 2 === 0 ? 'white' : '#F8FAFC';
+    tableHTML += `<tr style="background:${rowBg};">
+      <td style="padding:8px 14px;font-weight:500;color:var(--navy);white-space:nowrap;position:sticky;left:0;background:${rowBg};z-index:1;border-right:1px solid var(--gray-200);">${c.nombre}</td>`;
+
+    cols.forEach((col, i) => {
+      const isFirstInGroup = i === 0 || cols[i-1].grupo !== col.grupo;
+      const celda = getPlanningCelda(c.id, col.modelo, col.periodo, anio);
+      const color = estadoColor(celda?.estado);
+      const label = estadoLabel(celda);
+      const bgCell = celda?.estado === 'no_obligado' ? '#F9FAFB' : celda?.sa ? '#EFF6FF' : 'transparent';
+      tableHTML += `<td style="padding:4px;text-align:center;${isFirstInGroup?'border-left:2px solid var(--gray-200);':''}${col.resumen?'background:rgba(212,160,23,0.03);':''}">
+        <div onclick="openPlanningCelda('${c.id}','${col.modelo}','${col.periodo}','${anio}','${c.nombre}')" 
+          style="cursor:pointer;border-radius:6px;padding:4px 2px;min-width:48px;background:${bgCell};display:flex;flex-direction:column;align-items:center;gap:2px;" 
+          title="${celda?.comentario||''}">
+          <div style="width:8px;height:8px;border-radius:50%;background:${color};"></div>
+          <div style="font-size:10px;color:var(--gray-600);font-weight:500;">${label}</div>
+        </div>
+      </td>`;
+    });
+
+    // Columna comentarios del cliente
+    const comentarioCliente = window.planningData['comentario_' + c.id + '_' + anio];
+    tableHTML += `<td style="padding:4px 8px;border-left:2px solid var(--gray-200);min-width:180px;">
+      <div style="display:flex;align-items:center;gap:4px;">
+        <input type="text" value="${comentarioCliente?.texto||''}" placeholder="Comentario..." 
+          style="width:100%;font-size:11px;border:1px solid var(--gray-200);border-radius:4px;padding:3px 6px;background:transparent;"
+          onchange="saveComentarioCliente('${c.id}','${anio}',this.value)">
+      </div>
+    </td></tr>`;
+  });
+
+  tableHTML += '</tbody></table>';
+  container.innerHTML = tableHTML;
+}
+
+function openPlanningCelda(clienteId, modelo, periodo, anio, clienteNombre) {
+  const celda = getPlanningCelda(clienteId, modelo, periodo, anio) || {};
+  document.getElementById('pcClienteId').value = clienteId;
+  document.getElementById('pcModelo').value = modelo;
+  document.getElementById('pcPeriodo').value = periodo;
+  document.getElementById('planningCeldaTitle').textContent = `Modelo ${modelo} — ${periodo} | ${clienteNombre}`;
+  document.getElementById('pcImporte').value = celda.importe || '';
+  document.getElementById('pcSA').checked = celda.sa || false;
+  document.getElementById('pcComentario').value = celda.comentario || '';
+  setPcEstado(celda.estado || 'pendiente', false);
+  toggleSA();
+  document.getElementById('planningCeldaModal').classList.add('open');
+}
+
+let pcEstadoActual = 'pendiente';
+function setPcEstado(estado, save=false) {
+  pcEstadoActual = estado;
+  const estados = ['pendiente','proceso','presentado','no_obligado'];
+  const ids = ['pcBtnPendiente','pcBtnProceso','pcBtnPresentado','pcBtnNoOblig'];
+  ids.forEach((id,i) => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    btn.style.opacity = estados[i] === estado ? '1' : '0.4';
+    btn.style.fontWeight = estados[i] === estado ? '700' : '400';
+  });
+  const importeGroup = document.getElementById('pcImporteGroup');
+  if (importeGroup) importeGroup.style.display = estado === 'no_obligado' ? 'none' : 'block';
+}
+
+function toggleSA() {
+  const sa = document.getElementById('pcSA').checked;
+  const importeInput = document.getElementById('pcImporte');
+  if (importeInput) { importeInput.disabled = sa; if(sa) importeInput.value = ''; }
+}
+
+async function savePlanningCelda() {
+  const clienteId = document.getElementById('pcClienteId').value;
+  const modelo = document.getElementById('pcModelo').value;
+  const periodo = document.getElementById('pcPeriodo').value;
+  const anio = document.getElementById('planningAnio').value || '2026';
+  const key = planningKey(clienteId, modelo, periodo, anio);
+  const data = {
+    clienteId, modelo, periodo, anio,
+    estado: pcEstadoActual,
+    importe: document.getElementById('pcImporte').value,
+    sa: document.getElementById('pcSA').checked,
+    comentario: document.getElementById('pcComentario').value.trim(),
+    updated: new Date().toISOString()
+  };
+  await fbSet('planning', key, data);
+  window.planningData[key] = data;
+  closeModal('planningCeldaModal');
+  renderPlanning();
+}
+
+async function saveComentarioCliente(clienteId, anio, texto) {
+  const key = 'comentario_' + clienteId + '_' + anio;
+  const data = { clienteId, anio, texto, updated: new Date().toISOString() };
+  await fbSet('planning', key, data);
+  window.planningData[key] = data;
 }
 
 // ── Login ────────────────────────────────────────────────────────────────────
