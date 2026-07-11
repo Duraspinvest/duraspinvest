@@ -1358,7 +1358,18 @@ function renderPlanning() {
   if (!container) return;
   const anio = document.getElementById('planningAnio').value || '2026';
   const filtro = document.getElementById('planningFiltro').value || 'todos';
-  const allClients = (window.clients || []).filter(c => c.nombre);
+  // Ordenar clientes: primero sociedades, luego autónomos, cada grupo alfabético
+  const allClients = (window.clients || [])
+    .filter(c => c.nombre)
+    .sort((a, b) => {
+      const tipoA = (a.tipo||'').toLowerCase();
+      const tipoB = (b.tipo||'').toLowerCase();
+      const esSociedadA = tipoA === 'sociedad';
+      const esSociedadB = tipoB === 'sociedad';
+      if (esSociedadA && !esSociedadB) return -1;
+      if (!esSociedadA && esSociedadB) return 1;
+      return (a.nombre||'').localeCompare(b.nombre||'', 'es');
+    });
 
   if (!allClients.length) {
     container.innerHTML = '<div class="empty"><div class="empty-icon">📊</div><div class="empty-text">No hay clientes. Añade clientes primero.</div></div>';
@@ -1414,7 +1425,13 @@ function renderPlanning() {
   tableHTML += `<th style="border-left:2px solid rgba(255,255,255,0.1);"></th></tr></thead><tbody>`;
 
   // Filas de clientes
+  let grupoAnterior = null;
   clientesFiltrados.forEach((c, ci) => {
+    const grupoActual = (c.tipo||'').toLowerCase() === 'sociedad' ? 'Sociedades' : 'Autónomos y Particulares';
+    if (grupoActual !== grupoAnterior) {
+      grupoAnterior = grupoActual;
+      tableHTML += `<tr><td colspan="${cols.length + 2}" style="padding:8px 14px;background:var(--navy);color:white;font-size:11px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;">${grupoActual}</td></tr>`;
+    }
     const rowBg = ci % 2 === 0 ? 'white' : '#F8FAFC';
     tableHTML += `<tr style="background:${rowBg};">
       <td style="padding:8px 14px;font-weight:500;color:var(--navy);white-space:nowrap;position:sticky;left:0;background:${rowBg};z-index:1;border-right:1px solid var(--gray-200);">${c.nombre}</td>`;
@@ -1446,6 +1463,7 @@ function renderPlanning() {
     </td></tr>`;
   });
 
+  }); // cierre forEach
   tableHTML += '</tbody></table>';
   container.innerHTML = tableHTML;
 }
