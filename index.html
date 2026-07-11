@@ -493,7 +493,7 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
     <span style="display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;border-radius:50%;background:#BFDBFE;display:inline-block;"></span> S/A</span>
   </div>
 
-  <div id="planningContainer" style="overflow-x:auto;">
+  <div id="planningContainer" style="overflow-x:auto;overflow-y:auto;max-height:70vh;border:1px solid var(--gray-200);border-radius:var(--radius);">
     <div class="empty"><div class="empty-icon">📊</div><div class="empty-text">Cargando planning...</div></div>
   </div>
 </div>
@@ -707,6 +707,12 @@ function openClienteModal(id) {
     document.getElementById('cIva').value = 'General';
     document.getElementById('cServicios').value = 'Fiscal';
   }
+  // Cargar obligaciones
+  const obligs = id ? ((window.clients||[]).find(x=>String(x.id)===String(id))?.obligaciones || []) : [];
+  ['111','190','115','180','130','303','390','202','200','349','347'].forEach(m => {
+    const el = document.getElementById('oblig_'+m);
+    if(el) el.checked = obligs.includes(m);
+  });
   document.getElementById('clienteModalOverlay').classList.add('open');
   document.getElementById('cNombre').focus();
 }
@@ -777,7 +783,11 @@ async function saveCliente() {
     iva: document.getElementById('cIva').value,
     servicios: document.getElementById('cServicios').value,
     notas: existing ? (existing.notas || []) : [],
-    docs: existing ? (existing.docs || []) : []
+    docs: existing ? (existing.docs || []) : [],
+    obligaciones: ['111','190','115','180','130','303','390','202','200','349','347'].filter(m => {
+      const el = document.getElementById('oblig_'+m);
+      return el && el.checked;
+    })
   };
   await fbSet('clients', c.id, c);
   closeModal('clienteModalOverlay');
@@ -1406,7 +1416,7 @@ function renderPlanning() {
   });
 
   let tableHTML = `<table style="border-collapse:collapse;min-width:100%;font-size:12px;">
-    <thead>
+    <thead style="position:sticky;top:0;z-index:10;">
       <tr style="background:var(--navy);color:white;">
         <th style="padding:10px 14px;text-align:left;min-width:140px;position:sticky;left:0;background:var(--navy);z-index:2;">Cliente</th>`;
 
@@ -1439,16 +1449,24 @@ function renderPlanning() {
     cols.forEach((col, i) => {
       const isFirstInGroup = i === 0 || cols[i-1].grupo !== col.grupo;
       const celda = getPlanningCelda(c.id, col.modelo, col.periodo, anio);
-      const color = estadoColor(celda?.estado);
-      const label = estadoLabel(celda);
-      const bgCell = celda?.estado === 'no_obligado' ? '#F9FAFB' : celda?.sa ? '#EFF6FF' : 'transparent';
+      const obligaciones = c.obligaciones || [];
+      const estaObligado = obligaciones.includes(col.modelo);
+      // Si no tiene obligaciones definidas, mostramos todo normal (compatibilidad)
+      const tieneObligaciones = obligaciones.length > 0;
+      const noObligado = tieneObligaciones && !estaObligado;
+      const color = noObligado ? '#000000' : estadoColor(celda?.estado);
+      const label = noObligado ? '—' : estadoLabel(celda);
+      const bgCell = noObligado ? '#F0F0F0' : celda?.estado === 'no_obligado' ? '#F9FAFB' : celda?.sa ? '#EFF6FF' : 'transparent';
       tableHTML += `<td style="padding:4px;text-align:center;${isFirstInGroup?'border-left:2px solid var(--gray-200);':''}${col.resumen?'background:rgba(212,160,23,0.03);':''}">
-        <div onclick="openPlanningCelda('${c.id}','${col.modelo}','${col.periodo}','${anio}','${c.nombre}')" 
-          style="cursor:pointer;border-radius:6px;padding:4px 2px;min-width:48px;background:${bgCell};display:flex;flex-direction:column;align-items:center;gap:2px;" 
-          title="${celda?.comentario||''}">
-          <div style="width:8px;height:8px;border-radius:50%;background:${color};"></div>
-          <div style="font-size:10px;color:var(--gray-600);font-weight:500;">${label}</div>
-        </div>
+        ${noObligado 
+          ? `<div style="text-align:center;font-size:14px;font-weight:700;color:#000;line-height:32px;">—</div>`
+          : `<div onclick="openPlanningCelda('${c.id}','${col.modelo}','${col.periodo}','${anio}','${c.nombre}')" 
+              style="cursor:pointer;border-radius:6px;padding:4px 2px;min-width:48px;background:${bgCell};display:flex;flex-direction:column;align-items:center;gap:2px;" 
+              title="${celda?.comentario||''}">
+              <div style="width:8px;height:8px;border-radius:50%;background:${color};"></div>
+              <div style="font-size:10px;color:var(--gray-600);font-weight:500;">${label}</div>
+            </div>`
+        }
       </td>`;
     });
 
