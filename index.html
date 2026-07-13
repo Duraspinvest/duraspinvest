@@ -11,6 +11,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMAAAADACAYAAABS3GwHAAAE50lEQVR4nO3dTVbjRhiGUdknI1hBFgDrgHGPstKMMoZ1wAKyApiSQYc+tPGPZJWkqnrvHXfb8jnfoyrJP+yGDdzcPXxs8bzU7f31ebf2c67yhAaea6wRxGJPYOgpaakYij6ooWcNJWPYl3ogw89aSs7a7JIMPluauxrMWgEMP1ubO4NX1WPwqdE1q8HkFcDwU6trZnNSAIaf2k2d0dEBGH5aMWVWRwVg+GnN2Jm9GIDhp1VjZvdsAIaf1l2a4WLvBEOLTgbg7E8vzs3y0QAMP705NdO2QET7FoCzP706Ntv7S/8AenI447ZARBMA0X4FYPtDiq+z/kfJB357efq35OO14vb+8c8lH//t5emvJR+/Vrf3j38v/Ry2QETbD4PtD3k+Z94KQDQBEE0ARNvb/5Pq5u7hwwpANAEQTQBEEwDRBEA0ARBNAEQTANEEQDQBEK3oF2JKWPrLJanW+HLJV618iccKQDQBEE0ARBMA0aq7CN7ilyVceOeyAhBNAEQTANEEQDQBEE0ARBMA0QRANAEQTQBEEwDRBEA0ARBNAEQTANEEQLTqvhDjyymsyQpANAEQTQBEEwDRBEC06u4CbfGzKHO1cOeqld/qXJsVgGgCIJoAiCYAogmAaAIgmgCIJgCiCYBoAiCaAIgmAKIJgGgCIJoAiCYAou1u7h4+tj4I2IoVgGgCIJoAiCYAogmAaAIgmgCIJgCiCYBoAiCaAIgmAKIJgGgCIJoAiCYAogmAaAIgmgCIJgCiCYBo1f2Z1J68vTz9M/X/3N4//ljiWDjOz6IUdM3AXyKIZQlgpiWG/hQxlCeAK6w59KeIoQwBTFDD4B8SwjwCGKHGwT8khOu4DXpBC8M/DO0cZ20EcEZrQ9Xa8dbAFuiIHgbJlmgcK8CBHoZ/GPp5HUsTwBe9DU1vr2cJAvhfr8PS6+sqRQBD/0PS++ubIz6AlOFIeZ1TRQeQNhRpr3eM6AAg9n2A2j7FWdvxpIgMYOlhKzFgLRxjD3wjrKCSQ/X5WPbty4pbAVr91larx107K8AMaw6QFWEZUXeBSg7PVmfPks8rprAASg3P1luHrZ+/J3HXAF+1/rMlJc7gNb2eLUQH8GnKILVwi3Oq5AhcBA+/D8C54UwelF5FXQOMcXv/+MOg57ACnHC4KoiiT1aAEXof/tquSdYkAKIJgGgCIJoAiCYAogmAaAIgmgCIJgCiCYDu3+k+RwBEEwDRfBp0A1O3HMkfVluaFSBc8v5/GARAOAEQTQDB0rc/wyAAwgmgckvdAXL2/8lt0Eq59bkOAVTCH8jYhgBWUNPZ3PD/zjUA0QSwMGf/ugkghOE/TgBEEwDR9u+vz7utDwK28P76vLMCEM37AJ1xsTuNFWBBa98CNfzT7Yfh515o6wNhHsM/zefM2wI1zuDPI4BGGfwyfgXw/vrsT6ZWztCX8XXLbwWonKFflgAqY+DX9e3uj20QPTu84/ntfQC3ROnVsdn2RhjRjgZgFaA3p2b65AogAnpxbpZtgYh2NgCrAK27NMMXVwAR0KoxsztqCyQCWjN2ZkdfA4iAVkyZ1UkXwSKgdlNndPJdIBFQq2tmc9Yw+9wQNZhzUp71PoDVgK3NncFiA2w1YE2lTr7F3gm2GrCWkrO22NBaEShpqRPsKmdtMXCNNXYVm2xbBMExW2yj/wNHKI0+MOfFLAAAAABJRU5ErkJggg==">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="screen-orientation" content="any">
 <meta name="apple-mobile-web-app-title" content="Duraspinvest">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -198,6 +199,11 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
   .ficha-grid{grid-template-columns:1fr;}
   .form-row{grid-template-columns:1fr;}
 }
+
+.voz-item{background:white;border-radius:var(--radius);box-shadow:var(--shadow);padding:12px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px;}
+.voz-item audio{flex:1;height:36px;}
+@keyframes pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.1);}}
+.grabando{animation:pulse 1s infinite;}
 </style>
 
 <!-- Firebase SDK -->
@@ -385,6 +391,18 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
     <div class="stat-card q3"><div class="stat-num" id="statQ3">0</div><div class="stat-label">A delegar</div></div>
     <div class="stat-card" style="border-left-color:var(--success)"><div class="stat-num" id="statDone">0</div><div class="stat-label">Completadas</div></div>
   </div>
+  <!-- BOTÓN NOTA DE VOZ -->
+  <div style="margin-bottom:16px;">
+    <div style="background:var(--navy);border-radius:var(--radius);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+      <div>
+        <div style="color:white;font-size:14px;font-weight:600;">🎙 Nota de voz</div>
+        <div style="color:var(--gray-400);font-size:12px;margin-top:2px;" id="vozStatus">Pulsa para grabar un recordatorio</div>
+      </div>
+      <button id="btnGrabar" onclick="toggleGrabacion()" style="width:52px;height:52px;border-radius:50%;background:#EF4444;color:white;border:none;font-size:22px;cursor:pointer;flex-shrink:0;transition:all 0.2s;">🎙</button>
+    </div>
+    <div id="vozLista" style="margin-top:8px;"></div>
+  </div>
+
   <div id="alertasPanel" style="display:none;background:#FEF2F2;border:1px solid #FECACA;border-radius:var(--radius);padding:14px 18px;margin-bottom:16px;">
     <div style="font-size:13px;font-weight:600;color:#EF4444;margin-bottom:8px;">🔴 Alertas urgentes</div>
     <div id="alertasList"></div>
@@ -1613,6 +1631,104 @@ async function saveObligacionesFicha(cid) {
   setTimeout(() => { btn.textContent = original; btn.style.color = ''; }, 2000);
 }
 
+// ── Notas de voz ─────────────────────────────────────────────────────────────
+
+let mediaRecorder = null;
+let audioChunks = [];
+let grabando = false;
+
+async function toggleGrabacion() {
+  if (!grabando) {
+    await iniciarGrabacion();
+  } else {
+    pararGrabacion();
+  }
+}
+
+async function iniciarGrabacion() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder = new MediaRecorder(stream);
+    audioChunks = [];
+
+    mediaRecorder.ondataavailable = e => { if(e.data.size > 0) audioChunks.push(e.data); };
+
+    mediaRecorder.onstop = () => {
+      const blob = new Blob(audioChunks, { type: 'audio/webm' });
+      guardarNotaVoz(blob);
+      stream.getTracks().forEach(t => t.stop());
+    };
+
+    mediaRecorder.start();
+    grabando = true;
+
+    const btn = document.getElementById('btnGrabar');
+    btn.textContent = '⏹';
+    btn.style.background = '#6B7280';
+    btn.classList.add('grabando');
+    document.getElementById('vozStatus').textContent = '● Grabando... pulsa para parar';
+    document.getElementById('vozStatus').style.color = '#EF4444';
+
+  } catch(e) {
+    alert('No se pudo acceder al micrófono. Comprueba los permisos.');
+  }
+}
+
+function pararGrabacion() {
+  if(mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stop();
+  }
+  grabando = false;
+  const btn = document.getElementById('btnGrabar');
+  btn.textContent = '🎙';
+  btn.style.background = '#EF4444';
+  btn.classList.remove('grabando');
+  document.getElementById('vozStatus').textContent = 'Pulsa para grabar un recordatorio';
+  document.getElementById('vozStatus').style.color = '';
+}
+
+function guardarNotaVoz(blob) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const notas = JSON.parse(localStorage.getItem('duraspinvest_voz') || '[]');
+    notas.unshift({
+      id: String(Date.now()),
+      data: e.target.result,
+      fecha: new Date().toISOString()
+    });
+    // Guardar máximo 20 notas
+    if(notas.length > 20) notas.pop();
+    localStorage.setItem('duraspinvest_voz', JSON.stringify(notas));
+    renderNotasVoz();
+  };
+  reader.readAsDataURL(blob);
+}
+
+function renderNotasVoz() {
+  const lista = document.getElementById('vozLista');
+  if(!lista) return;
+  const notas = JSON.parse(localStorage.getItem('duraspinvest_voz') || '[]');
+  if(!notas.length) { lista.innerHTML = ''; return; }
+  lista.innerHTML = notas.map(n => {
+    const fecha = new Date(n.fecha).toLocaleDateString('es-ES', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+    return `<div class="voz-item">
+      <div style="font-size:18px;">🎙</div>
+      <div style="flex:1;">
+        <div style="font-size:11px;color:var(--gray-400);margin-bottom:4px;">${fecha}</div>
+        <audio controls src="${n.data}" style="width:100%;height:32px;"></audio>
+      </div>
+      <button class="icon-btn" onclick="eliminarNotaVoz('${n.id}')" title="Eliminar" style="color:#EF4444;font-size:18px;">×</button>
+    </div>`;
+  }).join('');
+}
+
+function eliminarNotaVoz(id) {
+  if(!confirm('¿Eliminar esta nota de voz?')) return;
+  const notas = JSON.parse(localStorage.getItem('duraspinvest_voz') || '[]').filter(n => n.id !== id);
+  localStorage.setItem('duraspinvest_voz', JSON.stringify(notas));
+  renderNotasVoz();
+}
+
 // ── Login ────────────────────────────────────────────────────────────────────
 
 // ── Biometría WebAuthn ────────────────────────────────────────────────────────
@@ -1849,6 +1965,7 @@ document.getElementById('headerDate').textContent = new Date().toLocaleDateStrin
 checkBiometricAvailable();
 checkNotifStatus();
 updateHuellaBtn();
+renderNotasVoz();
 document.getElementById('loginEmail').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('loginPassword').focus(); });
 document.getElementById('loginPassword').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
 </script>
