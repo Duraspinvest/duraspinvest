@@ -614,24 +614,27 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
       <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" id="cEmail" placeholder="correo@ejemplo.com"></div>
     </div>
     <div class="form-row">
-      <div class="form-group"><label class="form-label">Régimen IVA</label>
-        <select class="form-select" id="cIva">
-          <option>General</option><option>Simplificado</option><option>Exento</option>
+      <div class="form-group"><label class="form-label">Categoría</label>
+        <select class="form-select" id="cCategoria">
+          <option value="despacho">Del despacho</option>
+          <option value="auxiliar">Auxiliar</option>
+          <option value="ambos">Ambos</option>
         </select>
       </div>
-      <div class="form-group"><label class="form-label">Servicios</label>
-        <select class="form-select" id="cServicios">
-          <option>Fiscal</option>
-          <option>Contable</option>
-          <option>Laboral</option>
-          <option>Fiscal | Contable</option>
-          <option>Fiscal | Laboral</option>
-          <option>Contable | Laboral</option>
-          <option>Fiscal | Contable | Laboral</option>
-          <option>Constitución de sociedades</option>
-          <option>Consultoría y asesoramiento</option>
-          <option>Otros</option>
-        </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Servicios contratados</label>
+      <div style="background:var(--gray-50);border:1.5px solid var(--gray-200);border-radius:8px;padding:10px 12px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+          <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" id="svc_fiscal" value="Fiscal"> Fiscal</label>
+          <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" id="svc_contable" value="Contable"> Contable</label>
+          <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" id="svc_laboral" value="Laboral"> Laboral</label>
+          <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" id="svc_mercantil" value="Mercantil"> Mercantil</label>
+          <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" id="svc_juridico" value="Jurídico"> Jurídico</label>
+          <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" id="svc_seguros" value="Seguros"> Seguros</label>
+          <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" id="svc_suministros" value="Suministros"> Suministros</label>
+          <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" id="svc_varios" value="Varios"> Varios</label>
+        </div>
       </div>
     </div>
     <div class="form-group">
@@ -745,6 +748,13 @@ function openClienteModal(id) {
     document.getElementById('cNombre').value = c.nombre || '';
     document.getElementById('cNif').value = c.nif || '';
     document.getElementById('cTipo').value = c.tipo || 'Sociedad';
+    document.getElementById('cCategoria').value = c.categoria || 'despacho';
+    // Cargar servicios checkboxes
+    const svcsActivos = (c.servicios||'').split('|').map(s=>s.trim());
+    ['fiscal','contable','laboral','mercantil','juridico','seguros','suministros','varios'].forEach(id => {
+      const el = document.getElementById('svc_'+id);
+      if(el) el.checked = svcsActivos.some(s => s.toLowerCase() === el.value.toLowerCase());
+    });
     document.getElementById('cTel').value = c.tel || '';
     document.getElementById('cEmail').value = c.email || '';
     document.getElementById('cIva').value = c.iva || 'General';
@@ -752,6 +762,11 @@ function openClienteModal(id) {
   } else {
     ['cNombre','cNif','cTel','cEmail'].forEach(f => document.getElementById(f).value = '');
     document.getElementById('cTipo').value = 'Sociedad';
+    document.getElementById('cCategoria').value = 'despacho';
+    ['fiscal','contable','laboral','mercantil','juridico','seguros','suministros','varios'].forEach(id => {
+      const el = document.getElementById('svc_'+id);
+      if(el) el.checked = false;
+    });
     document.getElementById('cIva').value = 'General';
     document.getElementById('cServicios').value = 'Fiscal';
   }
@@ -828,8 +843,11 @@ async function saveCliente() {
     tipo: document.getElementById('cTipo').value,
     tel: document.getElementById('cTel').value.trim(),
     email: document.getElementById('cEmail').value.trim(),
-    iva: document.getElementById('cIva').value,
-    servicios: document.getElementById('cServicios').value,
+
+    servicios: ['fiscal','contable','laboral','mercantil','juridico','seguros','suministros','varios']
+      .map(id => document.getElementById('svc_'+id))
+      .filter(el => el && el.checked).map(el => el.value).join(' | ') || '—',
+    categoria: document.getElementById('cCategoria').value || 'despacho',
     notas: existing ? (existing.notas || []) : [],
     docs: existing ? (existing.docs || []) : [],
     obligaciones: ['111','190','115','180','130','303','390','202','200','349','347'].filter(m => {
@@ -1250,6 +1268,14 @@ function showFicha(id) {
         <button class="btn btn-primary btn-sm" style="align-self:flex-end;" onclick="addNota('${c.id}')">Añadir</button>
       </div>
     </div>
+    <div class="ficha-section">
+      <div class="ficha-section-header">
+        <span class="ficha-section-title">Pólizas y contratos</span>
+        <button class="btn btn-sm btn-primary" onclick="openPolizaModal('${c.id}')">+ Añadir</button>
+      </div>
+      <div id="polizasList_${c.id}">${renderPolizasHtml(c)}</div>
+    </div>
+
     <div class="ficha-section">
       <div class="ficha-section-header"><span class="ficha-section-title">Documentos</span></div>
       <div id="docsList_${c.id}">
@@ -1730,6 +1756,71 @@ function eliminarNotaVoz(id) {
 }
 
 // ── Login ────────────────────────────────────────────────────────────────────
+
+// ── Pólizas y contratos ──────────────────────────────────────────────────────
+
+function renderPolizasHtml(c) {
+  const polizas = c.polizas || [];
+  if (!polizas.length) return '<div class="empty" style="padding:16px;">Sin pólizas ni contratos.</div>';
+  return polizas.map((p, i) => {
+    const vdays = daysUntil(p.vencimiento);
+    const alerta = vdays !== null && vdays <= 60 && vdays >= 0;
+    const vencida = vdays !== null && vdays < 0;
+    const vds = p.vencimiento ? new Date(p.vencimiento + 'T12:00:00').toLocaleDateString('es-ES', {day:'2-digit', month:'short', year:'numeric'}) : '—';
+    const icono = p.tipo === 'seguro' ? '🛡' : p.tipo === 'suministro' ? '⚡' : '📋';
+    const alertaHtml = alerta ? ' <span style="color:#D97706;font-weight:600;">⚠ ' + vdays + 'd</span>' : '';
+    const vencidaHtml = vencida ? ' <span style="color:#EF4444;font-weight:600;">Vencida</span>' : '';
+    const bg = alerta ? 'background:#FFF7ED;' : vencida ? 'background:#FEF2F2;' : '';
+    return '<div class="ficha-task-item" style="' + bg + '">' +
+      '<div style="font-size:18px;">' + icono + '</div>' +
+      '<div style="flex:1;">' +
+        '<div style="font-size:13px;font-weight:500;">' + p.nombre + '</div>' +
+        '<div style="font-size:11px;color:var(--gray-400);">Vence: ' + vds + alertaHtml + vencidaHtml + (p.notas ? ' · ' + p.notas : '') + '</div>' +
+      '</div>' +
+      '<button class="icon-btn" onclick="deletePoliza('' + c.id + '',' + i + ')">×</button>' +
+    '</div>';
+  }).join('');
+}
+
+function openPolizaModal(cid) {
+  document.getElementById('plClienteId').value = cid;
+  document.getElementById('plNombre').value = '';
+  document.getElementById('plTipo').value = 'seguro';
+  document.getElementById('plVencimiento').value = '';
+  document.getElementById('plNotas').value = '';
+  document.getElementById('polizaModalOverlay').classList.add('open');
+  document.getElementById('plNombre').focus();
+}
+
+async function savePoliza() {
+  const cid = document.getElementById('plClienteId').value;
+  const nombre = document.getElementById('plNombre').value.trim();
+  if (!nombre) return document.getElementById('plNombre').focus();
+  const vencimiento = document.getElementById('plVencimiento').value;
+  if (!vencimiento) return document.getElementById('plVencimiento').focus();
+  const c = (window.clients || []).find(x => String(x.id) === String(cid));
+  if (!c) return;
+  if (!c.polizas) c.polizas = [];
+  c.polizas.push({
+    nombre,
+    tipo: document.getElementById('plTipo').value,
+    vencimiento,
+    notas: document.getElementById('plNotas').value.trim(),
+    creado: new Date().toISOString()
+  });
+  await fbSet('clients', cid, c);
+  closeModal('polizaModalOverlay');
+  showFicha(cid);
+}
+
+async function deletePoliza(cid, idx) {
+  if (!confirm('¿Eliminar esta póliza?')) return;
+  const c = (window.clients || []).find(x => String(x.id) === String(cid));
+  if (!c) return;
+  c.polizas.splice(idx, 1);
+  await fbSet('clients', cid, c);
+  showFicha(cid);
+}
 
 // ── Biometría WebAuthn ────────────────────────────────────────────────────────
 
