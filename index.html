@@ -735,7 +735,9 @@ function openTaskModal(q) {
   document.getElementById('tNombre').focus();
 }
 
-function openTaskModalForClient(nombre) {
+function openTaskModalForClient(cid) {
+  const c = (window.clients || []).find(x => String(x.id) === String(cid));
+  const nombre = c ? c.nombre : '';
   openTaskModal('Q1 Importante + urgente');
   document.getElementById('tCliente').value = nombre;
 }
@@ -867,7 +869,7 @@ async function deleteCliente(id) {
 }
 
 async function addNota(cid) {
-  const inp = document.getElementById('notaInput_' + cid);
+  const inp = document.getElementById('notaInput_ficha') || document.getElementById('notaInput_' + cid);
   const texto = inp.value.trim();
   if (!texto) return;
   const c = (window.clients || []).find(x => String(x.id) === String(cid));
@@ -882,7 +884,7 @@ async function addNota(cid) {
 async function deleteNota(cid, idx) {
   const c = (window.clients || []).find(x => String(x.id) === String(cid));
   if (!c) return;
-  c.notas.splice(idx, 1);
+  c.notas.splice(parseInt(idx), 1);
   await fbSet('clients', cid, c);
   showFicha(cid);
 }
@@ -906,7 +908,7 @@ async function addDoc(cid) {
 async function deleteDoc(cid, idx) {
   const c = (window.clients || []).find(x => String(x.id) === String(cid));
   if (!c) return;
-  c.docs.splice(idx, 1);
+  c.docs.splice(parseInt(idx), 1);
   await fbSet('clients', cid, c);
   showFicha(cid);
 }
@@ -1203,6 +1205,7 @@ function showClientesList() {
 function showFicha(id) {
   const c = (window.clients || []).find(x => String(x.id) === String(id));
   if (!c) return;
+  window._fichaClienteId = id; // Guardar para los onclick
   document.getElementById('clientesLista').style.display = 'none';
   document.getElementById('fabBtn').style.display = 'none';
   const allTasks = window.tasks || [];
@@ -1210,580 +1213,125 @@ function showFicha(id) {
   const fichaEl = document.getElementById('clienteFicha');
   fichaEl.style.display = '';
 
-  // Construir HTML por partes para evitar template literals anidados
-  let html = '';
-
-  // Cabecera
-  html += '<button class="ficha-back" onclick="showClientesList();renderClientesList()">← Volver a clientes</button>';
-  html += '<div class="ficha-header">';
-  html += '<div style="display:flex;align-items:flex-start;justify-content:space-between;">';
-  html += '<div>';
-  html += '<div class="ficha-avatar">' + initials(c.nombre) + '</div>';
-  html += '<div class="ficha-nombre">' + c.nombre + '</div>';
-  html += '<div class="ficha-nif">' + (c.nif||'Sin NIF') + ' · ' + (c.tipo||'') + '</div>';
   const catLabel = c.categoria === 'auxiliar' ? '⭐ Auxiliar' : c.categoria === 'ambos' ? '🔄 Despacho + Auxiliar' : '🏢 Del despacho';
-  html += '<div style="margin-top:6px;font-size:12px;color:var(--gray-400);">' + catLabel + '</div>';
-  html += '</div>';
-  html += '<div style="display:flex;gap:6px;">';
-  html += '<button class="btn btn-sm" style="background:var(--navy-mid);color:white;" onclick="openClienteModal('' + c.id + '')">Editar</button>';
-  html += '<button class="btn btn-sm btn-danger" onclick="deleteCliente('' + c.id + '')">Eliminar</button>';
-  html += '</div></div>';
-  html += '<div class="ficha-grid">';
-  html += '<div class="ficha-dato"><div class="ficha-dato-label">Teléfono</div><div class="ficha-dato-val">' + (c.tel||'—') + '</div></div>';
-  html += '<div class="ficha-dato"><div class="ficha-dato-label">Email</div><div class="ficha-dato-val">' + (c.email||'—') + '</div></div>';
-  html += '<div class="ficha-dato"><div class="ficha-dato-label">Servicios</div><div class="ficha-dato-val">' + (c.servicios||'—') + '</div></div>';
-  html += '<div class="ficha-dato"><div class="ficha-dato-label">Categoría</div><div class="ficha-dato-val">' + catLabel + '</div></div>';
-  html += '</div></div>';
+
+  let parts = [];
+
+  parts.push('<button class="ficha-back" onclick="showClientesList();renderClientesList()">← Volver a clientes</button>');
+  
+  parts.push('<div class="ficha-header">');
+  parts.push('<div style="display:flex;align-items:flex-start;justify-content:space-between;">');
+  parts.push('<div>');
+  parts.push('<div class="ficha-avatar">' + initials(c.nombre) + '</div>');
+  parts.push('<div class="ficha-nombre">' + c.nombre + '</div>');
+  parts.push('<div class="ficha-nif">' + (c.nif||'Sin NIF') + ' · ' + (c.tipo||'') + '</div>');
+  parts.push('<div style="margin-top:6px;font-size:12px;color:var(--gray-400);">' + catLabel + '</div>');
+  parts.push('</div>');
+  parts.push('<div style="display:flex;gap:6px;">');
+  parts.push('<button class="btn btn-sm" style="background:var(--navy-mid);color:white;" onclick="openClienteModal(window._fichaClienteId)">Editar</button>');
+  parts.push('<button class="btn btn-sm btn-danger" onclick="deleteCliente(window._fichaClienteId)">Eliminar</button>');
+  parts.push('</div></div>');
+  parts.push('<div class="ficha-grid">');
+  parts.push('<div class="ficha-dato"><div class="ficha-dato-label">Teléfono</div><div class="ficha-dato-val">' + (c.tel||'—') + '</div></div>');
+  parts.push('<div class="ficha-dato"><div class="ficha-dato-label">Email</div><div class="ficha-dato-val">' + (c.email||'—') + '</div></div>');
+  parts.push('<div class="ficha-dato"><div class="ficha-dato-label">Servicios</div><div class="ficha-dato-val">' + (c.servicios||'—') + '</div></div>');
+  parts.push('<div class="ficha-dato"><div class="ficha-dato-label">Categoría</div><div class="ficha-dato-val">' + catLabel + '</div></div>');
+  parts.push('</div></div>');
 
   // Obligaciones fiscales
-  html += '<div class="ficha-section">';
-  html += '<div class="ficha-section-header"><span class="ficha-section-title">Obligaciones fiscales</span>';
-  html += '<button class="btn btn-sm" style="background:var(--gray-100);color:var(--gray-600);" onclick="saveObligacionesFicha('' + c.id + '')">Guardar</button>';
-  html += '</div>';
-  html += '<div style="padding:12px 18px;"><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">';
-  html += renderObligacionesHtml(c);
-  html += '</div></div></div>';
+  parts.push('<div class="ficha-section">');
+  parts.push('<div class="ficha-section-header"><span class="ficha-section-title">Obligaciones fiscales</span>');
+  parts.push('<button class="btn btn-sm" style="background:var(--gray-100);color:var(--gray-600);" onclick="saveObligacionesFicha(window._fichaClienteId)">Guardar</button>');
+  parts.push('</div>');
+  parts.push('<div style="padding:12px 18px;"><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">');
+  parts.push(renderObligacionesHtml(c));
+  parts.push('</div></div></div>');
 
-  // Tareas pendientes
-  html += '<div class="ficha-section">';
-  html += '<div class="ficha-section-header"><span class="ficha-section-title">Tareas pendientes (' + ct.length + ')</span>';
-  html += '<button class="btn btn-sm btn-primary" onclick="openTaskModalForClient('' + c.nombre.replace(/'/g, "\'") + '')">+ Tarea</button>';
-  html += '</div>';
+  // Tareas
+  parts.push('<div class="ficha-section">');
+  parts.push('<div class="ficha-section-header"><span class="ficha-section-title">Tareas pendientes (' + ct.length + ')</span>');
+  parts.push('<button class="btn btn-sm btn-primary" onclick="openTaskModalForClient(window._fichaClienteId)">+ Tarea</button>');
+  parts.push('</div>');
   if (ct.length) {
-    ct.forEach(t => {
-      const ds = t.fecha ? new Date(t.fecha+'T12:00:00').toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'}) : 'Sin fecha';
-      html += '<div class="ficha-task-item">';
-      html += '<div class="task-dot ' + qClass(t.cuadrante) + '"></div>';
-      html += '<div style="flex:1"><div style="font-size:13px;font-weight:500;">' + t.nombre + '</div>';
-      html += '<div style="font-size:11px;color:var(--gray-400);">' + (t.area||'') + ' · ' + ds + '</div></div>';
-      html += '<button class="icon-btn" onclick="completeTask('' + t.id + '');setTimeout(()=>showFicha('' + c.id + ''),800)">✓</button>';
-      html += '</div>';
+    ct.forEach(function(t) {
+      var ds = t.fecha ? new Date(t.fecha+'T12:00:00').toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'}) : 'Sin fecha';
+      parts.push('<div class="ficha-task-item">');
+      parts.push('<div class="task-dot ' + qClass(t.cuadrante) + '"></div>');
+      parts.push('<div style="flex:1"><div style="font-size:13px;font-weight:500;">' + t.nombre + '</div>');
+      parts.push('<div style="font-size:11px;color:var(--gray-400);">' + (t.area||'') + ' · ' + ds + '</div></div>');
+      parts.push('<button class="icon-btn" data-tid="' + t.id + '" onclick="completeTask(this.dataset.tid);setTimeout(function(){showFicha(window._fichaClienteId)},800)">&#10003;</button>');
+      parts.push('</div>');
     });
   } else {
-    html += '<div class="empty" style="padding:20px;">Sin tareas pendientes</div>';
+    parts.push('<div class="empty" style="padding:20px;">Sin tareas pendientes</div>');
   }
-  html += '</div>';
+  parts.push('</div>');
 
-  // Pólizas y contratos
-  html += '<div class="ficha-section">';
-  html += '<div class="ficha-section-header"><span class="ficha-section-title">Pólizas y contratos</span>';
-  html += '<button class="btn btn-sm btn-primary" onclick="openPolizaModal('' + c.id + '')">+ Añadir</button>';
-  html += '</div>';
-  html += '<div>' + renderPolizasHtml(c) + '</div>';
-  html += '</div>';
+  // Pólizas
+  parts.push('<div class="ficha-section">');
+  parts.push('<div class="ficha-section-header"><span class="ficha-section-title">Pólizas y contratos</span>');
+  parts.push('<button class="btn btn-sm btn-primary" onclick="openPolizaModal(window._fichaClienteId)">+ Añadir</button>');
+  parts.push('</div>');
+  parts.push('<div>' + renderPolizasHtml(c) + '</div>');
+  parts.push('</div>');
 
   // Notas
-  html += '<div class="ficha-section">';
-  html += '<div class="ficha-section-header"><span class="ficha-section-title">Notas y comentarios</span></div>';
-  const notas = c.notas || [];
+  parts.push('<div class="ficha-section">');
+  parts.push('<div class="ficha-section-header"><span class="ficha-section-title">Notas y comentarios</span></div>');
+  var notas = c.notas || [];
   if (notas.length) {
-    notas.forEach((n, i) => {
-      const fecha = new Date(n.fecha).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'});
-      html += '<div class="nota-item">';
-      html += '<div class="nota-texto">' + n.texto + '</div>';
-      html += '<div style="display:flex;align-items:center;justify-content:space-between;">';
-      html += '<div class="nota-fecha">' + fecha + '</div>';
-      html += '<button class="icon-btn" onclick="deleteNota('' + c.id + '',' + i + ')">×</button>';
-      html += '</div></div>';
+    notas.forEach(function(n, i) {
+      var fecha = new Date(n.fecha).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'});
+      parts.push('<div class="nota-item">');
+      parts.push('<div class="nota-texto">' + n.texto + '</div>');
+      parts.push('<div style="display:flex;align-items:center;justify-content:space-between;">');
+      parts.push('<div class="nota-fecha">' + fecha + '</div>');
+      parts.push('<button class="icon-btn" data-idx="' + i + '" onclick="deleteNota(window._fichaClienteId,this.dataset.idx)">&#215;</button>');
+      parts.push('</div></div>');
     });
   } else {
-    html += '<div class="empty" style="padding:16px;">Sin notas</div>';
+    parts.push('<div class="empty" style="padding:16px;">Sin notas</div>');
   }
-  html += '<div class="nota-input-row">';
-  html += '<textarea class="nota-input" id="notaInput_' + c.id + '" rows="2" placeholder="Escribe una nota o comentario..."></textarea>';
-  html += '<button class="btn btn-primary btn-sm" style="align-self:flex-end;" onclick="addNota('' + c.id + '')">Añadir</button>';
-  html += '</div></div>';
+  parts.push('<div class="nota-input-row">');
+  parts.push('<textarea class="nota-input" id="notaInput_ficha" rows="2" placeholder="Escribe una nota o comentario..."></textarea>');
+  parts.push('<button class="btn btn-primary btn-sm" style="align-self:flex-end;" onclick="addNota(window._fichaClienteId)">Añadir</button>');
+  parts.push('</div></div>');
 
   // Documentos
-  html += '<div class="ficha-section">';
-  html += '<div class="ficha-section-header"><span class="ficha-section-title">Documentos</span></div>';
-  const docs = c.docs || [];
+  parts.push('<div class="ficha-section">');
+  parts.push('<div class="ficha-section-header"><span class="ficha-section-title">Documentos</span></div>');
+  var docs = c.docs || [];
   if (docs.length) {
-    docs.forEach((d, i) => {
-      const fecha = new Date(d.fecha).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'});
-      html += '<div class="doc-item">';
-      html += '<div class="doc-icon">📄</div>';
-      html += '<div class="doc-info"><div class="doc-nombre">' + d.nombre + '</div>';
-      html += '<div class="doc-fecha">' + fecha + '</div></div>';
-      html += '<div style="display:flex;gap:4px;align-items:center;">';
+    docs.forEach(function(d, i) {
+      var fecha = new Date(d.fecha).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'});
+      parts.push('<div class="doc-item">');
+      parts.push('<div class="doc-icon">&#128196;</div>');
+      parts.push('<div class="doc-info"><div class="doc-nombre">' + d.nombre + '</div>');
+      parts.push('<div class="doc-fecha">' + fecha + '</div></div>');
+      parts.push('<div style="display:flex;gap:4px;align-items:center;">');
       if (d.url) {
-        html += '<a href="' + d.url + '" target="_blank" class="btn btn-sm" style="background:var(--q2-bg);color:var(--q2);text-decoration:none;font-size:11px;">Abrir</a>';
-        html += '<a href="https://wa.me/?text=' + encodeURIComponent(d.nombre + ': ' + d.url) + '" target="_blank" class="btn btn-sm" style="background:#F0FDF4;color:#25D366;text-decoration:none;font-size:11px;">WA</a>';
-        html += '<a href="mailto:?subject=' + encodeURIComponent(d.nombre) + '&body=' + encodeURIComponent(d.url) + '" class="btn btn-sm" style="background:#F0FDF4;color:#059669;text-decoration:none;font-size:11px;">Email</a>';
+        parts.push('<a href="' + d.url + '" target="_blank" class="btn btn-sm" style="background:var(--q2-bg);color:var(--q2);text-decoration:none;font-size:11px;">Abrir</a>');
+        parts.push('<a href="https://wa.me/?text=' + encodeURIComponent(d.nombre + ': ' + d.url) + '" target="_blank" class="btn btn-sm" style="background:#F0FDF4;color:#25D366;text-decoration:none;font-size:11px;">WA</a>');
+        parts.push('<a href="mailto:?subject=' + encodeURIComponent(d.nombre) + '&body=' + encodeURIComponent(d.url) + '" class="btn btn-sm" style="background:#F0FDF4;color:#059669;text-decoration:none;font-size:11px;">Email</a>');
       }
-      html += '<button class="icon-btn" onclick="deleteDoc('' + c.id + '',' + i + ')">×</button>';
-      html += '</div></div>';
+      parts.push('<button class="icon-btn" data-idx="' + i + '" onclick="deleteDoc(window._fichaClienteId,this.dataset.idx)">&#215;</button>');
+      parts.push('</div></div>');
     });
   } else {
-    html += '<div class="empty" style="padding:16px;">Sin documentos. Añade el enlace de OneDrive.</div>';
+    parts.push('<div class="empty" style="padding:16px;">Sin documentos.</div>');
   }
-  html += '<div style="padding:12px 18px;border-top:0.5px solid var(--gray-100);">';
-  html += '<div style="font-size:11px;color:var(--gray-400);margin-bottom:8px;">Sube el PDF a OneDrive y pega el enlace aquí.</div>';
-  html += '<div style="display:flex;flex-direction:column;gap:6px;">';
-  html += '<input type="text" class="nota-input" id="docNombre_' + c.id + '" placeholder="Nombre del documento" style="width:100%;">';
-  html += '<input type="text" class="nota-input" id="docUrl_' + c.id + '" placeholder="Enlace de OneDrive" style="width:100%;">';
-  html += '<div style="display:flex;justify-content:flex-end;">';
-  html += '<button class="btn btn-primary btn-sm" onclick="addDoc('' + c.id + '')">Añadir documento</button>';
-  html += '</div></div></div></div>';
+  parts.push('<div style="padding:12px 18px;border-top:0.5px solid var(--gray-100);">');
+  parts.push('<div style="font-size:11px;color:var(--gray-400);margin-bottom:8px;">Sube el PDF a OneDrive y pega el enlace aquí.</div>');
+  parts.push('<div style="display:flex;flex-direction:column;gap:6px;">');
+  parts.push('<input type="text" class="nota-input" id="docNombre_ficha" placeholder="Nombre del documento" style="width:100%;">');
+  parts.push('<input type="text" class="nota-input" id="docUrl_ficha" placeholder="Enlace de OneDrive" style="width:100%;">');
+  parts.push('<div style="display:flex;justify-content:flex-end;">');
+  parts.push('<button class="btn btn-primary btn-sm" onclick="addDocFicha()">Añadir documento</button>');
+  parts.push('</div></div></div></div>');
 
-  fichaEl.innerHTML = html;
+  fichaEl.innerHTML = parts.join('');
 }
 
-
-function renderProspectos() {
-  const list = window.prospectos || [];
-  const set = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
-  set('statProspectos', list.filter(p => p.tipo === 'Prospecto').length);
-  set('statLlamadas', list.filter(p => p.tipo === 'Llamada pendiente').length);
-  const el = document.getElementById('prospectosList');
-  if (!el) return;
-  if (!list.length) {
-    el.innerHTML = '<div class="empty"><div class="empty-icon">◎</div><div class="empty-text">Sin prospectos. Añade posibles clientes o notas personales.</div></div>';
-    return;
-  }
-  const sorted = [...list].sort((a,b) => {
-    if (a.fecha && b.fecha) return new Date(a.fecha) - new Date(b.fecha);
-    if (a.fecha) return -1; if (b.fecha) return 1; return 0;
-  });
-  const typeColors = {'Prospecto':'#8B5CF6','Llamada pendiente':'#F59E0B','Reunión pendiente':'#2B7FFF','Nota personal':'#6B7280','Tarea propia':'#10B981'};
-  updateBadges();
-  el.innerHTML = sorted.map(p => {
-    const color = typeColors[p.tipo] || '#6B7280';
-    const ds = p.fecha ? new Date(p.fecha+'T12:00:00').toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'}) : '';
-    return `<div class="card" style="margin-bottom:10px;border-left:3px solid ${color};">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
-        <div style="flex:1;">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-            <span style="font-size:15px;font-weight:600;color:var(--gray-800);">${p.nombre}</span>
-            <span style="font-size:11px;padding:2px 8px;border-radius:20px;font-weight:500;background:${color}20;color:${color};">${p.tipo}</span>
-          </div>
-          ${p.tel ? `<div style="font-size:12px;color:var(--gray-400);">📞 ${p.tel}</div>` : ''}
-          ${p.email ? `<div style="font-size:12px;color:var(--gray-400);">✉ ${p.email}</div>` : ''}
-          ${p.notas ? `<div style="font-size:13px;color:var(--gray-600);margin-top:6px;line-height:1.5;">${p.notas}</div>` : ''}
-          ${ds ? `<div style="font-size:11px;color:var(--accent);font-weight:500;margin-top:4px;">📅 Seguimiento: ${ds}</div>` : ''}
-        </div>
-        <div style="display:flex;gap:4px;flex-shrink:0;">
-          <button class="icon-btn" onclick="openProspectoModal('${p.id}')" title="Editar">✏</button>
-          <button class="icon-btn" onclick="deleteProspecto('${p.id}')" title="Eliminar">×</button>
-        </div>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-// ── Importar Excel ───────────────────────────────────────────────────────────
-
-function importarExcel(input) {
-  const file = input.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = async function(e) {
-    try {
-      const data = new Uint8Array(e.target.result);
-      const workbook = XLSX.read(data, {type:'array'});
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(sheet, {header:1});
-      let importados = 0, errores = 0;
-      const existingNames = (window.clients||[]).map(c => (c.nombre||'').toLowerCase());
-      for (let i = 4; i < rows.length; i++) {
-        const row = rows[i];
-        if (!row || !row[0] || String(row[0]).trim() === '') continue;
-        const nombre = String(row[0]).trim();
-        if (existingNames.includes(nombre.toLowerCase())) { errores++; continue; }
-        const cliente = {
-          id: String(Date.now() + i),
-          nombre,
-          nif: String(row[1]||'').trim(),
-          tipo: String(row[2]||'Sociedad').trim(),
-          servicios: String(row[3]||'Fiscal').trim(),
-          tel: String(row[4]||'').trim(),
-          email: String(row[5]||'').trim(),
-          iva: String(row[6]||'General').trim(),
-          notas: row[7] ? [{texto:String(row[7]).trim(), fecha:new Date().toISOString()}] : [],
-          docs: []
-        };
-        if (row[8] && String(row[8]).trim()) cliente.docs.push({nombre:String(row[8]).trim(), url:'', fecha:new Date().toISOString()});
-        if (row[9] && String(row[9]).trim()) cliente.docs.push({nombre:String(row[9]).trim(), url:'', fecha:new Date().toISOString()});
-        await fbSet('clients', cliente.id, cliente);
-        existingNames.push(nombre.toLowerCase());
-        importados++;
-      }
-      const wrap = document.getElementById('importBtnWrap');
-      if (wrap) wrap.style.display = 'none';
-      localStorage.setItem('duraspinvest_imported', 'true');
-      let msg = importados + ' cliente(s) importado(s) correctamente.';
-      if (errores > 0) msg += ' ' + errores + ' omitido(s) por nombre duplicado.';
-      alert(msg);
-    } catch(err) {
-      alert('Error al leer el archivo.');
-      console.error(err);
-    }
-  };
-  reader.readAsArrayBuffer(file);
-}
-
-// ── Planning Fiscal ──────────────────────────────────────────────────────────
-
-window.planningData = {};
-
-const MODELOS = [
-  { grupo: 'Retenciones IRPF', modelos: [
-    { id: '111', label: '111', periodos: ['1T','2T','3T','4T'] },
-    { id: '190', label: '190', periodos: ['Anual'], resumen: true }
-  ]},
-  { grupo: 'Retenciones Alquiler', modelos: [
-    { id: '115', label: '115', periodos: ['1T','2T','3T','4T'] },
-    { id: '180', label: '180', periodos: ['Anual'], resumen: true }
-  ]},
-  { grupo: 'IRPF Autónomos', modelos: [
-    { id: '130', label: '130/131', periodos: ['1T','2T','3T','4T'] }
-  ]},
-  { grupo: 'IVA', modelos: [
-    { id: '303', label: '303', periodos: ['1T','2T','3T','4T'] },
-    { id: '390', label: '390', periodos: ['Anual'], resumen: true }
-  ]},
-  { grupo: 'IS / Pago Fraccionado', modelos: [
-    { id: '202', label: '202', periodos: ['Abril','Octubre','Diciembre'] },
-    { id: '200', label: '200', periodos: ['Julio'] }
-  ]},
-  { grupo: 'Op. Intracomunitarias', modelos: [
-    { id: '349', label: '349', periodos: ['1T','2T','3T','4T'] }
-  ]},
-  { grupo: 'Anual Independiente', modelos: [
-    { id: '347', label: '347', periodos: ['Febrero'] }
-  ]}
-];
-
-function planningKey(clienteId, modelo, periodo, anio) {
-  return `${anio}_${clienteId}_${modelo}_${periodo}`.replace(/[^a-zA-Z0-9_]/g,'_');
-}
-
-function getPlanningCelda(clienteId, modelo, periodo, anio) {
-  const key = planningKey(clienteId, modelo, periodo, anio);
-  return window.planningData[key] || null;
-}
-
-function estadoColor(estado) {
-  if (estado === 'presentado') return '#10B981';
-  if (estado === 'proceso') return '#F59E0B';
-  if (estado === 'no_obligado') return '#6B7280';
-  if (estado === 'sa') return '#93C5FD';
-  return '#EF4444'; // pendiente por defecto
-}
-
-function estadoLabel(celda) {
-  if (!celda) return '';
-  if (celda.estado === 'no_obligado') return '—';
-  if (celda.sa) return 'S/A';
-  if (celda.importe !== undefined && celda.importe !== '') return '€' + parseFloat(celda.importe || 0).toFixed(2);
-  return '•';
-}
-
-function renderPlanning() {
-  const container = document.getElementById('planningContainer');
-  if (!container) return;
-  const anio = document.getElementById('planningAnio').value || '2026';
-  const filtro = document.getElementById('planningFiltro').value || 'todos';
-  // Ordenar clientes: primero sociedades, luego autónomos, cada grupo alfabético
-  const allClients = (window.clients || [])
-    .filter(c => c.nombre)
-    .sort((a, b) => {
-      const tipoA = (a.tipo||'').toLowerCase();
-      const tipoB = (b.tipo||'').toLowerCase();
-      const esSociedadA = tipoA === 'sociedad';
-      const esSociedadB = tipoB === 'sociedad';
-      if (esSociedadA && !esSociedadB) return -1;
-      if (!esSociedadA && esSociedadB) return 1;
-      return (a.nombre||'').localeCompare(b.nombre||'', 'es');
-    });
-
-  if (!allClients.length) {
-    container.innerHTML = '<div class="empty"><div class="empty-icon">📊</div><div class="empty-text">No hay clientes. Añade clientes primero.</div></div>';
-    return;
-  }
-
-  // Construir columnas
-  const cols = [];
-  MODELOS.forEach(grupo => {
-    grupo.modelos.forEach(m => {
-      m.periodos.forEach(p => {
-        cols.push({ grupo: grupo.grupo, modelo: m.id, label: m.label, periodo: p, resumen: m.resumen || false });
-      });
-    });
-  });
-
-  // Filtrar clientes si hay filtro de estado
-  let clientesFiltrados = allClients;
-  if (filtro !== 'todos') {
-    clientesFiltrados = allClients.filter(c => {
-      return cols.some(col => {
-        const celda = getPlanningCelda(c.id, col.modelo, col.periodo, anio);
-        if (!celda) return filtro === 'pendiente';
-        return celda.estado === filtro;
-      });
-    });
-  }
-
-  // Agrupar columnas por grupo
-  const grupos = {};
-  cols.forEach(col => {
-    if (!grupos[col.grupo]) grupos[col.grupo] = [];
-    grupos[col.grupo].push(col);
-  });
-
-  let tableHTML = `<table style="border-collapse:collapse;min-width:100%;font-size:12px;">
-    <thead style="position:sticky;top:0;z-index:10;">
-      <tr style="background:var(--navy);color:white;">
-        <th style="padding:10px 14px;text-align:left;min-width:140px;position:sticky;left:0;background:var(--navy);z-index:2;">Cliente</th>`;
-
-  // Headers de grupos
-  Object.entries(grupos).forEach(([grupo, gcols]) => {
-    tableHTML += `<th colspan="${gcols.length}" style="padding:8px;text-align:center;border-left:2px solid rgba(255,255,255,0.2);font-size:11px;">${grupo}</th>`;
-  });
-  tableHTML += `<th style="padding:8px;min-width:180px;border-left:2px solid rgba(255,255,255,0.2);">Comentarios</th></tr>
-    <tr style="background:var(--navy-mid);color:var(--gray-400);">
-      <th style="padding:6px 14px;position:sticky;left:0;background:var(--navy-mid);z-index:2;"></th>`;
-
-  cols.forEach((col, i) => {
-    const isFirstInGroup = i === 0 || cols[i-1].grupo !== col.grupo;
-    tableHTML += `<th style="padding:6px 8px;text-align:center;white-space:nowrap;${isFirstInGroup?'border-left:2px solid rgba(255,255,255,0.1);':''}${col.resumen?'background:rgba(255,255,255,0.05);':''}">${col.label}<br><span style="font-size:10px;opacity:0.7;">${col.periodo}</span></th>`;
-  });
-  tableHTML += `<th style="border-left:2px solid rgba(255,255,255,0.1);"></th></tr></thead><tbody>`;
-
-  // Filas de clientes
-  let grupoAnterior = null;
-  clientesFiltrados.forEach((c, ci) => {
-    const grupoActual = (c.tipo||'').toLowerCase() === 'sociedad' ? 'Sociedades' : 'Autónomos y Particulares';
-    if (grupoActual !== grupoAnterior) {
-      grupoAnterior = grupoActual;
-      tableHTML += `<tr><td colspan="${cols.length + 2}" style="padding:8px 14px;background:var(--navy);color:white;font-size:11px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;">${grupoActual}</td></tr>`;
-    }
-    const rowBg = ci % 2 === 0 ? 'white' : '#F8FAFC';
-    tableHTML += `<tr style="background:${rowBg};">
-      <td style="padding:8px 14px;font-weight:500;color:var(--navy);white-space:nowrap;position:sticky;left:0;background:${rowBg};z-index:1;border-right:1px solid var(--gray-200);">${c.nombre}</td>`;
-
-    cols.forEach((col, i) => {
-      const isFirstInGroup = i === 0 || cols[i-1].grupo !== col.grupo;
-      const celda = getPlanningCelda(c.id, col.modelo, col.periodo, anio);
-      const obligaciones = c.obligaciones || [];
-      const estaObligado = obligaciones.includes(col.modelo);
-      // Si no tiene obligaciones definidas, mostramos todo normal (compatibilidad)
-      const tieneObligaciones = obligaciones.length > 0;
-      const noObligado = tieneObligaciones && !estaObligado;
-      const color = noObligado ? '#000000' : estadoColor(celda?.estado);
-      const label = noObligado ? '—' : estadoLabel(celda);
-      const bgCell = noObligado ? '#F0F0F0' : celda?.estado === 'no_obligado' ? '#F9FAFB' : celda?.sa ? '#EFF6FF' : 'transparent';
-      tableHTML += `<td style="padding:4px;text-align:center;${isFirstInGroup?'border-left:2px solid var(--gray-200);':''}${col.resumen?'background:rgba(212,160,23,0.03);':''}">
-        ${noObligado 
-          ? `<div style="text-align:center;font-size:14px;font-weight:700;color:#000;line-height:32px;">—</div>`
-          : `<div onclick="openPlanningCelda('${c.id}','${col.modelo}','${col.periodo}','${anio}','${c.nombre}')" 
-              style="cursor:pointer;border-radius:6px;padding:4px 2px;min-width:48px;background:${bgCell};display:flex;flex-direction:column;align-items:center;gap:2px;" 
-              title="${celda?.comentario||''}">
-              <div style="width:8px;height:8px;border-radius:50%;background:${color};"></div>
-              <div style="font-size:10px;color:var(--gray-600);font-weight:500;">${label}</div>
-            </div>`
-        }
-      </td>`;
-    });
-
-    // Columna comentarios del cliente
-    const comentarioCliente = window.planningData['comentario_' + c.id + '_' + anio];
-    tableHTML += `<td style="padding:4px 8px;border-left:2px solid var(--gray-200);min-width:180px;">
-      <div style="display:flex;align-items:center;gap:4px;">
-        <input type="text" value="${comentarioCliente?.texto||''}" placeholder="Comentario..." 
-          style="width:100%;font-size:11px;border:1px solid var(--gray-200);border-radius:4px;padding:3px 6px;background:transparent;"
-          onchange="saveComentarioCliente('${c.id}','${anio}',this.value)">
-      </div>
-    </td></tr>`;
-  }); // cierre forEach
-  tableHTML += '</tbody></table>';
-  container.innerHTML = tableHTML;
-}
-
-function openPlanningCelda(clienteId, modelo, periodo, anio, clienteNombre) {
-  const celda = getPlanningCelda(clienteId, modelo, periodo, anio) || {};
-  document.getElementById('pcClienteId').value = clienteId;
-  document.getElementById('pcModelo').value = modelo;
-  document.getElementById('pcPeriodo').value = periodo;
-  document.getElementById('planningCeldaTitle').textContent = `Modelo ${modelo} — ${periodo} | ${clienteNombre}`;
-  document.getElementById('pcImporte').value = celda.importe || '';
-  document.getElementById('pcSA').checked = celda.sa || false;
-  document.getElementById('pcComentario').value = celda.comentario || '';
-  setPcEstado(celda.estado || 'pendiente', false);
-  toggleSA();
-  document.getElementById('planningCeldaModal').classList.add('open');
-}
-
-let pcEstadoActual = 'pendiente';
-function setPcEstado(estado, save=false) {
-  pcEstadoActual = estado;
-  const estados = ['pendiente','proceso','presentado','no_obligado'];
-  const ids = ['pcBtnPendiente','pcBtnProceso','pcBtnPresentado','pcBtnNoOblig'];
-  ids.forEach((id,i) => {
-    const btn = document.getElementById(id);
-    if (!btn) return;
-    btn.style.opacity = estados[i] === estado ? '1' : '0.4';
-    btn.style.fontWeight = estados[i] === estado ? '700' : '400';
-  });
-  const importeGroup = document.getElementById('pcImporteGroup');
-  if (importeGroup) importeGroup.style.display = estado === 'no_obligado' ? 'none' : 'block';
-}
-
-function toggleSA() {
-  const sa = document.getElementById('pcSA').checked;
-  const importeInput = document.getElementById('pcImporte');
-  if (importeInput) { importeInput.disabled = sa; if(sa) importeInput.value = ''; }
-}
-
-async function savePlanningCelda() {
-  const clienteId = document.getElementById('pcClienteId').value;
-  const modelo = document.getElementById('pcModelo').value;
-  const periodo = document.getElementById('pcPeriodo').value;
-  const anio = document.getElementById('planningAnio').value || '2026';
-  const key = planningKey(clienteId, modelo, periodo, anio);
-  const data = {
-    clienteId, modelo, periodo, anio,
-    estado: pcEstadoActual,
-    importe: document.getElementById('pcImporte').value,
-    sa: document.getElementById('pcSA').checked,
-    comentario: document.getElementById('pcComentario').value.trim(),
-    updated: new Date().toISOString()
-  };
-  await fbSet('planning', key, data);
-  window.planningData[key] = data;
-  closeModal('planningCeldaModal');
-  renderPlanning();
-}
-
-async function saveComentarioCliente(clienteId, anio, texto) {
-  const key = 'comentario_' + clienteId + '_' + anio;
-  const data = { clienteId, anio, texto, updated: new Date().toISOString() };
-  await fbSet('planning', key, data);
-  window.planningData[key] = data;
-}
-
-// ── Obligaciones desde ficha ─────────────────────────────────────────────────
-
-async function saveObligacionesFicha(cid) {
-  const c = (window.clients || []).find(x => String(x.id) === String(cid));
-  if (!c) return;
-  const modelos = ['111','190','115','180','130','303','390','202','200','349','347'];
-  c.obligaciones = modelos.filter(m => {
-    const el = document.getElementById('fichaOblig_' + cid + '_' + m);
-    return el && el.checked;
-  });
-  await fbSet('clients', cid, c);
-  // Refrescar planning si está activo
-  if(currentSection === 'planning') renderPlanning();
-  // Mostrar confirmación breve
-  const btn = event.target;
-  const original = btn.textContent;
-  btn.textContent = '✓ Guardado';
-  btn.style.color = '#059669';
-  setTimeout(() => { btn.textContent = original; btn.style.color = ''; }, 2000);
-}
-
-// ── Notas de voz ─────────────────────────────────────────────────────────────
-
-let mediaRecorder = null;
-let audioChunks = [];
-let grabando = false;
-
-async function toggleGrabacion() {
-  if (!grabando) {
-    await iniciarGrabacion();
-  } else {
-    pararGrabacion();
-  }
-}
-
-async function iniciarGrabacion() {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    mediaRecorder = new MediaRecorder(stream);
-    audioChunks = [];
-
-    mediaRecorder.ondataavailable = e => { if(e.data.size > 0) audioChunks.push(e.data); };
-
-    mediaRecorder.onstop = () => {
-      const blob = new Blob(audioChunks, { type: 'audio/webm' });
-      guardarNotaVoz(blob);
-      stream.getTracks().forEach(t => t.stop());
-    };
-
-    mediaRecorder.start();
-    grabando = true;
-
-    const btn = document.getElementById('btnGrabar');
-    btn.textContent = '⏹';
-    btn.style.background = '#6B7280';
-    btn.classList.add('grabando');
-    document.getElementById('vozStatus').textContent = '● Grabando... pulsa para parar';
-    document.getElementById('vozStatus').style.color = '#EF4444';
-
-  } catch(e) {
-    alert('No se pudo acceder al micrófono. Comprueba los permisos.');
-  }
-}
-
-function pararGrabacion() {
-  if(mediaRecorder && mediaRecorder.state !== 'inactive') {
-    mediaRecorder.stop();
-  }
-  grabando = false;
-  const btn = document.getElementById('btnGrabar');
-  btn.textContent = '🎙';
-  btn.style.background = '#EF4444';
-  btn.classList.remove('grabando');
-  document.getElementById('vozStatus').textContent = 'Pulsa para grabar un recordatorio';
-  document.getElementById('vozStatus').style.color = '';
-}
-
-function guardarNotaVoz(blob) {
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    const notas = JSON.parse(localStorage.getItem('duraspinvest_voz') || '[]');
-    notas.unshift({
-      id: String(Date.now()),
-      data: e.target.result,
-      fecha: new Date().toISOString()
-    });
-    // Guardar máximo 20 notas
-    if(notas.length > 20) notas.pop();
-    localStorage.setItem('duraspinvest_voz', JSON.stringify(notas));
-    renderNotasVoz();
-  };
-  reader.readAsDataURL(blob);
-}
-
-function renderNotasVoz() {
-  const lista = document.getElementById('vozLista');
-  if(!lista) return;
-  const notas = JSON.parse(localStorage.getItem('duraspinvest_voz') || '[]');
-  if(!notas.length) { lista.innerHTML = ''; return; }
-  lista.innerHTML = notas.map(n => {
-    const fecha = new Date(n.fecha).toLocaleDateString('es-ES', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
-    return `<div class="voz-item">
-      <div style="font-size:18px;">🎙</div>
-      <div style="flex:1;">
-        <div style="font-size:11px;color:var(--gray-400);margin-bottom:4px;">${fecha}</div>
-        <audio controls src="${n.data}" style="width:100%;height:32px;"></audio>
-      </div>
-      <button class="icon-btn" onclick="eliminarNotaVoz('${n.id}')" title="Eliminar" style="color:#EF4444;font-size:18px;">×</button>
-    </div>`;
-  }).join('');
-}
-
-function eliminarNotaVoz(id) {
-  if(!confirm('¿Eliminar esta nota de voz?')) return;
-  const notas = JSON.parse(localStorage.getItem('duraspinvest_voz') || '[]').filter(n => n.id !== id);
-  localStorage.setItem('duraspinvest_voz', JSON.stringify(notas));
-  renderNotasVoz();
-}
-
-// ── Login ────────────────────────────────────────────────────────────────────
-
-// ── Pólizas y contratos ──────────────────────────────────────────────────────
 
 function renderObligacionesHtml(c) {
   const modelos = ['111','190','115','180','130','303','390','202','200','349','347'];
@@ -1799,23 +1347,23 @@ function renderObligacionesHtml(c) {
 
 function renderPolizasHtml(c) {
   const polizas = c.polizas || [];
-  if (!polizas.length) return '<div class="empty" style="padding:16px;">Sin pólizas ni contratos.</div>';
-  return polizas.map((p, i) => {
+  if (!polizas.length) return '<div class="empty" style="padding:16px;">Sin p\u00f3lizas ni contratos.</div>';
+  return polizas.map(function(p, i) {
     const vdays = daysUntil(p.vencimiento);
     const alerta = vdays !== null && vdays <= 60 && vdays >= 0;
     const vencida = vdays !== null && vdays < 0;
-    const vds = p.vencimiento ? new Date(p.vencimiento + 'T12:00:00').toLocaleDateString('es-ES', {day:'2-digit', month:'short', year:'numeric'}) : '—';
-    const icono = p.tipo === 'seguro' ? '🛡' : p.tipo === 'suministro' ? '⚡' : '📋';
-    const alertaHtml = alerta ? ' <span style="color:#D97706;font-weight:600;">⚠ ' + vdays + 'd</span>' : '';
+    const vds = p.vencimiento ? new Date(p.vencimiento + 'T12:00:00').toLocaleDateString('es-ES', {day:'2-digit', month:'short', year:'numeric'}) : '\u2014';
+    const icono = p.tipo === 'seguro' ? '\uD83D\uDEE1' : p.tipo === 'suministro' ? '\u26A1' : '\uD83D\uDCCB';
+    const alertaHtml = alerta ? ' <span style="color:#D97706;font-weight:600;">\u26A0 ' + vdays + 'd</span>' : '';
     const vencidaHtml = vencida ? ' <span style="color:#EF4444;font-weight:600;">Vencida</span>' : '';
     const bg = alerta ? 'background:#FFF7ED;' : vencida ? 'background:#FEF2F2;' : '';
     return '<div class="ficha-task-item" style="' + bg + '">' +
       '<div style="font-size:18px;">' + icono + '</div>' +
       '<div style="flex:1;">' +
         '<div style="font-size:13px;font-weight:500;">' + p.nombre + '</div>' +
-        '<div style="font-size:11px;color:var(--gray-400);">Vence: ' + vds + alertaHtml + vencidaHtml + (p.notas ? ' · ' + p.notas : '') + '</div>' +
+        '<div style="font-size:11px;color:var(--gray-400);">Vence: ' + vds + alertaHtml + vencidaHtml + (p.notas ? ' \u00b7 ' + p.notas : '') + '</div>' +
       '</div>' +
-      '<button class="icon-btn" onclick="deletePoliza('' + c.id + '',' + i + ')">×</button>' +
+      '<button class="icon-btn" data-cid="' + c.id + '" data-idx="' + i + '" onclick="deletePoliza(this.dataset.cid,this.dataset.idx)">\u00d7</button>' +
     '</div>';
   }).join('');
 }
@@ -1852,10 +1400,10 @@ async function savePoliza() {
 }
 
 async function deletePoliza(cid, idx) {
-  if (!confirm('¿Eliminar esta póliza?')) return;
+  if (!confirm('\u00bfEliminar esta p\u00f3liza?')) return;
   const c = (window.clients || []).find(x => String(x.id) === String(cid));
   if (!c) return;
-  c.polizas.splice(idx, 1);
+  c.polizas.splice(parseInt(idx), 1);
   await fbSet('clients', cid, c);
   showFicha(cid);
 }
