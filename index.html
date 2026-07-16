@@ -1207,102 +1207,128 @@ function showFicha(id) {
   document.getElementById('fabBtn').style.display = 'none';
   const allTasks = window.tasks || [];
   const ct = allTasks.filter(t => t.cliente === c.nombre && t.estado !== 'Completada');
-  const svcs = (c.servicios||'').split('|').map(s => `<span class="badge badge-tipo">${s.trim()}</span>`).join('');
   const fichaEl = document.getElementById('clienteFicha');
   fichaEl.style.display = '';
-  fichaEl.innerHTML = `
-    <button class="ficha-back" onclick="showClientesList();renderClientesList()">← Volver a clientes</button>
-    <div class="ficha-header">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;">
-        <div>
-          <div class="ficha-avatar">${initials(c.nombre)}</div>
-          <div class="ficha-nombre">${c.nombre}</div>
-          <div class="ficha-nif">${c.nif||'Sin NIF'} · ${c.tipo||''}</div>
-          <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">${svcs}</div>
-        </div>
-        <div style="display:flex;gap:6px;">
-          <button class="btn btn-sm" style="background:var(--navy-mid);color:white;" onclick="openClienteModal('${c.id}')">Editar</button>
-          <button class="btn btn-sm btn-danger" onclick="deleteCliente('${c.id}')">Eliminar</button>
-        </div>
-      </div>
-      <div class="ficha-grid">
-        <div class="ficha-dato"><div class="ficha-dato-label">Teléfono</div><div class="ficha-dato-val">${c.tel||'—'}</div></div>
-        <div class="ficha-dato"><div class="ficha-dato-label">Email</div><div class="ficha-dato-val">${c.email||'—'}</div></div>
-        <div class="ficha-dato"><div class="ficha-dato-label">Régimen IVA</div><div class="ficha-dato-val">${c.iva||'General'}</div></div>
-        <div class="ficha-dato"><div class="ficha-dato-label">Servicios</div><div class="ficha-dato-val">${c.servicios||'—'}</div></div>
-      </div>
-    </div>
-    <div class="ficha-section">
-      <div class="ficha-section-header">
-        <span class="ficha-section-title">Obligaciones fiscales</span>
-        <button class="btn btn-sm" style="background:var(--gray-100);color:var(--gray-600);" onclick="saveObligacionesFicha('${c.id}')">Guardar</button>
-      </div>
-      <div style="padding:12px 18px;">
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
-          ${['111','190','115','180','130','303','390','202','200','349','347'].map(m => `
-            <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;">
-              <input type="checkbox" id="fichaOblig_${c.id}_${m}" ${(c.obligaciones||[]).includes(m)?'checked':''}>
-              <span>M.${m}</span>
-            </label>`).join('')}
-        </div>
-      </div>
-    </div>
 
-    <div class="ficha-section">
-      <div class="ficha-section-header">
-        <span class="ficha-section-title">Tareas pendientes (${ct.length})</span>
-        <button class="btn btn-sm btn-primary" onclick="openTaskModalForClient('${c.nombre}')">+ Tarea</button>
-      </div>
-      ${ct.length ? ct.map(t => {
-        const ds = t.fecha ? new Date(t.fecha+'T12:00:00').toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'}) : 'Sin fecha';
-        return `<div class="ficha-task-item"><div class="task-dot ${qClass(t.cuadrante)}"></div><div style="flex:1"><div style="font-size:13px;font-weight:500;">${t.nombre}</div><div style="font-size:11px;color:var(--gray-400);">${t.area||''} · ${ds}</div></div><button class="icon-btn" onclick="completeTask('${t.id}');setTimeout(()=>showFicha('${c.id}'),800)">✓</button></div>`;
-      }).join('') : '<div class="empty" style="padding:20px;">Sin tareas pendientes</div>'}
-    </div>
-    <div class="ficha-section">
-      <div class="ficha-section-header"><span class="ficha-section-title">Notas y comentarios</span></div>
-      <div id="notasList_${c.id}">
-        ${(c.notas||[]).length ? (c.notas||[]).map((n,i) => `<div class="nota-item"><div class="nota-texto">${n.texto}</div><div style="display:flex;align-items:center;justify-content:space-between;"><div class="nota-fecha">${new Date(n.fecha).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'})}</div><button class="icon-btn" onclick="deleteNota('${c.id}',${i})">×</button></div></div>`).join('') : '<div class="empty" style="padding:16px;">Sin notas</div>'}
-      </div>
-      <div class="nota-input-row">
-        <textarea class="nota-input" id="notaInput_${c.id}" rows="2" placeholder="Escribe una nota o comentario..."></textarea>
-        <button class="btn btn-primary btn-sm" style="align-self:flex-end;" onclick="addNota('${c.id}')">Añadir</button>
-      </div>
-    </div>
-    <div class="ficha-section">
-      <div class="ficha-section-header">
-        <span class="ficha-section-title">Pólizas y contratos</span>
-        <button class="btn btn-sm btn-primary" onclick="openPolizaModal('${c.id}')">+ Añadir</button>
-      </div>
-      <div id="polizasList_${c.id}">${renderPolizasHtml(c)}</div>
-    </div>
+  // Construir HTML por partes para evitar template literals anidados
+  let html = '';
 
-    <div class="ficha-section">
-      <div class="ficha-section-header"><span class="ficha-section-title">Documentos</span></div>
-      <div id="docsList_${c.id}">
-        ${(c.docs||[]).length ? (c.docs||[]).map((d,i) => `
-        <div class="doc-item">
-          <div class="doc-icon">📄</div>
-          <div class="doc-info"><div class="doc-nombre">${d.nombre}</div><div class="doc-fecha">${new Date(d.fecha).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'})}</div></div>
-          <div style="display:flex;gap:4px;flex-shrink:0;align-items:center;">
-            ${d.url ? `<a href="${d.url}" target="_blank" class="btn btn-sm" style="background:var(--q2-bg);color:var(--q2);text-decoration:none;font-size:11px;">Abrir</a>` : ''}
-            ${d.url ? `<a href="mailto:?subject=${encodeURIComponent(d.nombre)}&body=${encodeURIComponent('Te comparto el documento: '+d.nombre+'\n\n'+d.url)}" class="btn btn-sm" style="background:#F0FDF4;color:#059669;text-decoration:none;font-size:11px;">Email</a>` : ''}
-            ${d.url ? `<a href="https://wa.me/?text=${encodeURIComponent(d.nombre+': '+d.url)}" target="_blank" class="btn btn-sm" style="background:#F0FDF4;color:#25D366;text-decoration:none;font-size:11px;">WA</a>` : ''}
-            <button class="icon-btn" onclick="deleteDoc('${c.id}',${i})">×</button>
-          </div>
-        </div>`).join('') : '<div class="empty" style="padding:16px;">Sin documentos. Añade el enlace de OneDrive.</div>'}
-      </div>
-      <div style="padding:12px 18px;border-top:0.5px solid var(--gray-100);">
-        <div style="font-size:11px;color:var(--gray-400);margin-bottom:8px;">Sube el PDF a OneDrive, copia el enlace compartido y pégalo aquí.</div>
-        <div style="display:flex;flex-direction:column;gap:6px;">
-          <input type="text" class="nota-input" id="docNombre_${c.id}" placeholder="Nombre del documento (ej: Modelo 303 T1 2026)" style="width:100%;">
-          <input type="text" class="nota-input" id="docUrl_${c.id}" placeholder="Enlace de OneDrive (https://...)" style="width:100%;">
-          <div style="display:flex;justify-content:flex-end;">
-            <button class="btn btn-primary btn-sm" onclick="addDoc('${c.id}')">Añadir documento</button>
-          </div>
-        </div>
-      </div>
-    </div>`;
+  // Cabecera
+  html += '<button class="ficha-back" onclick="showClientesList();renderClientesList()">← Volver a clientes</button>';
+  html += '<div class="ficha-header">';
+  html += '<div style="display:flex;align-items:flex-start;justify-content:space-between;">';
+  html += '<div>';
+  html += '<div class="ficha-avatar">' + initials(c.nombre) + '</div>';
+  html += '<div class="ficha-nombre">' + c.nombre + '</div>';
+  html += '<div class="ficha-nif">' + (c.nif||'Sin NIF') + ' · ' + (c.tipo||'') + '</div>';
+  const catLabel = c.categoria === 'auxiliar' ? '⭐ Auxiliar' : c.categoria === 'ambos' ? '🔄 Despacho + Auxiliar' : '🏢 Del despacho';
+  html += '<div style="margin-top:6px;font-size:12px;color:var(--gray-400);">' + catLabel + '</div>';
+  html += '</div>';
+  html += '<div style="display:flex;gap:6px;">';
+  html += '<button class="btn btn-sm" style="background:var(--navy-mid);color:white;" onclick="openClienteModal('' + c.id + '')">Editar</button>';
+  html += '<button class="btn btn-sm btn-danger" onclick="deleteCliente('' + c.id + '')">Eliminar</button>';
+  html += '</div></div>';
+  html += '<div class="ficha-grid">';
+  html += '<div class="ficha-dato"><div class="ficha-dato-label">Teléfono</div><div class="ficha-dato-val">' + (c.tel||'—') + '</div></div>';
+  html += '<div class="ficha-dato"><div class="ficha-dato-label">Email</div><div class="ficha-dato-val">' + (c.email||'—') + '</div></div>';
+  html += '<div class="ficha-dato"><div class="ficha-dato-label">Servicios</div><div class="ficha-dato-val">' + (c.servicios||'—') + '</div></div>';
+  html += '<div class="ficha-dato"><div class="ficha-dato-label">Categoría</div><div class="ficha-dato-val">' + catLabel + '</div></div>';
+  html += '</div></div>';
+
+  // Obligaciones fiscales
+  html += '<div class="ficha-section">';
+  html += '<div class="ficha-section-header"><span class="ficha-section-title">Obligaciones fiscales</span>';
+  html += '<button class="btn btn-sm" style="background:var(--gray-100);color:var(--gray-600);" onclick="saveObligacionesFicha('' + c.id + '')">Guardar</button>';
+  html += '</div>';
+  html += '<div style="padding:12px 18px;"><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">';
+  html += renderObligacionesHtml(c);
+  html += '</div></div></div>';
+
+  // Tareas pendientes
+  html += '<div class="ficha-section">';
+  html += '<div class="ficha-section-header"><span class="ficha-section-title">Tareas pendientes (' + ct.length + ')</span>';
+  html += '<button class="btn btn-sm btn-primary" onclick="openTaskModalForClient('' + c.nombre.replace(/'/g, "\'") + '')">+ Tarea</button>';
+  html += '</div>';
+  if (ct.length) {
+    ct.forEach(t => {
+      const ds = t.fecha ? new Date(t.fecha+'T12:00:00').toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'}) : 'Sin fecha';
+      html += '<div class="ficha-task-item">';
+      html += '<div class="task-dot ' + qClass(t.cuadrante) + '"></div>';
+      html += '<div style="flex:1"><div style="font-size:13px;font-weight:500;">' + t.nombre + '</div>';
+      html += '<div style="font-size:11px;color:var(--gray-400);">' + (t.area||'') + ' · ' + ds + '</div></div>';
+      html += '<button class="icon-btn" onclick="completeTask('' + t.id + '');setTimeout(()=>showFicha('' + c.id + ''),800)">✓</button>';
+      html += '</div>';
+    });
+  } else {
+    html += '<div class="empty" style="padding:20px;">Sin tareas pendientes</div>';
+  }
+  html += '</div>';
+
+  // Pólizas y contratos
+  html += '<div class="ficha-section">';
+  html += '<div class="ficha-section-header"><span class="ficha-section-title">Pólizas y contratos</span>';
+  html += '<button class="btn btn-sm btn-primary" onclick="openPolizaModal('' + c.id + '')">+ Añadir</button>';
+  html += '</div>';
+  html += '<div>' + renderPolizasHtml(c) + '</div>';
+  html += '</div>';
+
+  // Notas
+  html += '<div class="ficha-section">';
+  html += '<div class="ficha-section-header"><span class="ficha-section-title">Notas y comentarios</span></div>';
+  const notas = c.notas || [];
+  if (notas.length) {
+    notas.forEach((n, i) => {
+      const fecha = new Date(n.fecha).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'});
+      html += '<div class="nota-item">';
+      html += '<div class="nota-texto">' + n.texto + '</div>';
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;">';
+      html += '<div class="nota-fecha">' + fecha + '</div>';
+      html += '<button class="icon-btn" onclick="deleteNota('' + c.id + '',' + i + ')">×</button>';
+      html += '</div></div>';
+    });
+  } else {
+    html += '<div class="empty" style="padding:16px;">Sin notas</div>';
+  }
+  html += '<div class="nota-input-row">';
+  html += '<textarea class="nota-input" id="notaInput_' + c.id + '" rows="2" placeholder="Escribe una nota o comentario..."></textarea>';
+  html += '<button class="btn btn-primary btn-sm" style="align-self:flex-end;" onclick="addNota('' + c.id + '')">Añadir</button>';
+  html += '</div></div>';
+
+  // Documentos
+  html += '<div class="ficha-section">';
+  html += '<div class="ficha-section-header"><span class="ficha-section-title">Documentos</span></div>';
+  const docs = c.docs || [];
+  if (docs.length) {
+    docs.forEach((d, i) => {
+      const fecha = new Date(d.fecha).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'});
+      html += '<div class="doc-item">';
+      html += '<div class="doc-icon">📄</div>';
+      html += '<div class="doc-info"><div class="doc-nombre">' + d.nombre + '</div>';
+      html += '<div class="doc-fecha">' + fecha + '</div></div>';
+      html += '<div style="display:flex;gap:4px;align-items:center;">';
+      if (d.url) {
+        html += '<a href="' + d.url + '" target="_blank" class="btn btn-sm" style="background:var(--q2-bg);color:var(--q2);text-decoration:none;font-size:11px;">Abrir</a>';
+        html += '<a href="https://wa.me/?text=' + encodeURIComponent(d.nombre + ': ' + d.url) + '" target="_blank" class="btn btn-sm" style="background:#F0FDF4;color:#25D366;text-decoration:none;font-size:11px;">WA</a>';
+        html += '<a href="mailto:?subject=' + encodeURIComponent(d.nombre) + '&body=' + encodeURIComponent(d.url) + '" class="btn btn-sm" style="background:#F0FDF4;color:#059669;text-decoration:none;font-size:11px;">Email</a>';
+      }
+      html += '<button class="icon-btn" onclick="deleteDoc('' + c.id + '',' + i + ')">×</button>';
+      html += '</div></div>';
+    });
+  } else {
+    html += '<div class="empty" style="padding:16px;">Sin documentos. Añade el enlace de OneDrive.</div>';
+  }
+  html += '<div style="padding:12px 18px;border-top:0.5px solid var(--gray-100);">';
+  html += '<div style="font-size:11px;color:var(--gray-400);margin-bottom:8px;">Sube el PDF a OneDrive y pega el enlace aquí.</div>';
+  html += '<div style="display:flex;flex-direction:column;gap:6px;">';
+  html += '<input type="text" class="nota-input" id="docNombre_' + c.id + '" placeholder="Nombre del documento" style="width:100%;">';
+  html += '<input type="text" class="nota-input" id="docUrl_' + c.id + '" placeholder="Enlace de OneDrive" style="width:100%;">';
+  html += '<div style="display:flex;justify-content:flex-end;">';
+  html += '<button class="btn btn-primary btn-sm" onclick="addDoc('' + c.id + '')">Añadir documento</button>';
+  html += '</div></div></div></div>';
+
+  fichaEl.innerHTML = html;
 }
+
 
 function renderProspectos() {
   const list = window.prospectos || [];
@@ -1758,6 +1784,18 @@ function eliminarNotaVoz(id) {
 // ── Login ────────────────────────────────────────────────────────────────────
 
 // ── Pólizas y contratos ──────────────────────────────────────────────────────
+
+function renderObligacionesHtml(c) {
+  const modelos = ['111','190','115','180','130','303','390','202','200','349','347'];
+  const obligs = c.obligaciones || [];
+  return modelos.map(m => {
+    const checked = obligs.includes(m) ? 'checked' : '';
+    return '<label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;">' +
+      '<input type="checkbox" id="fichaOblig_' + c.id + '_' + m + '" ' + checked + '>' +
+      '<span>M.' + m + '</span>' +
+      '</label>';
+  }).join('');
+}
 
 function renderPolizasHtml(c) {
   const polizas = c.polizas || [];
