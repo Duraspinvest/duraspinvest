@@ -759,8 +759,6 @@ function openClienteModal(id) {
     });
     document.getElementById('cTel').value = c.tel || '';
     document.getElementById('cEmail').value = c.email || '';
-    document.getElementById('cIva').value = c.iva || 'General';
-    document.getElementById('cServicios').value = c.servicios || 'Fiscal';
   } else {
     ['cNombre','cNif','cTel','cEmail'].forEach(f => document.getElementById(f).value = '');
     document.getElementById('cTipo').value = 'Sociedad';
@@ -769,8 +767,6 @@ function openClienteModal(id) {
       const el = document.getElementById('svc_'+id);
       if(el) el.checked = false;
     });
-    document.getElementById('cIva').value = 'General';
-    document.getElementById('cServicios').value = 'Fiscal';
   }
   // Cargar obligaciones
   const obligs = id ? ((window.clients||[]).find(x=>String(x.id)===String(id))?.obligaciones || []) : [];
@@ -1595,11 +1591,17 @@ function renderPlanning() {
   // Filtrar clientes por estado si hay filtro
   let clientesFiltrados = allClients;
   if (filtro !== 'todos') {
-    clientesFiltrados = allClients.filter(c => cols.some(col => {
-      const celda = getPlanningCelda(c.id, col.modelo, col.periodo, anio);
-      if (!celda) return filtro === 'pendiente';
-      return celda.estado === filtro;
-    }));
+    clientesFiltrados = allClients.filter(c => {
+      const obligs = c.obligaciones || [];
+      const tieneObligs = obligs.length > 0;
+      return cols.some(col => {
+        const noObligado = tieneObligs && !obligs.includes(col.modelo);
+        if (noObligado) return false;
+        const celda = getPlanningCelda(c.id, col.modelo, col.periodo, anio);
+        if (filtro === 'pendiente') return !celda || celda.estado === 'pendiente' || (!celda.estado);
+        return celda && celda.estado === filtro;
+      });
+    });
   }
 
   // Agrupar columnas
