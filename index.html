@@ -1408,6 +1408,347 @@ async function deletePoliza(cid, idx) {
   showFicha(cid);
 }
 
+// ── Notas de voz ─────────────────────────────────────────────────────────────
+
+let mediaRecorder = null;
+let audioChunks = [];
+let grabando = false;
+
+async function toggleGrabacion() {
+  if (!grabando) { await iniciarGrabacion(); } else { pararGrabacion(); }
+}
+
+async function iniciarGrabacion() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder = new MediaRecorder(stream);
+    audioChunks = [];
+    mediaRecorder.ondataavailable = e => { if(e.data.size > 0) audioChunks.push(e.data); };
+    mediaRecorder.onstop = () => { guardarNotaVoz(new Blob(audioChunks, { type: 'audio/webm' })); stream.getTracks().forEach(t => t.stop()); };
+    mediaRecorder.start();
+    grabando = true;
+    const btn = document.getElementById('btnGrabar');
+    if(btn) { btn.textContent = '⏹'; btn.style.background = '#6B7280'; }
+    const st = document.getElementById('vozStatus');
+    if(st) { st.textContent = '● Grabando... pulsa para parar'; st.style.color = '#EF4444'; }
+  } catch(e) { alert('No se pudo acceder al micrófono.'); }
+}
+
+function pararGrabacion() {
+  if(mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+  grabando = false;
+  const btn = document.getElementById('btnGrabar');
+  if(btn) { btn.textContent = '🎙'; btn.style.background = '#EF4444'; }
+  const st = document.getElementById('vozStatus');
+  if(st) { st.textContent = 'Pulsa para grabar un recordatorio'; st.style.color = ''; }
+}
+
+function guardarNotaVoz(blob) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const notas = JSON.parse(localStorage.getItem('duraspinvest_voz') || '[]');
+    notas.unshift({ id: String(Date.now()), data: e.target.result, fecha: new Date().toISOString() });
+    if(notas.length > 20) notas.pop();
+    localStorage.setItem('duraspinvest_voz', JSON.stringify(notas));
+    renderNotasVoz();
+  };
+  reader.readAsDataURL(blob);
+}
+
+function renderNotasVoz() {
+  const lista = document.getElementById('vozLista');
+  if(!lista) return;
+  const notas = JSON.parse(localStorage.getItem('duraspinvest_voz') || '[]');
+  if(!notas.length) { lista.innerHTML = ''; return; }
+  lista.innerHTML = notas.map(n => {
+    const fecha = new Date(n.fecha).toLocaleDateString('es-ES',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+    return '<div class="voz-item"><div style="font-size:18px;">🎙</div><div style="flex:1;"><div style="font-size:11px;color:var(--gray-400);margin-bottom:4px;">' + fecha + '</div><audio controls src="' + n.data + '" style="width:100%;height:32px;"></audio></div><button class="icon-btn" data-id="' + n.id + '" onclick="eliminarNotaVoz(this.dataset.id)" style="color:#EF4444;font-size:18px;">&#215;</button></div>';
+  }).join('');
+}
+
+function eliminarNotaVoz(id) {
+  if(!confirm('¿Eliminar esta nota de voz?')) return;
+  const notas = JSON.parse(localStorage.getItem('duraspinvest_voz') || '[]').filter(n => n.id !== id);
+  localStorage.setItem('duraspinvest_voz', JSON.stringify(notas));
+  renderNotasVoz();
+}
+
+// ── Prospectos render ─────────────────────────────────────────────────────────
+
+function renderProspectos() {
+  const list = window.prospectos || [];
+  const set = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
+  set('statProspectos', list.filter(p => p.tipo === 'Prospecto').length);
+  set('statLlamadas', list.filter(p => p.tipo === 'Llamada pendiente').length);
+  const el = document.getElementById('prospectosList');
+  if(!el) return;
+  if(!list.length) { el.innerHTML = '<div class="empty"><div class="empty-icon">◎</div><div class="empty-text">Sin prospectos.</div></div>'; return; }
+  const sorted = [...list].sort((a,b) => { if(a.fecha&&b.fecha) return new Date(a.fecha)-new Date(b.fecha); if(a.fecha) return -1; if(b.fecha) return 1; return 0; });
+  const tc = {'Prospecto':'#8B5CF6','Llamada pendiente':'#F59E0B','Reunión pendiente':'#2B7FFF','Nota personal':'#6B7280','Tarea propia':'#10B981'};
+  el.innerHTML = sorted.map(p => {
+    const color = tc[p.tipo] || '#6B7280';
+    const ds = p.fecha ? new Date(p.fecha+'T12:00:00').toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'}) : '';
+    return '<div class="card" style="margin-bottom:10px;border-left:3px solid ' + color + ';">' +
+      '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">' +
+      '<div style="flex:1;">' +
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">' +
+      '<span style="font-size:15px;font-weight:600;">' + p.nombre + '</span>' +
+      '<span style="font-size:11px;padding:2px 8px;border-radius:20px;background:' + color + '20;color:' + color + ';font-weight:500;">' + p.tipo + '</span></div>' +
+      (p.tel ? '<div style="font-size:12px;color:var(--gray-400);">📞 ' + p.tel + '</div>' : '') +
+      (p.email ? '<div style="font-size:12px;color:var(--gray-400);">✉ ' + p.email + '</div>' : '') +
+      (p.notas ? '<div style="font-size:13px;color:var(--gray-600);margin-top:6px;">' + p.notas + '</div>' : '') +
+      (ds ? '<div style="font-size:11px;color:var(--accent);font-weight:500;margin-top:4px;">📅 Seguimiento: ' + ds + '</div>' : '') +
+      '</div>' +
+      '<div style="display:flex;gap:4px;">' +
+      '<button class="icon-btn" data-pid="' + p.id + '" onclick="openProspectoModal(this.dataset.pid)">✏</button>' +
+      '<button class="icon-btn" data-pid="' + p.id + '" onclick="deleteProspecto(this.dataset.pid)">×</button>' +
+      '</div></div></div>';
+  }).join('');
+  updateBadges();
+}
+
+// ── Planning Fiscal ──────────────────────────────────────────────────────────
+
+window.planningData = window.planningData || {};
+
+const MODELOS = [
+  { grupo: 'Retenciones IRPF', modelos: [
+    { id: '111', label: '111', periodos: ['1T','2T','3T','4T'] },
+    { id: '190', label: '190', periodos: ['Anual'], resumen: true }
+  ]},
+  { grupo: 'Retenciones Alquiler', modelos: [
+    { id: '115', label: '115', periodos: ['1T','2T','3T','4T'] },
+    { id: '180', label: '180', periodos: ['Anual'], resumen: true }
+  ]},
+  { grupo: 'IRPF Autónomos', modelos: [
+    { id: '130', label: '130/131', periodos: ['1T','2T','3T','4T'] }
+  ]},
+  { grupo: 'IVA', modelos: [
+    { id: '303', label: '303', periodos: ['1T','2T','3T','4T'] },
+    { id: '390', label: '390', periodos: ['Anual'], resumen: true }
+  ]},
+  { grupo: 'IS / Pago Fraccionado', modelos: [
+    { id: '202', label: '202', periodos: ['Abril','Octubre','Diciembre'] },
+    { id: '200', label: '200', periodos: ['Julio'] }
+  ]},
+  { grupo: 'Op. Intracomunitarias', modelos: [
+    { id: '349', label: '349', periodos: ['1T','2T','3T','4T'] }
+  ]},
+  { grupo: 'Anual Independiente', modelos: [
+    { id: '347', label: '347', periodos: ['Febrero'] }
+  ]}
+];
+
+function planningKey(clienteId, modelo, periodo, anio) {
+  return (anio + '_' + clienteId + '_' + modelo + '_' + periodo).replace(/[^a-zA-Z0-9_]/g,'_');
+}
+
+function getPlanningCelda(clienteId, modelo, periodo, anio) {
+  return window.planningData[planningKey(clienteId, modelo, periodo, anio)] || null;
+}
+
+function estadoColor(estado) {
+  if (estado === 'presentado') return '#10B981';
+  if (estado === 'proceso') return '#F59E0B';
+  if (estado === 'no_obligado') return '#6B7280';
+  if (estado === 'sa') return '#93C5FD';
+  return '#EF4444';
+}
+
+function estadoLabel(celda) {
+  if (!celda) return '';
+  if (celda.estado === 'no_obligado') return '—';
+  if (celda.sa) return 'S/A';
+  if (celda.importe !== undefined && celda.importe !== '') return '€' + parseFloat(celda.importe || 0).toFixed(2);
+  return '•';
+}
+
+function renderPlanning() {
+  const container = document.getElementById('planningContainer');
+  if (!container) return;
+  const anio = (document.getElementById('planningAnio') || {value:'2026'}).value || '2026';
+  const filtro = (document.getElementById('planningFiltro') || {value:'todos'}).value || 'todos';
+
+  const allClients = (window.clients || [])
+    .filter(c => c.nombre)
+    .sort((a, b) => {
+      const sa = (a.tipo||'').toLowerCase() === 'sociedad';
+      const sb = (b.tipo||'').toLowerCase() === 'sociedad';
+      if (sa && !sb) return -1; if (!sa && sb) return 1;
+      return (a.nombre||'').localeCompare(b.nombre||'', 'es');
+    });
+
+  if (!allClients.length) {
+    container.innerHTML = '<div class="empty"><div class="empty-icon">📊</div><div class="empty-text">No hay clientes.</div></div>';
+    return;
+  }
+
+  const cols = [];
+  MODELOS.forEach(grupo => {
+    grupo.modelos.forEach(m => {
+      m.periodos.forEach(p => {
+        cols.push({ grupo: grupo.grupo, modelo: m.id, label: m.label, periodo: p, resumen: m.resumen || false });
+      });
+    });
+  });
+
+  // Filtrar clientes por estado si hay filtro
+  let clientesFiltrados = allClients;
+  if (filtro !== 'todos') {
+    clientesFiltrados = allClients.filter(c => cols.some(col => {
+      const celda = getPlanningCelda(c.id, col.modelo, col.periodo, anio);
+      if (!celda) return filtro === 'pendiente';
+      return celda.estado === filtro;
+    }));
+  }
+
+  // Agrupar columnas
+  const grupos = {};
+  cols.forEach(col => { if (!grupos[col.grupo]) grupos[col.grupo] = []; grupos[col.grupo].push(col); });
+
+  let t = '<table style="border-collapse:collapse;min-width:100%;font-size:12px;">';
+  t += '<thead style="position:sticky;top:0;z-index:10;">';
+  t += '<tr style="background:var(--navy);color:white;">';
+  t += '<th style="padding:10px 14px;text-align:left;min-width:140px;position:sticky;left:0;background:var(--navy);z-index:2;">Cliente</th>';
+  Object.entries(grupos).forEach(([grupo, gcols]) => {
+    t += '<th colspan="' + gcols.length + '" style="padding:8px;text-align:center;border-left:2px solid rgba(255,255,255,0.2);font-size:11px;">' + grupo + '</th>';
+  });
+  t += '<th style="padding:8px;min-width:180px;border-left:2px solid rgba(255,255,255,0.2);">Comentarios</th></tr>';
+  t += '<tr style="background:var(--navy-mid);color:var(--gray-400);">';
+  t += '<th style="padding:6px 14px;position:sticky;left:0;background:var(--navy-mid);z-index:2;"></th>';
+  cols.forEach((col, i) => {
+    const first = i === 0 || cols[i-1].grupo !== col.grupo;
+    t += '<th style="padding:6px 8px;text-align:center;white-space:nowrap;' + (first?'border-left:2px solid rgba(255,255,255,0.1);':'') + (col.resumen?'background:rgba(255,255,255,0.05);':'') + '">' + col.label + '<br><span style="font-size:10px;opacity:0.7;">' + col.periodo + '</span></th>';
+  });
+  t += '<th style="border-left:2px solid rgba(255,255,255,0.1);"></th></tr></thead><tbody>';
+
+  let grupoAnterior = null;
+  clientesFiltrados.forEach((c, ci) => {
+    const grupoActual = (c.tipo||'').toLowerCase() === 'sociedad' ? 'Sociedades' : 'Autónomos y Particulares';
+    if (grupoActual !== grupoAnterior) {
+      grupoAnterior = grupoActual;
+      t += '<tr><td colspan="' + (cols.length + 2) + '" style="padding:8px 14px;background:var(--navy);color:white;font-size:11px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;">' + grupoActual + '</td></tr>';
+    }
+    const rowBg = ci % 2 === 0 ? 'white' : '#F8FAFC';
+    t += '<tr style="background:' + rowBg + ';">';
+    t += '<td style="padding:8px 14px;font-weight:500;color:var(--navy);white-space:nowrap;position:sticky;left:0;background:' + rowBg + ';z-index:1;border-right:1px solid var(--gray-200);">' + c.nombre + '</td>';
+
+    cols.forEach((col, i) => {
+      const first = i === 0 || cols[i-1].grupo !== col.grupo;
+      const obligs = c.obligaciones || [];
+      const tieneObligs = obligs.length > 0;
+      const noObligado = tieneObligs && !obligs.includes(col.modelo);
+      const celda = noObligado ? null : getPlanningCelda(c.id, col.modelo, col.periodo, anio);
+      const color = noObligado ? '#000000' : estadoColor(celda ? celda.estado : undefined);
+      const label = noObligado ? '—' : estadoLabel(celda);
+      const bgCell = noObligado ? '#F0F0F0' : (celda && celda.sa ? '#EFF6FF' : 'transparent');
+      t += '<td style="padding:4px;text-align:center;' + (first?'border-left:2px solid var(--gray-200);':'') + (col.resumen?'background:rgba(212,160,23,0.03);':'') + '">';
+      if (noObligado) {
+        t += '<div style="text-align:center;font-size:14px;font-weight:700;color:#000;line-height:32px;">—</div>';
+      } else {
+        t += '<div data-cid="' + c.id + '" data-modelo="' + col.modelo + '" data-periodo="' + col.periodo + '" data-anio="' + anio + '" data-nombre="' + c.nombre + '" onclick="openPlanningCeldaFromEl(this)" style="cursor:pointer;border-radius:6px;padding:4px 2px;min-width:48px;background:' + bgCell + ';display:flex;flex-direction:column;align-items:center;gap:2px;" title="' + (celda && celda.comentario ? celda.comentario : '') + '">';
+        t += '<div style="width:8px;height:8px;border-radius:50%;background:' + color + ';"></div>';
+        t += '<div style="font-size:10px;color:var(--gray-600);font-weight:500;">' + label + '</div>';
+        t += '</div>';
+      }
+      t += '</td>';
+    });
+
+    const comentarioCliente = window.planningData['comentario_' + c.id + '_' + anio];
+    t += '<td style="padding:4px 8px;border-left:2px solid var(--gray-200);min-width:180px;">';
+    t += '<input type="text" value="' + (comentarioCliente && comentarioCliente.texto ? comentarioCliente.texto.replace(/"/g,'&quot;') : '') + '" placeholder="Comentario..." data-cid="' + c.id + '" data-anio="' + anio + '" style="width:100%;font-size:11px;border:1px solid var(--gray-200);border-radius:4px;padding:3px 6px;background:transparent;" onchange="saveComentarioCliente(this.dataset.cid,this.dataset.anio,this.value)">';
+    t += '</td></tr>';
+  });
+
+  t += '</tbody></table>';
+  container.innerHTML = t;
+}
+
+function openPlanningCeldaFromEl(el) {
+  openPlanningCelda(el.dataset.cid, el.dataset.modelo, el.dataset.periodo, el.dataset.anio, el.dataset.nombre);
+}
+
+function openPlanningCelda(clienteId, modelo, periodo, anio, clienteNombre) {
+  const celda = getPlanningCelda(clienteId, modelo, periodo, anio) || {};
+  document.getElementById('pcClienteId').value = clienteId;
+  document.getElementById('pcModelo').value = modelo;
+  document.getElementById('pcPeriodo').value = periodo;
+  document.getElementById('planningCeldaTitle').textContent = 'Modelo ' + modelo + ' — ' + periodo + ' | ' + clienteNombre;
+  document.getElementById('pcImporte').value = celda.importe || '';
+  document.getElementById('pcSA').checked = celda.sa || false;
+  document.getElementById('pcComentario').value = celda.comentario || '';
+  setPcEstado(celda.estado || 'pendiente');
+  toggleSA();
+  document.getElementById('planningCeldaModal').classList.add('open');
+}
+
+let pcEstadoActual = 'pendiente';
+function setPcEstado(estado) {
+  pcEstadoActual = estado;
+  ['pendiente','proceso','presentado','no_obligado'].forEach((e, i) => {
+    const ids = ['pcBtnPendiente','pcBtnProceso','pcBtnPresentado','pcBtnNoOblig'];
+    const btn = document.getElementById(ids[i]);
+    if(btn) { btn.style.opacity = e === estado ? '1' : '0.4'; btn.style.fontWeight = e === estado ? '700' : '400'; }
+  });
+  const ig = document.getElementById('pcImporteGroup');
+  if(ig) ig.style.display = estado === 'no_obligado' ? 'none' : 'block';
+}
+
+function toggleSA() {
+  const sa = document.getElementById('pcSA').checked;
+  const imp = document.getElementById('pcImporte');
+  if(imp) { imp.disabled = sa; if(sa) imp.value = ''; }
+}
+
+async function savePlanningCelda() {
+  const clienteId = document.getElementById('pcClienteId').value;
+  const modelo = document.getElementById('pcModelo').value;
+  const periodo = document.getElementById('pcPeriodo').value;
+  const anio = document.getElementById('planningAnio').value || '2026';
+  const key = planningKey(clienteId, modelo, periodo, anio);
+  const data = { clienteId, modelo, periodo, anio, estado: pcEstadoActual, importe: document.getElementById('pcImporte').value, sa: document.getElementById('pcSA').checked, comentario: document.getElementById('pcComentario').value.trim(), updated: new Date().toISOString() };
+  await fbSet('planning', key, data);
+  window.planningData[key] = data;
+  closeModal('planningCeldaModal');
+  renderPlanning();
+}
+
+async function saveComentarioCliente(clienteId, anio, texto) {
+  const key = 'comentario_' + clienteId + '_' + anio;
+  const data = { clienteId, anio, texto, updated: new Date().toISOString() };
+  await fbSet('planning', key, data);
+  window.planningData[key] = data;
+}
+
+// ── Obligaciones desde ficha ──────────────────────────────────────────────────
+
+async function saveObligacionesFicha(cid) {
+  const c = (window.clients || []).find(x => String(x.id) === String(cid));
+  if (!c) return;
+  c.obligaciones = ['111','190','115','180','130','303','390','202','200','349','347'].filter(m => {
+    const el = document.getElementById('fichaOblig_' + cid + '_' + m);
+    return el && el.checked;
+  });
+  await fbSet('clients', cid, c);
+  if(currentSection === 'planning') renderPlanning();
+  const evtBtn = event && event.target;
+  if(evtBtn) { evtBtn.textContent = '✓ Guardado'; evtBtn.style.color = '#059669'; setTimeout(() => { evtBtn.textContent = 'Guardar'; evtBtn.style.color = ''; }, 2000); }
+}
+
+async function addDocFicha() {
+  const cid = window._fichaClienteId;
+  const inpNombre = document.getElementById('docNombre_ficha');
+  const inpUrl = document.getElementById('docUrl_ficha');
+  if (!inpNombre || !inpNombre.value.trim()) return;
+  const c = (window.clients || []).find(x => String(x.id) === String(cid));
+  if (!c) return;
+  if (!c.docs) c.docs = [];
+  c.docs.unshift({ nombre: inpNombre.value.trim(), url: inpUrl ? inpUrl.value.trim() : '', fecha: new Date().toISOString() });
+  await fbSet('clients', cid, c);
+  inpNombre.value = ''; if(inpUrl) inpUrl.value = '';
+  showFicha(cid);
+}
+
 // ── Biometría WebAuthn ────────────────────────────────────────────────────────
 
 const BIOMETRIC_KEY = 'duraspinvest_biometric';
