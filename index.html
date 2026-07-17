@@ -1578,7 +1578,7 @@ function renderPlanning() {
   const filtro = (document.getElementById('planningFiltro') || {value:'todos'}).value || 'todos';
 
   const allClients = (window.clients || [])
-    .filter(c => c.nombre)
+    .filter(c => c.nombre && (c.categoria || 'despacho') !== 'auxiliar')
     .sort((a, b) => {
       const sa = (a.tipo||'').toLowerCase() === 'sociedad';
       const sb = (b.tipo||'').toLowerCase() === 'sociedad';
@@ -1600,21 +1600,8 @@ function renderPlanning() {
     });
   });
 
-  // Filtrar clientes por estado si hay filtro
-  let clientesFiltrados = allClients;
-  if (filtro !== 'todos') {
-    clientesFiltrados = allClients.filter(c => {
-      const obligs = c.obligaciones || [];
-      const tieneObligs = obligs.length > 0;
-      return cols.some(col => {
-        const noObligado = tieneObligs && !obligs.includes(col.modelo);
-        if (noObligado) return false;
-        const celda = getPlanningCelda(c.id, col.modelo, col.periodo, anio);
-        if (filtro === 'pendiente') return !celda || celda.estado === 'pendiente' || (!celda.estado);
-        return celda && celda.estado === filtro;
-      });
-    });
-  }
+  // Mostrar siempre todos los clientes - el filtro solo atenúa celdas
+  const clientesFiltrados = allClients;
 
   // Agrupar columnas
   const grupos = {};
@@ -1660,7 +1647,15 @@ function renderPlanning() {
       if (noObligado) {
         t += '<div style="text-align:center;font-size:14px;font-weight:700;color:#000;line-height:32px;">—</div>';
       } else {
-        t += '<div data-cid="' + c.id + '" data-modelo="' + col.modelo + '" data-periodo="' + col.periodo + '" data-anio="' + anio + '" data-nombre="' + c.nombre + '" onclick="openPlanningCeldaFromEl(this)" style="cursor:pointer;border-radius:6px;padding:4px 2px;min-width:48px;background:' + bgCell + ';display:flex;flex-direction:column;align-items:center;gap:2px;" title="' + (celda && celda.comentario ? celda.comentario : '') + '">';
+        // Calcular si esta celda coincide con el filtro para atenuar las que no
+        let celdaCoincide = true;
+        if (filtro !== 'todos') {
+          const estadoCelda = celda ? (celda.estado || 'pendiente') : 'pendiente';
+          if (filtro === 'pendiente') celdaCoincide = !celda || !celda.estado || celda.estado === 'pendiente';
+          else celdaCoincide = estadoCelda === filtro;
+        }
+        const opacidad = celdaCoincide ? '1' : '0.15';
+        t += '<div data-cid="' + c.id + '" data-modelo="' + col.modelo + '" data-periodo="' + col.periodo + '" data-anio="' + anio + '" data-nombre="' + c.nombre + '" onclick="openPlanningCeldaFromEl(this)" style="cursor:pointer;border-radius:6px;padding:4px 2px;min-width:48px;background:' + bgCell + ';display:flex;flex-direction:column;align-items:center;gap:2px;opacity:' + opacidad + ';" title="' + (celda && celda.comentario ? celda.comentario : '') + '">';
         t += '<div style="width:8px;height:8px;border-radius:50%;background:' + color + ';"></div>';
         t += '<div style="font-size:10px;color:var(--gray-600);font-weight:500;">' + label + '</div>';
         t += '</div>';
