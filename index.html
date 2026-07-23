@@ -569,6 +569,7 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
 <div class="modal-overlay" id="taskModalOverlay" onclick="closeModalOutside(event,'taskModalOverlay')">
   <div class="modal">
     <div class="modal-title">Nueva tarea</div>
+    <input type="hidden" id="tId">
     <div class="form-group"><label class="form-label">Tarea</label><input type="text" class="form-input" id="tNombre" placeholder="Ej: Modelo 303 — IVA T1"></div>
     <div class="form-group"><label class="form-label">Cliente</label><input type="text" class="form-input" id="tCliente" placeholder="Nombre del cliente"></div>
     <div class="form-row">
@@ -812,16 +813,19 @@ async function fbDelete(col, id) {
 async function saveTask() {
   const nombre = document.getElementById('tNombre').value.trim();
   if (!nombre) return document.getElementById('tNombre').focus();
+  const idExistente = document.getElementById('tId').value;
+  const taskExistente = idExistente ? (window.tasks || []).find(t => String(t.id) === String(idExistente)) : null;
   const task = {
-    id: String(Date.now()),
+    id: idExistente || String(Date.now()),
     nombre,
     cliente: document.getElementById('tCliente').value.trim(),
     cuadrante: document.getElementById('tCuadrante').value,
     area: document.getElementById('tArea').value,
     fecha: document.getElementById('tFecha').value,
     notas: document.getElementById('tNotas').value.trim(),
-    estado: 'Pendiente',
-    creado: new Date().toISOString()
+    estado: taskExistente ? taskExistente.estado : 'Pendiente',
+    creado: taskExistente ? taskExistente.creado : new Date().toISOString(),
+    modificado: new Date().toISOString()
   };
   await fbSet('tasks', task.id, task);
   closeModal('taskModalOverlay');
@@ -1108,7 +1112,7 @@ function renderEisenhower() {
     el.innerHTML = list.map(t => {
       const days = daysUntil(t.fecha);
       const ds = t.fecha ? new Date(t.fecha + 'T12:00:00').toLocaleDateString('es-ES', {day:'2-digit',month:'short',year:'numeric'}) : '';
-      return `<div class="q-task"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;"><div class="q-task-name">${t.nombre}</div><div style="display:flex;gap:2px;flex-shrink:0;"><button class="icon-btn" onclick="completeTask('${t.id}')" title="Completar">✓</button><button class="icon-btn" onclick="deleteTask('${t.id}')" title="Eliminar">×</button></div></div><div class="q-task-meta"><span>${t.area||''}</span>${t.cliente ? `<span>· ${t.cliente}</span>` : ''} ${ds ? `<span class="q-task-date">· ${ds}</span>` : ''} ${days !== null && days <= 7 && days >= 0 ? `<span style="color:var(--q1);font-weight:600;">· ${days === 0 ? 'Hoy' : days === 1 ? 'Mañana' : days + 'd'}</span>` : ''}</div></div>`;
+      return `<div class="q-task"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;"><div class="q-task-name">${t.nombre}</div><div style="display:flex;gap:2px;flex-shrink:0;"><button class="icon-btn" onclick="editTask('${t.id}')" title="Editar">✏</button><button class="icon-btn" onclick="completeTask('${t.id}')" title="Completar">✓</button><button class="icon-btn" onclick="deleteTask('${t.id}')" title="Eliminar">×</button></div></div><div class="q-task-meta"><span>${t.area||''}</span>${t.cliente ? `<span>· ${t.cliente}</span>` : ''} ${ds ? `<span class="q-task-date">· ${ds}</span>` : ''} ${days !== null && days <= 7 && days >= 0 ? `<span style="color:var(--q1);font-weight:600;">· ${days === 0 ? 'Hoy' : days === 1 ? 'Mañana' : days + 'd'}</span>` : ''}</div></div>`;
     }).join('');
   });
 }
