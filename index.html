@@ -717,6 +717,45 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
 <button class="fab" id="fabBtn" onclick="onFab()" title="Nuevo">+</button>
 </div>
 
+<!-- MODAL EXPEDIENTE -->
+<div class="modal-overlay" id="expedienteModalOverlay" onclick="closeModalOutside(event,'expedienteModalOverlay')">
+  <div class="modal" style="max-width:500px;">
+    <div class="modal-title" id="expedienteModalTitle">Nuevo expediente</div>
+    <input type="hidden" id="expCid">
+    <input type="hidden" id="expIdx">
+    <div class="form-group" style="margin-bottom:12px;">
+      <label class="form-label">Nombre del expediente *</label>
+      <input type="text" class="form-input" id="expNombre" placeholder="Ej: Declaracion renta 2025">
+    </div>
+    <div class="form-group" style="margin-bottom:12px;">
+      <label class="form-label">Estado</label>
+      <select class="form-input" id="expEstado">
+        <option value="abierto">Abierto</option>
+        <option value="proceso">En proceso</option>
+        <option value="cerrado">Cerrado</option>
+      </select>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+      <div class="form-group">
+        <label class="form-label">Fecha apertura</label>
+        <input type="date" class="form-input" id="expFechaAp">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Fecha cierre</label>
+        <input type="date" class="form-input" id="expFechaCi">
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:12px;">
+      <label class="form-label">Notas</label>
+      <textarea class="form-input" id="expNotas" rows="3" placeholder="Descripcion o notas del expediente..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('expedienteModalOverlay')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveExpediente()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // Variables globales - gestionadas por Firebase
 window.tasks = window.tasks || [];
