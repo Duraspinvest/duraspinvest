@@ -444,6 +444,12 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
 <!-- CALENDAR -->
 <div id="calendar" class="section">
   <div class="card">
+    <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:11px;margin-bottom:10px;">
+      <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#DBEAFE;display:inline-block;border:1px solid #93C5FD;"></span> Vencimiento fiscal</span>
+      <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#FED7AA;display:inline-block;border:1px solid #FDBA74;"></span> Póliza/contrato</span>
+      <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:50%;background:#EF4444;display:inline-block;"></span> Tarea urgente</span>
+      <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:50%;background:#2B7FFF;display:inline-block;"></span> Tarea planificada</span>
+    </div>
     <div class="cal-header">
       <div class="cal-nav">
         <button class="cal-btn" onclick="changeMonth(-1)">‹</button>
@@ -1173,6 +1179,64 @@ function renderCalendar() {
     d.innerHTML = `<div class="cal-day-num">${i}</div>`;
     grid.appendChild(d);
   }
+}
+
+// ── Vencimientos fiscales oficiales ──────────────────────────────────────────
+
+function getVencimientosFiscales(anio) {
+  // Fechas límite de presentación de modelos (día 20 del mes siguiente al trimestre)
+  // Excepciones: julio tiene plazo hasta el 25, enero hasta el 30
+  return [
+    // 1T - vencen en abril
+    { fecha: anio + '-04-20', modelo: '111', periodo: '1T', label: 'M.111 1T' },
+    { fecha: anio + '-04-20', modelo: '115', periodo: '1T', label: 'M.115 1T' },
+    { fecha: anio + '-04-20', modelo: '130', periodo: '1T', label: 'M.130/131 1T' },
+    { fecha: anio + '-04-20', modelo: '303', periodo: '1T', label: 'M.303 1T' },
+    { fecha: anio + '-04-20', modelo: '349', periodo: '1T', label: 'M.349 1T' },
+    { fecha: anio + '-04-20', modelo: '202', periodo: 'Abril', label: 'M.202 Abril' },
+    // 2T - vencen en julio (plazo hasta el 25)
+    { fecha: anio + '-07-25', modelo: '111', periodo: '2T', label: 'M.111 2T' },
+    { fecha: anio + '-07-25', modelo: '115', periodo: '2T', label: 'M.115 2T' },
+    { fecha: anio + '-07-25', modelo: '130', periodo: '2T', label: 'M.130/131 2T' },
+    { fecha: anio + '-07-25', modelo: '303', periodo: '2T', label: 'M.303 2T' },
+    { fecha: anio + '-07-25', modelo: '349', periodo: '2T', label: 'M.349 2T' },
+    { fecha: anio + '-07-25', modelo: '200', periodo: 'Julio', label: 'M.200 Anual' },
+    // 3T - vencen en octubre
+    { fecha: anio + '-10-20', modelo: '111', periodo: '3T', label: 'M.111 3T' },
+    { fecha: anio + '-10-20', modelo: '115', periodo: '3T', label: 'M.115 3T' },
+    { fecha: anio + '-10-20', modelo: '130', periodo: '3T', label: 'M.130/131 3T' },
+    { fecha: anio + '-10-20', modelo: '303', periodo: '3T', label: 'M.303 3T' },
+    { fecha: anio + '-10-20', modelo: '349', periodo: '3T', label: 'M.349 3T' },
+    { fecha: anio + '-10-20', modelo: '202', periodo: 'Octubre', label: 'M.202 Oct' },
+    // 4T y anuales - vencen en enero del año siguiente (plazo hasta el 30)
+    { fecha: (parseInt(anio)+1) + '-01-30', modelo: '111', periodo: '4T', label: 'M.111 4T' },
+    { fecha: (parseInt(anio)+1) + '-01-30', modelo: '115', periodo: '4T', label: 'M.115 4T' },
+    { fecha: (parseInt(anio)+1) + '-01-30', modelo: '130', periodo: '4T', label: 'M.130/131 4T' },
+    { fecha: (parseInt(anio)+1) + '-01-30', modelo: '303', periodo: '4T', label: 'M.303 4T' },
+    { fecha: (parseInt(anio)+1) + '-01-30', modelo: '349', periodo: '4T', label: 'M.349 4T' },
+    { fecha: (parseInt(anio)+1) + '-02-28', modelo: '347', periodo: 'Anual', label: 'M.347 Anual' },
+    { fecha: (parseInt(anio)+1) + '-01-30', modelo: '190', periodo: 'Anual', label: 'M.190 Anual' },
+    { fecha: (parseInt(anio)+1) + '-01-30', modelo: '180', periodo: 'Anual', label: 'M.180 Anual' },
+    { fecha: (parseInt(anio)+1) + '-01-30', modelo: '390', periodo: 'Anual', label: 'M.390 Anual' },
+    { fecha: anio + '-12-20', modelo: '202', periodo: 'Diciembre', label: 'M.202 Dic' },
+  ];
+}
+
+function getClientesObligadosModelo(modelo) {
+  return (window.clients || []).filter(c => {
+    const obligs = c.obligaciones || [];
+    if (obligs.length === 0) return false;
+    const modeloBase = modelo.split('/')[0]; // 130/131 -> 130
+    return obligs.includes(modeloBase) || obligs.includes(modelo);
+  });
+}
+
+function getVencimientosDelDia(ds, anio) {
+  const vencimientos = getVencimientosFiscales(anio);
+  return vencimientos.filter(v => v.fecha === ds).map(v => {
+    const clientes = getClientesObligadosModelo(v.modelo);
+    return { ...v, numClientes: clientes.length };
+  }).filter(v => v.numClientes > 0);
 }
 
 function changeMonth(dir) {
