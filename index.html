@@ -1189,7 +1189,7 @@ function renderCalendar() {
 
     let inner = '<div class="cal-day-num">' + day + '</div>';
     dt.slice(0,1).forEach(t => { inner += '<div class="cal-event ' + qClass(t.cuadrante) + '">' + t.nombre + '</div>'; });
-    vencF.slice(0,2).forEach(v => { inner += '<div class="cal-event" style="background:#DBEAFE;color:#1D4ED8;font-size:9px;font-weight:600;">📅 ' + v.label + ' (' + v.numClientes + ')</div>'; });
+    vencF.slice(0,2).forEach(v => { inner += '<div class="cal-event" style="background:#DBEAFE;color:#1D4ED8;font-size:9px;font-weight:600;cursor:default;">📅 ' + v.label + ' (' + v.numClientes + ')</div>'; });
     polizasHoy.slice(0,1).forEach(p => { inner += '<div class="cal-event" style="background:#FED7AA;color:#C2410C;font-weight:600;">' + (p.tipo==='aviso'?'⚠ 60d ':'🔔 ') + p.poliza + '</div>'; });
     if (dt.length + vencF.length + polizasHoy.length > 4) inner += '<div style="font-size:10px;color:var(--gray-400)">+más</div>';
     d.innerHTML = inner;
