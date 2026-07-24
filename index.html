@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<meta name="version" content="2026-07-24-v1">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#0A2540">
 <title>Duraspinvest</title>
@@ -1143,7 +1144,7 @@ function renderCalendar() {
   const now = new Date();
   if (calYear === undefined) { calYear = now.getFullYear(); calMonth = now.getMonth(); }
   const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-  document.getElementById('calMonth').textContent = `${months[calMonth]} ${calYear}`;
+  document.getElementById('calMonth').textContent = months[calMonth] + ' ' + calYear;
   const grid = document.getElementById('calGrid');
   const hdrs = Array.from(grid.querySelectorAll('.cal-day-header'));
   grid.innerHTML = '';
@@ -1155,20 +1156,43 @@ function renderCalendar() {
   const dip = new Date(calYear, calMonth, 0).getDate();
   const todayStr = now.toISOString().slice(0, 10);
   const allTasks = window.tasks || [];
+  const anioStr = calYear.toString();
+
   for (let i = 0; i < sd; i++) {
     const d = document.createElement('div');
     d.className = 'cal-day other-month';
-    d.innerHTML = `<div class="cal-day-num">${dip - sd + i + 1}</div>`;
+    d.innerHTML = '<div class="cal-day-num">' + (dip - sd + i + 1) + '</div>';
     grid.appendChild(d);
   }
   for (let day = 1; day <= dim; day++) {
-    const ds = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const ds = calYear + '-' + String(calMonth+1).padStart(2,'0') + '-' + String(day).padStart(2,'0');
     const dt = allTasks.filter(t => t.fecha === ds && t.estado !== 'Completada');
+
+    // Vencimientos fiscales
+    const vencF = getVencimientosDelDia(ds, anioStr);
+
+    // Polizas
+    const polizasHoy = [];
+    (window.clients || []).forEach(c => {
+      (c.polizas || []).forEach(p => {
+        if (!p.vencimiento) return;
+        if (p.vencimiento === ds) polizasHoy.push({ nombre: c.nombre, poliza: p.nombre, tipo: 'vence' });
+        const dias = Math.round((new Date(p.vencimiento) - new Date(ds + 'T00:00:00')) / 86400000);
+        if (dias === 60) polizasHoy.push({ nombre: c.nombre, poliza: p.nombre, tipo: 'aviso' });
+      });
+    });
+
     const d = document.createElement('div');
     d.className = 'cal-day' + (ds === todayStr ? ' today' : '');
-    d.innerHTML = `<div class="cal-day-num">${day}</div>` +
-      dt.slice(0, 3).map(t => `<div class="cal-event ${qClass(t.cuadrante)}" title="${t.nombre}">${t.nombre}</div>`).join('') +
-      (dt.length > 3 ? `<div style="font-size:10px;color:var(--gray-400)">+${dt.length - 3} más</div>` : '');
+    if (vencF.length > 0) d.style.background = '#EFF6FF';
+    if (polizasHoy.length > 0) d.style.background = '#FFF7ED';
+
+    let inner = '<div class="cal-day-num">' + day + '</div>';
+    dt.slice(0,1).forEach(t => { inner += '<div class="cal-event ' + qClass(t.cuadrante) + '">' + t.nombre + '</div>'; });
+    vencF.slice(0,2).forEach(v => { inner += '<div class="cal-event" style="background:#DBEAFE;color:#1D4ED8;font-size:9px;font-weight:600;">📅 ' + v.label + ' (' + v.numClientes + ')</div>'; });
+    polizasHoy.slice(0,1).forEach(p => { inner += '<div class="cal-event" style="background:#FED7AA;color:#C2410C;font-weight:600;">' + (p.tipo==='aviso'?'⚠ 60d ':'🔔 ') + p.poliza + '</div>'; });
+    if (dt.length + vencF.length + polizasHoy.length > 4) inner += '<div style="font-size:10px;color:var(--gray-400)">+más</div>';
+    d.innerHTML = inner;
     grid.appendChild(d);
   }
   const total = sd + dim;
@@ -1176,7 +1200,7 @@ function renderCalendar() {
   for (let i = 1; i <= rem; i++) {
     const d = document.createElement('div');
     d.className = 'cal-day other-month';
-    d.innerHTML = `<div class="cal-day-num">${i}</div>`;
+    d.innerHTML = '<div class="cal-day-num">' + i + '</div>';
     grid.appendChild(d);
   }
 }
