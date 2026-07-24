@@ -738,6 +738,21 @@ function onFab() {
   else openTaskModal('');
 }
 
+function editTask(id) {
+  const t = (window.tasks || []).find(t => String(t.id) === String(id));
+  if(!t) return;
+  const el = document.getElementById('tId');
+  if(el) el.value = t.id;
+  document.getElementById('tNombre').value = t.nombre || '';
+  document.getElementById('tCliente').value = t.cliente || '';
+  document.getElementById('tNotas').value = t.notas || '';
+  document.getElementById('tFecha').value = t.fecha || '';
+  document.getElementById('tCuadrante').value = t.cuadrante || 'Q1 Importante + urgente';
+  document.getElementById('tArea').value = t.area || 'Fiscal';
+  document.getElementById('taskModalOverlay').classList.add('open');
+  document.getElementById('tNombre').focus();
+}
+
 function openTaskModal(q) {
   document.getElementById('tNombre').value = '';
   document.getElementById('tCliente').value = '';
