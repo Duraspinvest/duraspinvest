@@ -1413,37 +1413,61 @@ function showFicha(id) {
   parts.push('<button class="btn btn-primary btn-sm" style="align-self:flex-end;" onclick="addNota(window._fichaClienteId)">Añadir</button>');
   parts.push('</div></div>');
 
-  // Documentos
+  // Expedientes
   parts.push('<div class="ficha-section">');
-  parts.push('<div class="ficha-section-header"><span class="ficha-section-title">Documentos</span></div>');
-  var docs = c.docs || [];
-  if (docs.length) {
-    docs.forEach(function(d, i) {
-      var fecha = new Date(d.fecha).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'});
-      parts.push('<div class="doc-item">');
-      parts.push('<div class="doc-icon">&#128196;</div>');
-      parts.push('<div class="doc-info"><div class="doc-nombre">' + d.nombre + '</div>');
-      parts.push('<div class="doc-fecha">' + fecha + '</div></div>');
-      parts.push('<div style="display:flex;gap:4px;align-items:center;">');
-      if (d.url) {
-        parts.push('<a href="' + d.url + '" target="_blank" class="btn btn-sm" style="background:var(--q2-bg);color:var(--q2);text-decoration:none;font-size:11px;">Abrir</a>');
-        parts.push('<a href="https://wa.me/?text=' + encodeURIComponent(d.nombre + ': ' + d.url) + '" target="_blank" class="btn btn-sm" style="background:#F0FDF4;color:#25D366;text-decoration:none;font-size:11px;">WA</a>');
-        parts.push('<a href="mailto:?subject=' + encodeURIComponent(d.nombre) + '&body=' + encodeURIComponent(d.url) + '" class="btn btn-sm" style="background:#F0FDF4;color:#059669;text-decoration:none;font-size:11px;">Email</a>');
-      }
-      parts.push('<button class="icon-btn" data-idx="' + i + '" onclick="deleteDoc(window._fichaClienteId,this.dataset.idx)">&#215;</button>');
+  parts.push('<div class="ficha-section-header"><span class="ficha-section-title">Expedientes</span>');
+  parts.push('<button class="btn btn-sm btn-primary" onclick="openExpedienteModal(window._fichaClienteId)">+ Nuevo</button></div>');
+  var expedientes = c.expedientes || [];
+  if (expedientes.length) {
+    expedientes.forEach(function(exp, ei) {
+      var estadoColor = exp.estado === 'cerrado' ? '#6B7280' : exp.estado === 'proceso' ? '#F59E0B' : '#10B981';
+      var estadoLabel = exp.estado === 'cerrado' ? 'Cerrado' : exp.estado === 'proceso' ? 'En proceso' : 'Abierto';
+      var fechaAp = exp.fechaApertura ? new Date(exp.fechaApertura).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'}) : '';
+      var fechaCi = exp.fechaCierre ? new Date(exp.fechaCierre).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'}) : '';
+      parts.push('<div style="border:1px solid var(--gray-200);border-radius:8px;margin:8px 14px;overflow:hidden;">');
+      // Cabecera expediente
+      parts.push('<div style="background:var(--gray-50);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:8px;">');
+      parts.push('<div style="flex:1;">');
+      parts.push('<div style="display:flex;align-items:center;gap:8px;">');
+      parts.push('<span style="font-size:13px;font-weight:600;color:var(--navy);">&#128193; ' + exp.nombre + '</span>');
+      parts.push('<span style="font-size:10px;padding:2px 8px;border-radius:20px;background:' + estadoColor + '20;color:' + estadoColor + ';font-weight:600;">' + estadoLabel + '</span>');
+      parts.push('</div>');
+      if (fechaAp) parts.push('<div style="font-size:11px;color:var(--gray-400);margin-top:3px;">Apertura: ' + fechaAp + (fechaCi ? ' · Cierre: ' + fechaCi : '') + '</div>');
+      if (exp.notas) parts.push('<div style="font-size:12px;color:var(--gray-600);margin-top:4px;">' + exp.notas + '</div>');
+      parts.push('</div>');
+      parts.push('<div style="display:flex;gap:4px;">');
+      parts.push('<button class="btn btn-sm" style="background:var(--gray-100);color:var(--gray-600);" data-ei="' + ei + '" onclick="editExpediente(window._fichaClienteId,this.dataset.ei)">&#9998;</button>');
+      parts.push('<button class="icon-btn" data-ei="' + ei + '" onclick="deleteExpediente(window._fichaClienteId,this.dataset.ei)">&#215;</button>');
       parts.push('</div></div>');
+      // Documentos del expediente
+      var docs = exp.docs || [];
+      docs.forEach(function(d, di) {
+        parts.push('<div class="doc-item" style="padding:8px 14px;border-top:1px solid var(--gray-100);">');
+        parts.push('<div class="doc-icon">&#128196;</div>');
+        parts.push('<div class="doc-info"><div class="doc-nombre">' + d.nombre + '</div></div>');
+        parts.push('<div style="display:flex;gap:4px;align-items:center;">');
+        if (d.url) {
+          parts.push('<a href="' + d.url + '" target="_blank" class="btn btn-sm" style="background:var(--q2-bg);color:var(--q2);text-decoration:none;font-size:11px;">Abrir</a>');
+          parts.push('<a href="https://wa.me/?text=' + encodeURIComponent(d.nombre + ': ' + d.url) + '" target="_blank" class="btn btn-sm" style="background:#F0FDF4;color:#25D366;text-decoration:none;font-size:11px;">WA</a>');
+          parts.push('<a href="mailto:?subject=' + encodeURIComponent(d.nombre) + '&body=' + encodeURIComponent(d.url) + '" class="btn btn-sm" style="background:#F0FDF4;color:#059669;text-decoration:none;font-size:11px;">Email</a>');
+        }
+        parts.push('<button class="icon-btn" data-ei="' + ei + '" data-di="' + di + '" onclick="deleteDocExp(window._fichaClienteId,this.dataset.ei,this.dataset.di)">&#215;</button>');
+        parts.push('</div></div>');
+      });
+      // Añadir documento al expediente
+      parts.push('<div style="padding:10px 14px;border-top:1px solid var(--gray-100);background:white;">');
+      parts.push('<div style="font-size:11px;color:var(--gray-400);margin-bottom:6px;">Añadir documento a este expediente</div>');
+      parts.push('<div style="display:flex;gap:6px;flex-direction:column;">');
+      parts.push('<input type="text" class="nota-input" id="expDocNombre_' + ei + '" placeholder="Nombre del documento" style="width:100%;">');
+      parts.push('<input type="text" class="nota-input" id="expDocUrl_' + ei + '" placeholder="Enlace de OneDrive" style="width:100%;">');
+      parts.push('<div style="display:flex;justify-content:flex-end;"><button class="btn btn-primary btn-sm" data-ei="' + ei + '" onclick="addDocAExpediente(window._fichaClienteId,this.dataset.ei)">Añadir</button></div>');
+      parts.push('</div></div>');
+      parts.push('</div>');
     });
   } else {
-    parts.push('<div class="empty" style="padding:16px;">Sin documentos.</div>');
+    parts.push('<div class="empty" style="padding:20px;">Sin expedientes. Crea el primero con el botón +.</div>');
   }
-  parts.push('<div style="padding:12px 18px;border-top:0.5px solid var(--gray-100);">');
-  parts.push('<div style="font-size:11px;color:var(--gray-400);margin-bottom:8px;">Sube el PDF a OneDrive y pega el enlace aquí.</div>');
-  parts.push('<div style="display:flex;flex-direction:column;gap:6px;">');
-  parts.push('<input type="text" class="nota-input" id="docNombre_ficha" placeholder="Nombre del documento" style="width:100%;">');
-  parts.push('<input type="text" class="nota-input" id="docUrl_ficha" placeholder="Enlace de OneDrive" style="width:100%;">');
-  parts.push('<div style="display:flex;justify-content:flex-end;">');
-  parts.push('<button class="btn btn-primary btn-sm" onclick="addDocFicha()">Añadir documento</button>');
-  parts.push('</div></div></div></div>');
+  parts.push('</div>');
 
   fichaEl.innerHTML = parts.join('');
 }
@@ -1838,6 +1862,89 @@ async function saveComentarioCliente(clienteId, anio, texto) {
 }
 
 // ── Obligaciones desde ficha ──────────────────────────────────────────────────
+
+function openExpedienteModal(cid, idx) {
+  document.getElementById('expCid').value = cid;
+  document.getElementById('expIdx').value = idx !== undefined ? idx : '';
+  const c = (window.clients || []).find(x => String(x.id) === String(cid));
+  if (idx !== undefined && c && c.expedientes && c.expedientes[idx]) {
+    const exp = c.expedientes[idx];
+    document.getElementById('expedienteModalTitle').textContent = 'Editar expediente';
+    document.getElementById('expNombre').value = exp.nombre || '';
+    document.getElementById('expEstado').value = exp.estado || 'abierto';
+    document.getElementById('expFechaAp').value = exp.fechaApertura || '';
+    document.getElementById('expFechaCi').value = exp.fechaCierre || '';
+    document.getElementById('expNotas').value = exp.notas || '';
+  } else {
+    document.getElementById('expedienteModalTitle').textContent = 'Nuevo expediente';
+    document.getElementById('expNombre').value = '';
+    document.getElementById('expEstado').value = 'abierto';
+    document.getElementById('expFechaAp').value = new Date().toISOString().slice(0,10);
+    document.getElementById('expFechaCi').value = '';
+    document.getElementById('expNotas').value = '';
+  }
+  document.getElementById('expedienteModalOverlay').classList.add('open');
+  document.getElementById('expNombre').focus();
+}
+
+function editExpediente(cid, idx) {
+  openExpedienteModal(cid, parseInt(idx));
+}
+
+async function saveExpediente() {
+  const nombre = document.getElementById('expNombre').value.trim();
+  if (!nombre) { alert('El nombre es obligatorio.'); return; }
+  const cid = document.getElementById('expCid').value;
+  const idx = document.getElementById('expIdx').value;
+  const c = (window.clients || []).find(x => String(x.id) === String(cid));
+  if (!c) return;
+  if (!c.expedientes) c.expedientes = [];
+  const exp = {
+    nombre,
+    estado: document.getElementById('expEstado').value,
+    fechaApertura: document.getElementById('expFechaAp').value,
+    fechaCierre: document.getElementById('expFechaCi').value,
+    notas: document.getElementById('expNotas').value.trim(),
+    docs: idx !== '' && c.expedientes[parseInt(idx)] ? c.expedientes[parseInt(idx)].docs || [] : [],
+    creado: idx !== '' && c.expedientes[parseInt(idx)] ? c.expedientes[parseInt(idx)].creado : new Date().toISOString()
+  };
+  if (idx !== '') { c.expedientes[parseInt(idx)] = exp; }
+  else { c.expedientes.unshift(exp); }
+  await fbSet('clients', cid, c);
+  closeModal('expedienteModalOverlay');
+  showFicha(cid);
+}
+
+async function deleteExpediente(cid, idx) {
+  if (!confirm('¿Eliminar este expediente y todos sus documentos?')) return;
+  const c = (window.clients || []).find(x => String(x.id) === String(cid));
+  if (!c) return;
+  c.expedientes.splice(parseInt(idx), 1);
+  await fbSet('clients', cid, c);
+  showFicha(cid);
+}
+
+async function addDocAExpediente(cid, ei) {
+  const eiInt = parseInt(ei);
+  const nombre = document.getElementById('expDocNombre_' + ei).value.trim();
+  const url = document.getElementById('expDocUrl_' + ei).value.trim();
+  if (!nombre) return;
+  const c = (window.clients || []).find(x => String(x.id) === String(cid));
+  if (!c || !c.expedientes || !c.expedientes[eiInt]) return;
+  if (!c.expedientes[eiInt].docs) c.expedientes[eiInt].docs = [];
+  c.expedientes[eiInt].docs.push({ nombre, url, fecha: new Date().toISOString() });
+  await fbSet('clients', cid, c);
+  showFicha(cid);
+}
+
+async function deleteDocExp(cid, ei, di) {
+  if (!confirm('¿Eliminar este documento?')) return;
+  const c = (window.clients || []).find(x => String(x.id) === String(cid));
+  if (!c) return;
+  c.expedientes[parseInt(ei)].docs.splice(parseInt(di), 1);
+  await fbSet('clients', cid, c);
+  showFicha(cid);
+}
 
 async function saveObligacionesFicha(cid) {
   const c = (window.clients || []).find(x => String(x.id) === String(cid));
