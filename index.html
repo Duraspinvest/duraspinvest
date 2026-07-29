@@ -1455,7 +1455,9 @@ function showFicha(id) {
   // Expedientes
   parts.push('<div class="ficha-section">');
   parts.push('<div class="ficha-section-header"><span class="ficha-section-title">Expedientes</span>');
-  parts.push('<button class="btn btn-sm btn-primary" onclick="openExpedienteModal(window._fichaClienteId)">+ Nuevo</button></div>');
+  parts.push('<div style="display:flex;gap:6px;align-items:center;">');
+  if ((c.expedientes || []).length > 1) parts.push('<button class="btn btn-sm" style="background:var(--gray-100);color:var(--gray-600);" onclick="toggleAllExp(true)">Desplegar todo</button><button class="btn btn-sm" style="background:var(--gray-100);color:var(--gray-600);" onclick="toggleAllExp(false)">Plegar todo</button>');
+  parts.push('<button class="btn btn-sm btn-primary" onclick="openExpedienteModal(window._fichaClienteId)">+ Nuevo</button></div></div>');
   var expedientes = c.expedientes || [];
   if (expedientes.length) {
     expedientes.forEach(function(exp, ei) {
@@ -1464,11 +1466,13 @@ function showFicha(id) {
       var fechaAp = exp.fechaApertura ? new Date(exp.fechaApertura).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'}) : '';
       var fechaCi = exp.fechaCierre ? new Date(exp.fechaCierre).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'}) : '';
       parts.push('<div style="border:1px solid var(--gray-200);border-radius:8px;margin:8px 14px;overflow:hidden;">');
-      // Cabecera expediente
+      // Cabecera expediente (clic para desplegar / plegar)
       parts.push('<div style="background:var(--gray-50);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:8px;">');
-      parts.push('<div style="flex:1;">');
+      parts.push('<div style="flex:1;cursor:pointer;" onclick="toggleExp(\'' + ei + '\')">');
       parts.push('<div style="display:flex;align-items:center;gap:8px;">');
+      parts.push('<span id="expChev_' + ei + '" style="font-size:10px;color:var(--gray-400);width:12px;display:inline-block;">' + ((window._expOpen && window._expOpen[ei]) ? '&#9660;' : '&#9654;') + '</span>');
       parts.push('<span style="font-size:13px;font-weight:600;color:var(--navy);">&#128193; ' + exp.nombre + '</span>');
+      parts.push('<span style="font-size:11px;color:var(--gray-400);font-weight:600;">(' + ((exp.docs || []).length) + ')</span>');
       parts.push('<span style="font-size:10px;padding:2px 8px;border-radius:20px;background:' + estadoColor + '20;color:' + estadoColor + ';font-weight:600;">' + estadoLabel + '</span>');
       parts.push('</div>');
       if (fechaAp) parts.push('<div style="font-size:11px;color:var(--gray-400);margin-top:3px;">Apertura: ' + fechaAp + (fechaCi ? ' · Cierre: ' + fechaCi : '') + '</div>');
@@ -1478,6 +1482,8 @@ function showFicha(id) {
       parts.push('<button class="btn btn-sm" style="background:var(--gray-100);color:var(--gray-600);" data-ei="' + ei + '" onclick="editExpediente(window._fichaClienteId,this.dataset.ei)">&#9998;</button>');
       parts.push('<button class="icon-btn" data-ei="' + ei + '" onclick="deleteExpediente(window._fichaClienteId,this.dataset.ei)">&#215;</button>');
       parts.push('</div></div>');
+      // Cuerpo desplegable (plegado por defecto)
+      parts.push('<div class="exp-body" id="expBody_' + ei + '" style="display:' + ((window._expOpen && window._expOpen[ei]) ? 'block' : 'none') + ';">');
       // Documentos del expediente
       var docs = exp.docs || [];
       docs.forEach(function(d, di) {
@@ -1501,6 +1507,7 @@ function showFicha(id) {
       parts.push('<input type="text" class="nota-input" id="expDocUrl_' + ei + '" placeholder="Enlace de OneDrive" style="width:100%;">');
       parts.push('<div style="display:flex;justify-content:flex-end;"><button class="btn btn-primary btn-sm" data-ei="' + ei + '" onclick="addDocAExpediente(window._fichaClienteId,this.dataset.ei)">Añadir</button></div>');
       parts.push('</div></div>');
+      parts.push('</div>'); // cierra exp-body desplegable
       parts.push('</div>');
     });
   } else {
@@ -1898,6 +1905,28 @@ async function saveComentarioCliente(clienteId, anio, texto) {
   const data = { clienteId, anio, texto, updated: new Date().toISOString() };
   await fbSet('planning', key, data);
   window.planningData[key] = data;
+}
+
+// ── Expedientes desplegables ──────────────────────────────────────────────────
+function toggleExp(ei) {
+  window._expOpen = window._expOpen || {};
+  var b = document.getElementById('expBody_' + ei);
+  if (!b) return;
+  var open = b.style.display !== 'none';
+  b.style.display = open ? 'none' : 'block';
+  window._expOpen[ei] = !open;
+  var ch = document.getElementById('expChev_' + ei);
+  if (ch) ch.innerHTML = open ? '&#9654;' : '&#9660;';
+}
+function toggleAllExp(abrir) {
+  window._expOpen = window._expOpen || {};
+  document.querySelectorAll('[id^="expBody_"]').forEach(function(b) {
+    var ei = b.id.replace('expBody_', '');
+    b.style.display = abrir ? 'block' : 'none';
+    window._expOpen[ei] = !!abrir;
+    var ch = document.getElementById('expChev_' + ei);
+    if (ch) ch.innerHTML = abrir ? '&#9660;' : '&#9654;';
+  });
 }
 
 // ── Obligaciones desde ficha ──────────────────────────────────────────────────
