@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="version" content="2026-07-24-v1">
+<meta name="version" content="2026-08-20-v3-registro-tesoreria">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#0A2540">
 <title>Duraspinvest</title>
@@ -242,7 +242,7 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
   window.duraspinvestNotifReady = true;
 
   // Listeners activos - se activan tras login
-  let unsubTasks, unsubClients, unsubProspectos, unsubPlanning;
+  let unsubTasks, unsubClients, unsubProspectos, unsubPlanning, unsubTes, unsubTesRec;
 
   function activarListeners() {
     // Tareas
@@ -256,6 +256,7 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
     unsubClients = onSnapshot(collection(db, "clients"), (snap) => {
       window.clients = snap.docs.map(d => ({...d.data(), id: d.id}));
       if(typeof renderClientesList === 'function') renderClientesList();
+      if(typeof renderRegistro === 'function' && document.getElementById('registro') && document.getElementById('registro').classList.contains('active')) renderRegistro();
     });
 
     // Prospectos
@@ -272,6 +273,17 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
         renderPlanning();
       }
     });
+
+    // Tesorería (movimientos)
+    unsubTes = onSnapshot(collection(db, "tesoreria"), (snap) => {
+      window.tesoreria = snap.docs.map(d => ({...d.data(), id: d.id}));
+      if(typeof renderTesoreria === 'function' && document.getElementById('tesoreria') && document.getElementById('tesoreria').classList.contains('active')) renderTesoreria();
+    });
+    // Tesorería (movimientos recurrentes / plantillas)
+    unsubTesRec = onSnapshot(collection(db, "tesoreria_rec"), (snap) => {
+      window.tesRec = snap.docs.map(d => ({...d.data(), id: d.id}));
+      if(typeof renderRecList === 'function' && document.getElementById('recModal') && document.getElementById('recModal').classList.contains('open')) renderRecList();
+    });
   }
 
   function desactivarListeners() {
@@ -279,6 +291,8 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
     if(unsubClients) unsubClients();
     if(unsubProspectos) unsubProspectos();
     if(unsubPlanning) unsubPlanning();
+    if(unsubTes) unsubTes();
+    if(unsubTesRec) unsubTesRec();
   }
 
   onAuthStateChanged(auth, (user) => {
@@ -288,7 +302,9 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
       window.clients = [];
       window.prospectos = [];
       window.planningData = {};
-      
+      window.tesoreria = [];
+      window.tesRec = [];
+
       document.getElementById('loginScreen').style.display = 'none';
       document.getElementById('appContent').style.display = 'flex';
       document.getElementById('userEmail').textContent = user.email;
@@ -386,6 +402,8 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
   <button class="nav-btn" onclick="showSection('clientes',this)">◉ Clientes</button>
   <button class="nav-btn" onclick="showSection('prospectos',this)" id="navProspectos">◎ Prospectos <span id="badgeProspectos" style="display:none;background:#F59E0B;color:white;border-radius:20px;font-size:10px;padding:1px 6px;font-weight:700;margin-left:2px;"></span></button>
   <button class="nav-btn" onclick="showSection('planning',this)">📊 Planning</button>
+  <button class="nav-btn" onclick="showSection('registro',this)">🗂 Registro</button>
+  <button class="nav-btn" onclick="showSection('tesoreria',this)">💶 Tesorería</button>
 </nav>
 <main>
 
@@ -575,6 +593,122 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
   </div>
 </div>
 
+<!-- SECCION REGISTRO / CONTABILIZACION -->
+<div id="registro" class="section">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
+    <span style="font-size:18px;font-weight:600;color:var(--navy);">Control de registro / contabilización</span>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <select id="regAnio" class="form-select" style="width:auto;" onchange="renderRegistro()">
+        <option value="2026">2026</option><option value="2027">2027</option>
+      </select>
+      <input type="text" id="regBuscar" class="form-input" placeholder="Buscar cliente..." style="width:170px;" oninput="renderRegistro()">
+      <button class="btn btn-secondary" onclick="exportRegistroExcel()">⬇ Exportar a Excel</button>
+    </div>
+  </div>
+  <div style="display:flex;gap:14px;margin-bottom:12px;flex-wrap:wrap;font-size:12px;align-items:center;">
+    <span style="display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;border-radius:50%;background:#EF4444;display:inline-block;"></span> Pendiente</span>
+    <span style="display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;border-radius:50%;background:#F59E0B;display:inline-block;"></span> En proceso</span>
+    <span style="display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;border-radius:50%;background:#10B981;display:inline-block;"></span> Contabilizado</span>
+    <span style="display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;border-radius:50%;background:#6B7280;display:inline-block;"></span> No aplica</span>
+    <span style="color:var(--gray-400);">· Clic en un trimestre para cambiar su estado; en «Notas» para documentación/dudas.</span>
+  </div>
+  <div id="registroContainer" style="overflow-x:auto;overflow-y:auto;max-height:70vh;border:1px solid var(--gray-200);border-radius:var(--radius);">
+    <div class="empty"><div class="empty-icon">🗂</div><div class="empty-text">Cargando registro...</div></div>
+  </div>
+</div>
+
+<!-- MODAL REGISTRO (notas + estados por trimestre) -->
+<div class="modal-overlay" id="registroModal" onclick="closeModalOutside(event,'registroModal')">
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-title" id="regModalTitle">Registro del cliente</div>
+    <input type="hidden" id="regCid"><input type="hidden" id="regAnioModal">
+    <div class="form-group">
+      <label class="form-label">Estado de contabilización por trimestre <span style="font-weight:400;color:var(--gray-400);">(clic para cambiar)</span></label>
+      <div id="regEstadosModal" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Notas · documentación pendiente / dudas</label>
+      <textarea class="form-input" id="regNotas" rows="4" placeholder="Ej: falta factura de suministros de marzo; pendiente confirmar amortización del vehículo..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('registroModal')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveRegistroModal()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- SECCION TESORERIA -->
+<div id="tesoreria" class="section">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
+    <span style="font-size:18px;font-weight:600;color:var(--navy);">Tesorería del despacho</span>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <select id="tesMes" class="form-select" style="width:auto;" onchange="renderTesoreria()"></select>
+      <select id="tesAnio" class="form-select" style="width:auto;" onchange="renderTesoreria()"><option value="2026">2026</option><option value="2027">2027</option></select>
+      <button class="btn btn-secondary" onclick="openRecModal()">🔁 Recurrentes</button>
+      <button class="btn btn-primary" onclick="openMovModal()">+ Movimiento</button>
+    </div>
+  </div>
+  <div id="tesKpis" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;"></div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;font-size:12px;">
+    <select id="tesTipo" class="form-select" style="width:auto;" onchange="renderTesoreria()"><option value="todos">Cobros y pagos</option><option value="cobro">Solo cobros</option><option value="pago">Solo pagos</option></select>
+    <select id="tesEstado" class="form-select" style="width:auto;" onchange="renderTesoreria()"><option value="todos">Todos los estados</option><option value="previsto">Previstos</option><option value="realizado">Realizados</option></select>
+    <span style="color:var(--gray-400);">· Clic en el estado para marcar previsto ⇄ realizado (cobrado/pagado).</span>
+  </div>
+  <div id="tesContainer" style="overflow-x:auto;border:1px solid var(--gray-200);border-radius:var(--radius);">
+    <div class="empty"><div class="empty-icon">💶</div><div class="empty-text">Cargando tesorería...</div></div>
+  </div>
+</div>
+
+<!-- MODAL MOVIMIENTO TESORERIA -->
+<div class="modal-overlay" id="movModal" onclick="closeModalOutside(event,'movModal')">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-title" id="movTitle">Nuevo movimiento</div>
+    <input type="hidden" id="movId">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="form-group"><label class="form-label">Tipo</label>
+        <select class="form-input" id="movTipo"><option value="cobro">Cobro (entra)</option><option value="pago">Pago (sale)</option></select></div>
+      <div class="form-group"><label class="form-label">Estado</label>
+        <select class="form-input" id="movEstado"><option value="previsto">Previsto</option><option value="realizado">Realizado</option></select></div>
+      <div class="form-group"><label class="form-label">Fecha</label><input type="date" class="form-input" id="movFecha"></div>
+      <div class="form-group"><label class="form-label">Importe (€)</label><input type="number" step="0.01" class="form-input" id="movImporte" placeholder="0.00"></div>
+      <div class="form-group"><label class="form-label">Categoría</label>
+        <select class="form-input" id="movCat"><option>Honorarios</option><option>Cuota / iguala</option><option>Alquiler</option><option>Suministros</option><option>Cuota autónomo</option><option>Impuestos</option><option>Nóminas / SS</option><option>Compras</option><option>Otros</option></select></div>
+      <div class="form-group"><label class="form-label">Cliente (opcional)</label><select class="form-input" id="movCliente"></select></div>
+    </div>
+    <div class="form-group"><label class="form-label">Concepto</label><input type="text" class="form-input" id="movConcepto" placeholder="Ej: Iguala mensual, alquiler local, cuota RETA..."></div>
+    <div class="form-group"><label class="form-label">Notas</label><input type="text" class="form-input" id="movNotas" placeholder="Opcional"></div>
+    <div class="modal-actions" style="justify-content:space-between;">
+      <button class="btn btn-secondary" id="movDelBtn" onclick="delMov()" style="display:none;color:#EF4444;">Eliminar</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-secondary" onclick="closeModal('movModal')">Cancelar</button>
+        <button class="btn btn-primary" onclick="saveMov()">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL RECURRENTES -->
+<div class="modal-overlay" id="recModal" onclick="closeModalOutside(event,'recModal')">
+  <div class="modal" style="max-width:620px;">
+    <div class="modal-title">Movimientos recurrentes (igualas, alquiler, cuotas...)</div>
+    <div style="font-size:12px;color:var(--gray-600);margin-bottom:12px;">Define aquí los cobros y pagos que se repiten cada mes o trimestre. Con «Generar en el mes» se crean como previstos en el mes seleccionado de la tesorería, y luego los marcas como cobrados/pagados cuando toque.</div>
+    <div style="border:1px solid var(--gray-200);border-radius:8px;padding:10px;margin-bottom:12px;">
+      <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:6px;align-items:end;">
+        <div class="form-group" style="margin:0;"><label class="form-label">Concepto</label><input class="form-input" id="recConcepto" placeholder="Iguala cliente X"></div>
+        <div class="form-group" style="margin:0;"><label class="form-label">Tipo</label><select class="form-input" id="recTipo"><option value="cobro">Cobro</option><option value="pago">Pago</option></select></div>
+        <div class="form-group" style="margin:0;"><label class="form-label">Importe</label><input type="number" step="0.01" class="form-input" id="recImporte"></div>
+        <div class="form-group" style="margin:0;"><label class="form-label">Periodo</label><select class="form-input" id="recPeriod"><option value="mensual">Mensual</option><option value="trimestral">Trimestral</option></select></div>
+        <button class="btn btn-primary" onclick="addRec()">Añadir</button>
+      </div>
+    </div>
+    <div id="recList"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('recModal')">Cerrar</button>
+      <button class="btn btn-primary" onclick="generarPrevisionesMes()">⚡ Generar en el mes seleccionado</button>
+    </div>
+  </div>
+</div>
+
 </main>
 
 <!-- MODAL TAREA -->
@@ -681,9 +815,12 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
         </div>
       </div>
     </div>
-    <div class="modal-actions">
-      <button class="btn btn-secondary" onclick="closeModal('clienteModalOverlay')">Cancelar</button>
-      <button class="btn btn-primary" onclick="saveCliente()">Guardar cliente</button>
+    <div class="modal-actions" style="justify-content:space-between;">
+      <button class="btn btn-secondary" id="cBtnRegistro" onclick="openRegistroDesdeFicha()" style="display:none;">🗂 Registro / contabilización</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-secondary" onclick="closeModal('clienteModalOverlay')">Cancelar</button>
+        <button class="btn btn-primary" onclick="saveCliente()">Guardar cliente</button>
+      </div>
     </div>
   </div>
 </div>
@@ -781,6 +918,8 @@ function showSection(id, btn) {
   else if (id === 'dashboard') renderDashboard();
   else if (id === 'clientes') { showClientesList(); renderClientesList(); }
   else if (id === 'prospectos') renderProspectos();
+  else if (id === 'registro') renderRegistro();
+  else if (id === 'tesoreria') { initTesMes(); renderTesoreria(); }
 }
 
 function onFab() {
@@ -853,8 +992,14 @@ function openClienteModal(id) {
     const el = document.getElementById('oblig_'+m);
     if(el) el.checked = obligs.includes(m);
   });
+  const breg=document.getElementById('cBtnRegistro'); if(breg) breg.style.display = id ? '' : 'none';
   document.getElementById('clienteModalOverlay').classList.add('open');
   document.getElementById('cNombre').focus();
+}
+function openRegistroDesdeFicha(){
+  const cid=document.getElementById('cId').value; if(!cid) return;
+  closeModal('clienteModalOverlay');
+  openRegistroModal(cid);
 }
 
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
@@ -930,6 +1075,7 @@ async function saveCliente() {
     categoria: document.getElementById('cCategoria').value || 'despacho',
     notas: existing ? (existing.notas || []) : [],
     docs: existing ? (existing.docs || []) : [],
+    registro: existing ? (existing.registro || {}) : {},
     obligaciones: ['111','190','115','180','130','303','390','202','200','349','347'].filter(m => {
       const el = document.getElementById('oblig_'+m);
       return el && el.checked;
@@ -937,6 +1083,267 @@ async function saveCliente() {
   };
   await fbSet('clients', c.id, c);
   closeModal('clienteModalOverlay');
+}
+
+// ── REGISTRO / CONTABILIZACION ───────────────────────────────────────────────
+const REG_STATES = [
+  {k:'pendiente', c:'#EF4444', l:'Pendiente'},
+  {k:'proceso',   c:'#F59E0B', l:'En proceso'},
+  {k:'hecho',     c:'#10B981', l:'Contabilizado'},
+  {k:'na',        c:'#6B7280', l:'No aplica'}
+];
+const REG_ORDER = REG_STATES.map(s=>s.k);
+function regState(k){ return REG_STATES.find(s=>s.k===k) || REG_STATES[0]; }
+function regClientes(){
+  return (window.clients||[]).filter(c=>(c.categoria||'despacho')!=='auxiliar' && (c.categoria||'')!=='despacho_propio')
+    .sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||''));
+}
+function getReg(c,anio){ return (c.registro&&c.registro[anio]) || {estados:{},notas:''}; }
+function renderRegistro(){
+  const cont=document.getElementById('registroContainer'); if(!cont) return;
+  const anio=(document.getElementById('regAnio')||{}).value||'2026';
+  const q=((document.getElementById('regBuscar')||{}).value||'').toLowerCase().trim();
+  let cs=regClientes();
+  if(q) cs=cs.filter(c=>(c.nombre||'').toLowerCase().includes(q)||(c.nif||'').toLowerCase().includes(q));
+  if(!cs.length){ cont.innerHTML='<div class="empty"><div class="empty-icon">🗂</div><div class="empty-text">Sin clientes.</div></div>'; return; }
+  const dot=(k)=>{const s=regState(k);return '<span style="display:inline-block;width:16px;height:16px;border-radius:50%;background:'+s.c+';" title="'+s.l+'"></span>';};
+  const TR=['1T','2T','3T','4T'];
+  let t='<table style="width:100%;border-collapse:collapse;font-size:13px;">';
+  t+='<thead style="position:sticky;top:0;z-index:5;"><tr style="background:var(--navy);color:#fff;">'
+    +'<th style="padding:8px 12px;text-align:left;">Cliente</th>'
+    +'<th style="padding:8px;text-align:left;">NIF</th>'
+    +TR.map(x=>'<th style="padding:8px;text-align:center;">'+x+'</th>').join('')
+    +'<th style="padding:8px 12px;text-align:left;min-width:220px;">Notas (documentación / dudas)</th></tr></thead><tbody>';
+  cs.forEach((c,i)=>{
+    const r=getReg(c,anio); const est=r.estados||{};
+    const notas=(r.notas||'').trim();
+    const bg=i%2?'#F9FAFB':'#fff';
+    t+='<tr style="background:'+bg+';border-top:1px solid var(--gray-200);">'
+      +'<td style="padding:7px 12px;font-weight:600;color:var(--navy);">'+(c.nombre||'')+'</td>'
+      +'<td style="padding:7px 8px;color:var(--gray-600);font-size:12px;">'+(c.nif||'')+'</td>'
+      +TR.map(tri=>'<td style="padding:7px 8px;text-align:center;cursor:pointer;" onclick="cycleReg(\''+c.id+'\',\''+tri+'\')" title="Clic para cambiar">'+dot(est[tri]||'pendiente')+'</td>').join('')
+      +'<td style="padding:7px 12px;cursor:pointer;" onclick="openRegistroModal(\''+c.id+'\')">'
+        +(notas?'<span style="color:var(--gray-700);">'+notas.replace(/</g,'&lt;').slice(0,90)+(notas.length>90?'…':'')+'</span>':'<span style="color:var(--accent);font-size:12px;">✎ Añadir nota</span>')
+      +'</td></tr>';
+  });
+  t+='</tbody></table>';
+  cont.innerHTML=t;
+}
+async function cycleReg(cid,tri){
+  const c=(window.clients||[]).find(x=>String(x.id)===String(cid)); if(!c) return;
+  const anio=(document.getElementById('regAnio')||{}).value||'2026';
+  if(!c.registro) c.registro={};
+  if(!c.registro[anio]) c.registro[anio]={estados:{},notas:''};
+  if(!c.registro[anio].estados) c.registro[anio].estados={};
+  const cur=c.registro[anio].estados[tri]||'pendiente';
+  c.registro[anio].estados[tri]=REG_ORDER[(REG_ORDER.indexOf(cur)+1)%REG_ORDER.length];
+  renderRegistro();
+  await fbSet('clients',cid,c);
+}
+let _regModalState=null;
+function openRegistroModal(cid){
+  const c=(window.clients||[]).find(x=>String(x.id)===String(cid)); if(!c) return;
+  const anio=(document.getElementById('regAnio')||{}).value||'2026';
+  const r=getReg(c,anio);
+  _regModalState=Object.assign({}, r.estados||{});
+  document.getElementById('regCid').value=cid;
+  document.getElementById('regAnioModal').value=anio;
+  document.getElementById('regModalTitle').textContent='Registro '+anio+' — '+(c.nombre||'');
+  document.getElementById('regNotas').value=r.notas||'';
+  renderRegEstadosModal();
+  document.getElementById('registroModal').classList.add('open');
+}
+function renderRegEstadosModal(){
+  const cont=document.getElementById('regEstadosModal'); if(!cont) return;
+  cont.innerHTML=['1T','2T','3T','4T'].map(tri=>{
+    const s=regState(_regModalState[tri]||'pendiente');
+    return '<button type="button" onclick="cycleRegModal(\''+tri+'\')" style="padding:8px 4px;border:2px solid '+s.c+';border-radius:8px;background:'+s.c+'18;cursor:pointer;text-align:center;">'
+      +'<div style="font-weight:700;color:var(--navy);font-size:13px;">'+tri+'</div>'
+      +'<div style="display:flex;align-items:center;justify-content:center;gap:5px;margin-top:3px;font-size:11px;color:'+s.c+';font-weight:600;"><span style="width:10px;height:10px;border-radius:50%;background:'+s.c+';display:inline-block;"></span>'+s.l+'</div></button>';
+  }).join('');
+}
+function cycleRegModal(tri){
+  const cur=_regModalState[tri]||'pendiente';
+  _regModalState[tri]=REG_ORDER[(REG_ORDER.indexOf(cur)+1)%REG_ORDER.length];
+  renderRegEstadosModal();
+}
+async function saveRegistroModal(){
+  const cid=document.getElementById('regCid').value;
+  const anio=document.getElementById('regAnioModal').value;
+  const c=(window.clients||[]).find(x=>String(x.id)===String(cid)); if(!c) return;
+  if(!c.registro) c.registro={};
+  c.registro[anio]={estados:Object.assign({},_regModalState),notas:document.getElementById('regNotas').value.trim()};
+  closeModal('registroModal');
+  renderRegistro();
+  await fbSet('clients',cid,c);
+}
+function exportRegistroExcel(){
+  const anio=(document.getElementById('regAnio')||{}).value||'2026';
+  const cs=regClientes();
+  const head=['Cliente','NIF','1T','2T','3T','4T','Notas'];
+  const lbl=k=>regState(k).l;
+  const rows=cs.map(c=>{const r=getReg(c,anio);const e=r.estados||{};
+    return [c.nombre||'', c.nif||'', lbl(e['1T']||'pendiente'), lbl(e['2T']||'pendiente'), lbl(e['3T']||'pendiente'), lbl(e['4T']||'pendiente'), r.notas||''];});
+  const aoa=[head].concat(rows);
+  const ws=XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols']=[{wch:34},{wch:14},{wch:14},{wch:14},{wch:14},{wch:14},{wch:60}];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Registro '+anio);
+  XLSX.writeFile(wb,'Registro_contabilizacion_'+anio+'.xlsx');
+}
+
+// ── TESORERIA DEL DESPACHO ───────────────────────────────────────────────────
+const TES_MESES=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const numT=v=>parseFloat(v)||0;
+const eurT=v=>(Math.round((numT(v))*100)/100).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
+let _tesInit=false;
+function initTesMes(){
+  const s=document.getElementById('tesMes'); if(!s) return;
+  if(!_tesInit){
+    s.innerHTML='<option value="">Todo el año</option>'+TES_MESES.map((m,i)=>'<option value="'+(i+1)+'">'+m+'</option>').join('');
+    _tesInit=true;
+  }
+  fillMovClientes();
+}
+function tesClientes(){
+  return (window.clients||[]).filter(c=>(c.categoria||'despacho')!=='auxiliar' && (c.categoria||'')!=='despacho_propio')
+    .sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||''));
+}
+function fillMovClientes(){
+  const s=document.getElementById('movCliente'); if(!s) return;
+  s.innerHTML='<option value="">(sin cliente)</option>'+tesClientes().map(c=>'<option value="'+c.id+'">'+(c.nombre||'')+'</option>').join('');
+}
+function tesClienteNombre(id){const c=(window.clients||[]).find(x=>String(x.id)===String(id));return c?c.nombre:'';}
+function tesFiltrados(){
+  const anio=(document.getElementById('tesAnio')||{}).value||'2026';
+  const mes=(document.getElementById('tesMes')||{}).value||'';
+  return (window.tesoreria||[]).filter(m=>{
+    const f=String(m.fecha||''); if(f.slice(0,4)!==anio) return false;
+    if(mes!=='' && parseInt(f.slice(5,7),10)!==parseInt(mes,10)) return false;
+    return true;
+  });
+}
+function renderTesoreria(){
+  const cont=document.getElementById('tesContainer'); if(!cont) return;
+  const kpis=document.getElementById('tesKpis');
+  const periodo=tesFiltrados();
+  // KPIs sobre todo el periodo
+  const sum=(tipo,est)=>periodo.filter(m=>m.tipo===tipo&&m.estado===est).reduce((s,m)=>s+numT(m.importe),0);
+  const cobrado=sum('cobro','realizado'), pagado=sum('pago','realizado');
+  const cobroPrev=sum('cobro','previsto'), pagoPrev=sum('pago','previsto');
+  const saldoReal=cobrado-pagado;
+  const saldoPrev=(cobrado+cobroPrev)-(pagado+pagoPrev);
+  const card=(t,v,col)=>'<div style="flex:1;min-width:150px;background:#fff;border:1px solid var(--gray-200);border-left:4px solid '+col+';border-radius:10px;padding:10px 14px;"><div style="font-size:11px;color:var(--gray-400);text-transform:uppercase;letter-spacing:.4px;">'+t+'</div><div style="font-size:19px;font-weight:700;color:'+col+';margin-top:2px;">'+eurT(v)+'</div></div>';
+  kpis.innerHTML=card('Cobrado',cobrado,'#10B981')+card('Pagado',pagado,'#EF4444')
+    +card('Saldo realizado',saldoReal,saldoReal>=0?'#1B2A4A':'#EF4444')
+    +card('Saldo previsto',saldoPrev,saldoPrev>=0?'#D4A017':'#EF4444')
+    +card('Pendiente de cobro',cobroPrev,'#0EA5E9');
+  // Tabla (respeta filtros tipo/estado)
+  const ft=(document.getElementById('tesTipo')||{}).value||'todos';
+  const fe=(document.getElementById('tesEstado')||{}).value||'todos';
+  let rows=periodo.filter(m=>(ft==='todos'||m.tipo===ft)&&(fe==='todos'||m.estado===fe))
+    .sort((a,b)=>String(a.fecha).localeCompare(String(b.fecha)));
+  if(!rows.length){ cont.innerHTML='<div class="empty"><div class="empty-icon">💶</div><div class="empty-text">Sin movimientos en este periodo. Usa «+ Movimiento» o genera los recurrentes.</div></div>'; return; }
+  const fmtF=f=>{const p=String(f).split('-');return p.length===3?p[2]+'/'+p[1]:f;};
+  let t='<table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="background:var(--navy);color:#fff;">'
+    +'<th style="padding:8px 10px;text-align:left;">Fecha</th><th style="padding:8px;text-align:left;">Concepto</th><th style="padding:8px;text-align:left;">Cliente</th><th style="padding:8px;text-align:left;">Categoría</th><th style="padding:8px;text-align:right;">Importe</th><th style="padding:8px;text-align:center;">Estado</th><th style="padding:8px;"></th></tr></thead><tbody>';
+  rows.forEach((m,i)=>{
+    const esCobro=m.tipo==='cobro';
+    const col=esCobro?'#10B981':'#EF4444';
+    const signo=esCobro?'+':'−';
+    const estCol=m.estado==='realizado'?'#10B981':'#F59E0B';
+    const estLbl=m.estado==='realizado'?(esCobro?'Cobrado':'Pagado'):'Previsto';
+    t+='<tr style="background:'+(i%2?'#F9FAFB':'#fff')+';border-top:1px solid var(--gray-200);">'
+      +'<td style="padding:7px 10px;white-space:nowrap;">'+fmtF(m.fecha)+'</td>'
+      +'<td style="padding:7px 8px;font-weight:600;color:var(--navy);">'+(m.concepto||'—')+(m.notas&&m.notas!=='(recurrente)'?' <span style=\"font-weight:400;color:var(--gray-400);font-size:11px;\">'+String(m.notas).replace(/</g,'&lt;')+'</span>':'')+'</td>'
+      +'<td style="padding:7px 8px;font-size:12px;color:var(--gray-600);">'+(tesClienteNombre(m.clienteId)||'')+'</td>'
+      +'<td style="padding:7px 8px;font-size:12px;">'+(m.categoria||'')+'</td>'
+      +'<td style="padding:7px 8px;text-align:right;font-weight:700;color:'+col+';white-space:nowrap;">'+signo+' '+eurT(m.importe)+'</td>'
+      +'<td style="padding:7px 8px;text-align:center;"><span onclick="toggleMovEstado(\''+m.id+'\')" style="cursor:pointer;background:'+estCol+'1a;color:'+estCol+';border:1px solid '+estCol+'55;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:600;white-space:nowrap;" title="Clic para cambiar">'+estLbl+'</span></td>'
+      +'<td style="padding:7px 8px;text-align:right;white-space:nowrap;"><button class="btn btn-secondary" style="padding:3px 8px;font-size:12px;" onclick="openMovModal(\''+m.id+'\')">✎</button></td></tr>';
+  });
+  t+='</tbody></table>';
+  cont.innerHTML=t;
+}
+function openMovModal(id){
+  fillMovClientes();
+  const m=id?(window.tesoreria||[]).find(x=>String(x.id)===String(id)):null;
+  document.getElementById('movTitle').textContent=m?'Editar movimiento':'Nuevo movimiento';
+  document.getElementById('movId').value=m?m.id:'';
+  document.getElementById('movTipo').value=m?m.tipo:'cobro';
+  document.getElementById('movEstado').value=m?m.estado:'previsto';
+  const anio=(document.getElementById('tesAnio')||{}).value||'2026';
+  const mesSel=(document.getElementById('tesMes')||{}).value||'';
+  const hoy=(mesSel!=='')?anio+'-'+String(mesSel).padStart(2,'0')+'-01':anio+'-01-01';
+  document.getElementById('movFecha').value=m?m.fecha:hoy;
+  document.getElementById('movImporte').value=m?m.importe:'';
+  document.getElementById('movCat').value=m?(m.categoria||'Honorarios'):'Honorarios';
+  document.getElementById('movCliente').value=m?(m.clienteId||''):'';
+  document.getElementById('movConcepto').value=m?(m.concepto||''):'';
+  document.getElementById('movNotas').value=m?(m.notas||''):'';
+  document.getElementById('movDelBtn').style.display=m?'':'none';
+  document.getElementById('movModal').classList.add('open');
+}
+async function saveMov(){
+  const fecha=document.getElementById('movFecha').value;
+  const importe=numT(document.getElementById('movImporte').value);
+  if(!fecha||!importe){alert('Pon al menos fecha e importe.');return;}
+  const id=document.getElementById('movId').value||('m'+Date.now());
+  const doc={id,fecha,tipo:document.getElementById('movTipo').value,estado:document.getElementById('movEstado').value,
+    importe,categoria:document.getElementById('movCat').value,clienteId:document.getElementById('movCliente').value||'',
+    concepto:document.getElementById('movConcepto').value.trim(),notas:document.getElementById('movNotas').value.trim()};
+  closeModal('movModal');
+  await fbSet('tesoreria',id,doc);
+}
+async function delMov(){
+  const id=document.getElementById('movId').value; if(!id)return;
+  if(!confirm('¿Eliminar este movimiento?'))return;
+  closeModal('movModal');
+  await fbDelete('tesoreria',id);
+}
+async function toggleMovEstado(id){
+  const m=(window.tesoreria||[]).find(x=>String(x.id)===String(id)); if(!m)return;
+  m.estado=(m.estado==='realizado')?'previsto':'realizado';
+  renderTesoreria();
+  await fbSet('tesoreria',id,m);
+}
+// Recurrentes
+function openRecModal(){ renderRecList(); document.getElementById('recModal').classList.add('open'); }
+function renderRecList(){
+  const cont=document.getElementById('recList'); if(!cont)return;
+  const rs=(window.tesRec||[]).slice().sort((a,b)=>(a.concepto||'').localeCompare(b.concepto||''));
+  if(!rs.length){cont.innerHTML='<div style="color:var(--gray-400);font-size:12px;padding:8px;">Aún no hay recurrentes. Añade arriba las igualas, el alquiler, la cuota de autónomo...</div>';return;}
+  cont.innerHTML='<table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="color:var(--gray-400);font-size:11px;text-transform:uppercase;"><th style="text-align:left;padding:4px 6px;">Concepto</th><th style="text-align:left;padding:4px 6px;">Tipo</th><th style="text-align:right;padding:4px 6px;">Importe</th><th style="text-align:left;padding:4px 6px;">Periodo</th><th></th></tr></thead><tbody>'
+    +rs.map(r=>'<tr style="border-top:1px solid var(--gray-200);"><td style="padding:5px 6px;font-weight:600;">'+(r.concepto||'')+'</td><td style="padding:5px 6px;color:'+(r.tipo==='cobro'?'#10B981':'#EF4444')+';">'+(r.tipo==='cobro'?'Cobro':'Pago')+'</td><td style="padding:5px 6px;text-align:right;">'+eurT(r.importe)+'</td><td style="padding:5px 6px;">'+(r.periodicidad==='trimestral'?'Trimestral':'Mensual')+'</td><td style="padding:5px 6px;text-align:right;"><button class="btn btn-secondary" style="padding:2px 8px;color:#EF4444;font-size:12px;" onclick="delRec(\''+r.id+'\')">✕</button></td></tr>').join('')
+    +'</tbody></table>';
+}
+async function addRec(){
+  const concepto=document.getElementById('recConcepto').value.trim();
+  const importe=numT(document.getElementById('recImporte').value);
+  if(!concepto||!importe){alert('Pon concepto e importe.');return;}
+  const id='r'+Date.now();
+  await fbSet('tesoreria_rec',id,{id,concepto,tipo:document.getElementById('recTipo').value,importe,periodicidad:document.getElementById('recPeriod').value});
+  document.getElementById('recConcepto').value='';document.getElementById('recImporte').value='';
+}
+async function delRec(id){ if(!confirm('¿Eliminar este recurrente?'))return; await fbDelete('tesoreria_rec',id); }
+async function generarPrevisionesMes(){
+  const anio=(document.getElementById('tesAnio')||{}).value||'2026';
+  const mesSel=(document.getElementById('tesMes')||{}).value||'';
+  if(mesSel===''){alert('Elige un mes concreto (arriba, no «Todo el año») para generar las previsiones.');return;}
+  const m=parseInt(mesSel,10);
+  const recs=(window.tesRec||[]);
+  if(!recs.length){alert('No hay recurrentes definidos. Añádelos primero.');return;}
+  let n=0;
+  for(const r of recs){
+    if(r.periodicidad==='trimestral' && [1,4,7,10].indexOf(m)===-1) continue;
+    const id='rec_'+r.id+'_'+anio+'_'+m;
+    const fecha=anio+'-'+String(m).padStart(2,'0')+'-01';
+    await fbSet('tesoreria',id,{id,fecha,tipo:r.tipo,concepto:r.concepto,categoria:r.tipo==='cobro'?'Cuota / iguala':'Otros',importe:numT(r.importe),clienteId:r.clienteId||'',estado:'previsto',notas:'(recurrente)',recId:r.id});
+    n++;
+  }
+  closeModal('recModal');
+  renderTesoreria();
+  alert(n+' movimiento(s) previsto(s) generados en '+TES_MESES[m-1]+' '+anio+'.');
 }
 
 async function deleteCliente(id) {
