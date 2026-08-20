@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="version" content="2026-08-20-v3-registro-tesoreria">
+<meta name="version" content="2026-08-20-v4-registro-tesoreria-embudo">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#0A2540">
 <title>Duraspinvest</title>
@@ -847,6 +847,18 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
       </div>
       <div class="form-group"><label class="form-label">Fecha seguimiento</label><input type="date" class="form-input" id="pFecha"></div>
     </div>
+    <div class="form-row" id="pEmbudoRow">
+      <div class="form-group"><label class="form-label">Etapa (embudo comercial)</label>
+        <select class="form-select" id="pEtapa">
+          <option value="nuevo">Nuevo</option>
+          <option value="contactado">Contactado</option>
+          <option value="propuesta">Propuesta enviada</option>
+          <option value="ganado">Ganado</option>
+          <option value="perdido">Perdido</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Presupuesto / cuota estimada (€)</label><input type="number" step="0.01" class="form-input" id="pPresupuesto" placeholder="Ej: 90 (cuota mensual) o 300"></div>
+    </div>
     <div class="form-group"><label class="form-label">Notas</label><textarea class="form-input" id="pNotas" rows="3" placeholder="Descripción, servicios de interés, cómo contactó..."></textarea></div>
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="closeModal('prospectoModalOverlay')">Cancelar</button>
@@ -1411,10 +1423,13 @@ function openProspectoModal(id) {
     document.getElementById('pTipo').value = p.tipo || 'Prospecto';
     document.getElementById('pFecha').value = p.fecha || '';
     document.getElementById('pNotas').value = p.notas || '';
+    document.getElementById('pEtapa').value = p.etapa || 'nuevo';
+    document.getElementById('pPresupuesto').value = (p.presupuesto!=null?p.presupuesto:'');
   } else {
-    ['pNombre','pTel','pEmail','pNotas'].forEach(f => document.getElementById(f).value = '');
+    ['pNombre','pTel','pEmail','pNotas','pPresupuesto'].forEach(f => document.getElementById(f).value = '');
     document.getElementById('pTipo').value = 'Prospecto';
     document.getElementById('pFecha').value = '';
+    document.getElementById('pEtapa').value = 'nuevo';
   }
   document.getElementById('prospectoModalOverlay').classList.add('open');
   document.getElementById('pNombre').focus();
@@ -1432,11 +1447,41 @@ async function saveProspecto() {
     tipo: document.getElementById('pTipo').value,
     fecha: document.getElementById('pFecha').value,
     notas: document.getElementById('pNotas').value.trim(),
-    creado: new Date().toISOString()
+    etapa: document.getElementById('pEtapa').value || 'nuevo',
+    presupuesto: parseFloat(document.getElementById('pPresupuesto').value) || 0,
+    creado: (id ? ((window.prospectos||[]).find(x=>String(x.id)===String(id))||{}).creado : null) || new Date().toISOString()
   };
   await fbSet('prospectos', p.id, p);
   closeModal('prospectoModalOverlay');
 }
+const EMBUDO_ETAPAS = [
+  {k:'nuevo',l:'Nuevo',c:'#8B5CF6'},
+  {k:'contactado',l:'Contactado',c:'#2B7FFF'},
+  {k:'propuesta',l:'Propuesta enviada',c:'#F59E0B'},
+  {k:'ganado',l:'Ganado',c:'#10B981'},
+  {k:'perdido',l:'Perdido',c:'#EF4444'}
+];
+async function moveEtapa(id, etapa){
+  const p=(window.prospectos||[]).find(x=>String(x.id)===String(id)); if(!p) return;
+  p.etapa=etapa;
+  renderProspectos();
+  await fbSet('prospectos', id, p);
+}
+window.moveEtapa=moveEtapa;
+async function convertirEnCliente(id){
+  const p=(window.prospectos||[]).find(x=>String(x.id)===String(id)); if(!p) return;
+  if(!confirm('¿Convertir «'+p.nombre+'» en cliente? Se creará en la lista de Clientes y se quitará de prospectos.')) return;
+  const cid=String(Date.now());
+  await fbSet('clients', cid, {
+    id:cid, nombre:p.nombre, nif:'', tipo:'Autónomo', tel:p.tel||'', email:p.email||'',
+    servicios:'—', categoria:'despacho',
+    notas: p.notas ? [{texto:'(De prospecto) '+p.notas, fecha:new Date().toISOString()}] : [],
+    docs:[], registro:{}, obligaciones:[]
+  });
+  await fbDelete('prospectos', id);
+  alert('«'+p.nombre+'» ya está en Clientes. Complétale el NIF y las obligaciones fiscales en su ficha.');
+}
+window.convertirEnCliente=convertirEnCliente;
 
 async function deleteProspecto(id) {
   if (!confirm('¿Eliminar este registro?')) return;
@@ -2075,32 +2120,71 @@ function eliminarNotaVoz(id) {
 function renderProspectos() {
   const list = window.prospectos || [];
   const set = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
-  set('statProspectos', list.filter(p => p.tipo === 'Prospecto').length);
+  const pros = list.filter(p => (p.tipo||'Prospecto') === 'Prospecto');
+  const agenda = list.filter(p => (p.tipo||'Prospecto') !== 'Prospecto');
+  set('statProspectos', pros.filter(p=>['nuevo','contactado','propuesta'].indexOf(p.etapa||'nuevo')>=0).length);
   set('statLlamadas', list.filter(p => p.tipo === 'Llamada pendiente').length);
   const el = document.getElementById('prospectosList');
   if(!el) return;
-  if(!list.length) { el.innerHTML = '<div class="empty"><div class="empty-icon">◎</div><div class="empty-text">Sin prospectos.</div></div>'; return; }
-  const sorted = [...list].sort((a,b) => { if(a.fecha&&b.fecha) return new Date(a.fecha)-new Date(b.fecha); if(a.fecha) return -1; if(b.fecha) return 1; return 0; });
-  const tc = {'Prospecto':'#8B5CF6','Llamada pendiente':'#F59E0B','Reunión pendiente':'#2B7FFF','Nota personal':'#6B7280','Tarea propia':'#10B981'};
-  el.innerHTML = sorted.map(p => {
-    const color = tc[p.tipo] || '#6B7280';
-    const ds = p.fecha ? new Date(p.fecha+'T12:00:00').toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'}) : '';
-    return '<div class="card" style="margin-bottom:10px;border-left:3px solid ' + color + ';">' +
-      '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">' +
-      '<div style="flex:1;">' +
-      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">' +
-      '<span style="font-size:15px;font-weight:600;">' + p.nombre + '</span>' +
-      '<span style="font-size:11px;padding:2px 8px;border-radius:20px;background:' + color + '20;color:' + color + ';font-weight:500;">' + p.tipo + '</span></div>' +
-      (p.tel ? '<div style="font-size:12px;color:var(--gray-400);">📞 ' + p.tel + '</div>' : '') +
-      (p.email ? '<div style="font-size:12px;color:var(--gray-400);">✉ ' + p.email + '</div>' : '') +
-      (p.notas ? '<div style="font-size:13px;color:var(--gray-600);margin-top:6px;">' + p.notas + '</div>' : '') +
-      (ds ? '<div style="font-size:11px;color:var(--accent);font-weight:500;margin-top:4px;">📅 Seguimiento: ' + ds + '</div>' : '') +
-      '</div>' +
-      '<div style="display:flex;gap:4px;">' +
-      '<button class="icon-btn" data-pid="' + p.id + '" onclick="openProspectoModal(this.dataset.pid)">✏</button>' +
-      '<button class="icon-btn" data-pid="' + p.id + '" onclick="deleteProspecto(this.dataset.pid)">×</button>' +
-      '</div></div></div>';
-  }).join('');
+  const eur0 = n => (Math.round((parseFloat(n)||0))).toLocaleString('es-ES') + ' €';
+  // ---- EMBUDO COMERCIAL ----
+  let html = '';
+  const activos = pros.filter(p=>['nuevo','contactado','propuesta'].indexOf(p.etapa||'nuevo')>=0);
+  const valorPipeline = activos.reduce((s,p)=>s+(parseFloat(p.presupuesto)||0),0);
+  html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px;">'
+    + '<span style="font-size:15px;font-weight:600;color:var(--navy);">Embudo comercial</span>'
+    + '<span style="font-size:12px;color:var(--gray-600);">En marcha: <b>'+activos.length+'</b> · Valor estimado: <b>'+eur0(valorPipeline)+'</b></span></div>';
+  html += '<div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;margin-bottom:22px;">';
+  EMBUDO_ETAPAS.forEach(et => {
+    const items = pros.filter(p => (p.etapa||'nuevo') === et.k);
+    const suma = items.reduce((s,p)=>s+(parseFloat(p.presupuesto)||0),0);
+    html += '<div style="flex:1;min-width:200px;background:#f7f8fb;border-radius:10px;border-top:3px solid '+et.c+';padding:8px;">'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">'
+      + '<span style="font-weight:700;font-size:12px;color:'+et.c+';text-transform:uppercase;letter-spacing:.3px;">'+et.l+'</span>'
+      + '<span style="font-size:11px;color:var(--gray-400);">'+items.length+(suma?' · '+eur0(suma):'')+'</span></div>';
+    if(!items.length){ html += '<div style="font-size:11px;color:var(--gray-400);padding:6px;text-align:center;">—</div>'; }
+    items.forEach(p => {
+      const optSel = EMBUDO_ETAPAS.map(e=>'<option value="'+e.k+'"'+(e.k===(p.etapa||'nuevo')?' selected':'')+'>'+e.l+'</option>').join('');
+      html += '<div class="card" style="padding:9px 10px;margin-bottom:8px;border-left:3px solid '+et.c+';">'
+        + '<div style="display:flex;justify-content:space-between;gap:6px;align-items:flex-start;">'
+        + '<span style="font-weight:600;font-size:13px;">'+p.nombre+'</span>'
+        + '<span style="display:flex;gap:2px;"><button class="icon-btn" style="font-size:12px;" data-pid="'+p.id+'" onclick="openProspectoModal(this.dataset.pid)">✏</button>'
+        + '<button class="icon-btn" style="font-size:12px;" data-pid="'+p.id+'" onclick="deleteProspecto(this.dataset.pid)">×</button></span></div>'
+        + (p.presupuesto ? '<div style="font-size:12px;font-weight:700;color:var(--navy);margin-top:2px;">'+eur0(p.presupuesto)+'</div>' : '')
+        + (p.tel ? '<div style="font-size:11px;color:var(--gray-400);margin-top:2px;">📞 '+p.tel+'</div>' : '')
+        + (p.notas ? '<div style="font-size:11px;color:var(--gray-600);margin-top:4px;">'+String(p.notas).replace(/</g,'&lt;').slice(0,70)+(p.notas.length>70?'…':'')+'</div>' : '')
+        + '<select class="form-select" style="width:100%;font-size:11px;padding:4px 6px;margin-top:6px;" data-pid="'+p.id+'" onchange="moveEtapa(this.dataset.pid, this.value)">'+optSel+'</select>'
+        + (et.k==='ganado' ? '<button class="btn btn-primary" style="width:100%;font-size:11px;padding:5px;margin-top:5px;" data-pid="'+p.id+'" onclick="convertirEnCliente(this.dataset.pid)">→ Convertir en cliente</button>' : '')
+        + '</div>';
+    });
+    html += '</div>';
+  });
+  html += '</div>';
+  // ---- AGENDA PERSONAL ----
+  html += '<div style="font-size:15px;font-weight:600;color:var(--navy);margin-bottom:10px;">Agenda personal</div>';
+  if(!agenda.length){ html += '<div class="empty" style="padding:16px;"><div class="empty-text">Sin llamadas, reuniones ni notas pendientes.</div></div>'; }
+  else {
+    const sorted = [...agenda].sort((a,b) => { if(a.fecha&&b.fecha) return new Date(a.fecha)-new Date(b.fecha); if(a.fecha) return -1; if(b.fecha) return 1; return 0; });
+    const tc = {'Llamada pendiente':'#F59E0B','Reunión pendiente':'#2B7FFF','Nota personal':'#6B7280','Tarea propia':'#10B981'};
+    html += sorted.map(p => {
+      const color = tc[p.tipo] || '#6B7280';
+      const ds = p.fecha ? new Date(p.fecha+'T12:00:00').toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'}) : '';
+      return '<div class="card" style="margin-bottom:10px;border-left:3px solid ' + color + ';">' +
+        '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;"><div style="flex:1;">' +
+        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">' +
+        '<span style="font-size:15px;font-weight:600;">' + p.nombre + '</span>' +
+        '<span style="font-size:11px;padding:2px 8px;border-radius:20px;background:' + color + '20;color:' + color + ';font-weight:500;">' + p.tipo + '</span></div>' +
+        (p.tel ? '<div style="font-size:12px;color:var(--gray-400);">📞 ' + p.tel + '</div>' : '') +
+        (p.email ? '<div style="font-size:12px;color:var(--gray-400);">✉ ' + p.email + '</div>' : '') +
+        (p.notas ? '<div style="font-size:13px;color:var(--gray-600);margin-top:6px;">' + p.notas + '</div>' : '') +
+        (ds ? '<div style="font-size:11px;color:var(--accent);font-weight:500;margin-top:4px;">📅 Seguimiento: ' + ds + '</div>' : '') +
+        '</div><div style="display:flex;gap:4px;">' +
+        '<button class="icon-btn" data-pid="' + p.id + '" onclick="openProspectoModal(this.dataset.pid)">✏</button>' +
+        '<button class="icon-btn" data-pid="' + p.id + '" onclick="deleteProspecto(this.dataset.pid)">×</button>' +
+        '</div></div></div>';
+    }).join('');
+  }
+  el.innerHTML = html;
   updateBadges();
 }
 
