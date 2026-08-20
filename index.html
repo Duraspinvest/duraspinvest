@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="version" content="2026-08-20-v4-registro-tesoreria-embudo">
+<meta name="version" content="2026-08-20-v6-graficos">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#0A2540">
 <title>Duraspinvest</title>
@@ -257,12 +257,14 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
       window.clients = snap.docs.map(d => ({...d.data(), id: d.id}));
       if(typeof renderClientesList === 'function') renderClientesList();
       if(typeof renderRegistro === 'function' && document.getElementById('registro') && document.getElementById('registro').classList.contains('active')) renderRegistro();
+      if(typeof renderCuadroMando === 'function' && document.getElementById('dashboard') && document.getElementById('dashboard').classList.contains('active')) renderCuadroMando();
     });
 
     // Prospectos
     unsubProspectos = onSnapshot(collection(db, "prospectos"), (snap) => {
       window.prospectos = snap.docs.map(d => ({...d.data(), id: d.id}));
       if(typeof renderProspectos === 'function') renderProspectos();
+      if(typeof renderCuadroMando === 'function' && document.getElementById('dashboard') && document.getElementById('dashboard').classList.contains('active')) renderCuadroMando();
     });
 
     // Planning fiscal
@@ -278,6 +280,7 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
     unsubTes = onSnapshot(collection(db, "tesoreria"), (snap) => {
       window.tesoreria = snap.docs.map(d => ({...d.data(), id: d.id}));
       if(typeof renderTesoreria === 'function' && document.getElementById('tesoreria') && document.getElementById('tesoreria').classList.contains('active')) renderTesoreria();
+      if(typeof renderCuadroMando === 'function' && document.getElementById('dashboard') && document.getElementById('dashboard').classList.contains('active')) renderCuadroMando();
     });
     // Tesorería (movimientos recurrentes / plantillas)
     unsubTesRec = onSnapshot(collection(db, "tesoreria_rec"), (snap) => {
@@ -409,6 +412,11 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
 
 <!-- DASHBOARD -->
 <div id="dashboard" class="section active">
+  <!-- CUADRO DE MANDO DEL DESPACHO -->
+  <div style="font-size:18px;font-weight:600;color:var(--navy);margin-bottom:12px;">Cuadro de mando</div>
+  <div id="cuadroMando" style="margin-bottom:20px;"></div>
+
+  <div style="font-size:14px;font-weight:600;color:var(--gray-600);margin-bottom:10px;">Mis tareas</div>
   <div class="stats-grid">
     <div class="stat-card q1"><div class="stat-num" id="statQ1">0</div><div class="stat-label">Urgentes</div></div>
     <div class="stat-card q2"><div class="stat-num" id="statQ2">0</div><div class="stat-label">Planificadas</div></div>
@@ -674,6 +682,8 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
       <div class="form-group"><label class="form-label">Categoría</label>
         <select class="form-input" id="movCat"><option>Honorarios</option><option>Cuota / iguala</option><option>Alquiler</option><option>Suministros</option><option>Cuota autónomo</option><option>Impuestos</option><option>Nóminas / SS</option><option>Compras</option><option>Otros</option></select></div>
       <div class="form-group"><label class="form-label">Cliente (opcional)</label><select class="form-input" id="movCliente"></select></div>
+      <div class="form-group"><label class="form-label">Tipo de ingreso (para gráficos)</label>
+        <select class="form-input" id="movLinea"><option>Sociedades</option><option>Autónomos</option><option>Particulares</option><option>Seguros</option><option>Suministros</option><option>Otros</option></select></div>
     </div>
     <div class="form-group"><label class="form-label">Concepto</label><input type="text" class="form-input" id="movConcepto" placeholder="Ej: Iguala mensual, alquiler local, cuota RETA..."></div>
     <div class="form-group"><label class="form-label">Notas</label><input type="text" class="form-input" id="movNotas" placeholder="Opcional"></div>
@@ -1291,6 +1301,7 @@ function openMovModal(id){
   document.getElementById('movImporte').value=m?m.importe:'';
   document.getElementById('movCat').value=m?(m.categoria||'Honorarios'):'Honorarios';
   document.getElementById('movCliente').value=m?(m.clienteId||''):'';
+  document.getElementById('movLinea').value=m?(m.linea||'Otros'):'Otros';
   document.getElementById('movConcepto').value=m?(m.concepto||''):'';
   document.getElementById('movNotas').value=m?(m.notas||''):'';
   document.getElementById('movDelBtn').style.display=m?'':'none';
@@ -1303,6 +1314,7 @@ async function saveMov(){
   const id=document.getElementById('movId').value||('m'+Date.now());
   const doc={id,fecha,tipo:document.getElementById('movTipo').value,estado:document.getElementById('movEstado').value,
     importe,categoria:document.getElementById('movCat').value,clienteId:document.getElementById('movCliente').value||'',
+    linea:document.getElementById('movLinea').value||'Otros',
     concepto:document.getElementById('movConcepto').value.trim(),notas:document.getElementById('movNotas').value.trim()};
   closeModal('movModal');
   await fbSet('tesoreria',id,doc);
@@ -1508,7 +1520,124 @@ function initials(n) {
   return (n||'').split(' ').slice(0,2).map(w => w[0]).join('').toUpperCase();
 }
 
+function goSec(id){
+  const b=[].slice.call(document.querySelectorAll('.nav-btn')).find(x=>{const o=x.getAttribute('onclick')||'';return o.indexOf("'"+id+"'")>=0;});
+  showSection(id,b);
+}
+window.goSec=goSec;
+function cmNiceMax(v){ if(v<=0)return 10; const p=Math.pow(10,Math.floor(Math.log10(v))); const n=v/p; const m=n<=1?1:n<=2?2:n<=2.5?2.5:n<=5?5:10; return m*p; }
+function cmEur(v){ return (Math.round(v)).toLocaleString('es-ES')+' €'; }
+// Gráfico de barras agrupadas: ingresos vs gastos por mes
+function chartMensualSVG(ing, gas){
+  const MES=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const W=780,H=240,padL=48,padR=14,padT=14,padB=30;
+  const plotW=W-padL-padR, plotH=H-padT-padB;
+  const max=cmNiceMax(Math.max(1,Math.max.apply(null,ing),Math.max.apply(null,gas)));
+  const band=plotW/12, bw=Math.min(15,(band-8)/2);
+  const yOf=v=>padT+plotH*(1-v/max);
+  let g='';
+  for(let i=0;i<=4;i++){const val=max*i/4, y=yOf(val);
+    g+='<line x1="'+padL+'" y1="'+y.toFixed(1)+'" x2="'+(W-padR)+'" y2="'+y.toFixed(1)+'" stroke="#E5E7EB" stroke-width="1"/>'
+      +'<text x="'+(padL-6)+'" y="'+(y+3).toFixed(1)+'" text-anchor="end" font-size="9" fill="#9aa1ab">'+(Math.round(val)).toLocaleString('es-ES')+'</text>';}
+  for(let i=0;i<12;i++){
+    const cx=padL+band*i+band/2;
+    const xi=cx-bw-1, xg=cx+1;
+    const hi=plotH*ing[i]/max, hg=plotH*gas[i]/max;
+    if(ing[i]>0)g+='<rect x="'+xi.toFixed(1)+'" y="'+yOf(ing[i]).toFixed(1)+'" width="'+bw+'" height="'+Math.max(0,hi).toFixed(1)+'" rx="3" fill="#10B981"><title>'+MES[i]+' · Ingresos '+cmEur(ing[i])+'</title></rect>';
+    if(gas[i]>0)g+='<rect x="'+xg.toFixed(1)+'" y="'+yOf(gas[i]).toFixed(1)+'" width="'+bw+'" height="'+Math.max(0,hg).toFixed(1)+'" rx="3" fill="#EF4444"><title>'+MES[i]+' · Gastos '+cmEur(gas[i])+'</title></rect>';
+    g+='<text x="'+cx.toFixed(1)+'" y="'+(H-padB+16)+'" text-anchor="middle" font-size="9.5" fill="#6B7280">'+MES[i]+'</text>';
+  }
+  g+='<line x1="'+padL+'" y1="'+yOf(0).toFixed(1)+'" x2="'+(W-padR)+'" y2="'+yOf(0).toFixed(1)+'" stroke="#9aa1ab" stroke-width="1.5"/>';
+  return '<svg viewBox="0 0 '+W+' '+H+'" width="100%" style="display:block;">'+g+'</svg>';
+}
+// Gráfico de barras horizontales: ingresos por tipo (una serie, orden por magnitud)
+function chartTipoSVG(pairs){
+  if(!pairs.length) return '<div style="color:var(--gray-400);font-size:12px;padding:14px;">Aún no hay ingresos registrados este año.</div>';
+  const rowH=30, W=780, labelW=104, valW=78, padT=6;
+  const H=padT*2+rowH*pairs.length;
+  const barMax=W-labelW-valW-14;
+  const max=Math.max.apply(null,pairs.map(p=>p.v))||1;
+  let g='';
+  pairs.forEach((p,i)=>{
+    const y=padT+rowH*i+4, bh=rowH-12;
+    const bw=Math.max(2,barMax*p.v/max);
+    g+='<text x="0" y="'+(y+bh/2+3).toFixed(1)+'" font-size="12" fill="#4b5567" font-weight="600">'+p.k+'</text>';
+    g+='<rect x="'+labelW+'" y="'+y+'" width="'+bw.toFixed(1)+'" height="'+bh+'" rx="3" fill="#1B2A4A"><title>'+p.k+': '+cmEur(p.v)+'</title></rect>';
+    g+='<text x="'+(labelW+bw+8).toFixed(1)+'" y="'+(y+bh/2+3).toFixed(1)+'" font-size="12" fill="#1B2A4A" font-weight="700">'+cmEur(p.v)+'</text>';
+  });
+  return '<svg viewBox="0 0 '+W+' '+H+'" width="100%" style="display:block;">'+g+'</svg>';
+}
+function renderCuadroMando(){
+  const cont=document.getElementById('cuadroMando'); if(!cont) return;
+  const numT=v=>parseFloat(v)||0;
+  const eur0=n=>(Math.round(numT(n))).toLocaleString('es-ES')+' €';
+  const now=new Date(); const y=now.getFullYear(); const anioStr=String(y);
+  const q=Math.floor(now.getMonth()/3)+1; const tri=q+'T';
+  const clients=(window.clients||[]).filter(c=>(c.categoria||'despacho')!=='auxiliar' && (c.categoria||'')!=='despacho_propio');
+  const tasks=(window.tasks||[]); const pendTasks=tasks.filter(t=>t.estado!=='Completada').length;
+  // registros del trimestre actual
+  const regHechos=clients.filter(c=>{const r=(c.registro&&c.registro[anioStr])||{estados:{}};const e=(r.estados||{})[tri]||'pendiente';return e==='hecho'||e==='na';}).length;
+  const regPend=clients.length-regHechos;
+  // tesorería del año
+  const tes=(window.tesoreria||[]).filter(m=>String(m.fecha||'').slice(0,4)===anioStr);
+  const cobrado=tes.filter(m=>m.tipo==='cobro'&&m.estado==='realizado').reduce((s,m)=>s+numT(m.importe),0);
+  const pagado=tes.filter(m=>m.tipo==='pago'&&m.estado==='realizado').reduce((s,m)=>s+numT(m.importe),0);
+  const pendCobro=tes.filter(m=>m.tipo==='cobro'&&m.estado==='previsto').reduce((s,m)=>s+numT(m.importe),0);
+  const saldo=cobrado-pagado;
+  // pipeline
+  const pros=(window.prospectos||[]).filter(p=>(p.tipo||'Prospecto')==='Prospecto');
+  const activos=pros.filter(p=>['nuevo','contactado','propuesta'].indexOf(p.etapa||'nuevo')>=0);
+  const valorPipe=activos.reduce((s,p)=>s+numT(p.presupuesto),0);
+  const card=(label,value,color,sec,sub)=>'<div onclick="goSec(\''+sec+'\')" style="cursor:pointer;background:#fff;border-radius:12px;box-shadow:var(--shadow);padding:14px 16px;border-left:4px solid '+color+';min-width:150px;flex:1;">'
+    +'<div style="font-size:11px;color:var(--gray-400);text-transform:uppercase;letter-spacing:.4px;">'+label+'</div>'
+    +'<div style="font-size:22px;font-weight:700;color:'+color+';margin-top:2px;line-height:1.1;">'+value+'</div>'
+    +(sub?'<div style="font-size:11px;color:var(--gray-400);margin-top:2px;">'+sub+'</div>':'')+'</div>';
+  let html='<div style="display:flex;gap:12px;flex-wrap:wrap;">'
+    +card('Clientes',clients.length,'#1B2A4A','clientes','del despacho')
+    +card('Tareas pendientes',pendTasks,'#EF4444','eisenhower','por hacer')
+    +card('Registros pendientes '+tri,regPend,'#F59E0B','registro',regHechos+' de '+clients.length+' al día')
+    +card('Pendiente de cobro',eur0(pendCobro),'#0EA5E9','tesoreria','previsto '+y)
+    +card('Saldo tesorería',eur0(saldo),saldo>=0?'#10B981':'#EF4444','tesoreria','cobrado − pagado '+y)
+    +card('Pipeline comercial',eur0(valorPipe),'#8B5CF6','prospectos',activos.length+' en marcha')
+    +'</div>';
+  // próximo vencimiento fiscal
+  try{
+    if(typeof getVencimientosFiscales==='function'){
+      const hoy=new Date(y,now.getMonth(),now.getDate());
+      const vs=getVencimientosFiscales(anioStr).map(v=>({...v,d:new Date(v.fecha+'T00:00:00')}))
+        .filter(v=>v.d>=hoy).sort((a,b)=>a.d-b.d);
+      if(vs.length){
+        const prox=vs[0]; const mismos=vs.filter(v=>v.fecha===prox.fecha);
+        const modelos=mismos.map(v=>v.modelo).join(', ');
+        const dd=prox.d.toLocaleDateString('es-ES',{day:'2-digit',month:'long'});
+        const dias=Math.round((prox.d-hoy)/86400000);
+        html+='<div onclick="goSec(\'planning\')" style="cursor:pointer;margin-top:12px;background:rgba(212,160,23,0.12);border-radius:10px;padding:10px 16px;font-size:13px;color:var(--navy);">'
+          +'📅 <b>Próximo vencimiento fiscal:</b> '+dd+' ('+(dias===0?'hoy':dias===1?'mañana':'en '+dias+' días')+') — modelos '+modelos+'. <span style="color:var(--accent);font-weight:600;">Ver Planning →</span></div>';
+      }
+    }
+  }catch(e){}
+  // ---- GRÁFICOS ----
+  const ingMes=[], gasMes=[]; for(let i=0;i<12;i++){ingMes.push(0);gasMes.push(0);}
+  tes.forEach(m=>{const mo=parseInt(String(m.fecha||'').slice(5,7),10)-1; if(mo<0||mo>11)return; if(m.tipo==='cobro')ingMes[mo]+=numT(m.importe); else gasMes[mo]+=numT(m.importe);});
+  const lineas={}; tes.filter(m=>m.tipo==='cobro').forEach(m=>{const k=m.linea||'Otros'; lineas[k]=(lineas[k]||0)+numT(m.importe);});
+  const pares=Object.keys(lineas).map(k=>({k,v:lineas[k]})).filter(p=>p.v>0).sort((a,b)=>b.v-a.v);
+  const hayTes=tes.length>0;
+  html+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px;margin-top:16px;">'
+    +'<div style="background:#fff;border-radius:12px;box-shadow:var(--shadow);padding:14px 16px;">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px;">'
+      +'<span style="font-weight:600;color:var(--navy);font-size:14px;">Ingresos y gastos por mes ('+y+')</span>'
+      +'<span style="font-size:11px;color:var(--gray-400);"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#10B981;"></span> Ingresos &nbsp; <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#EF4444;"></span> Gastos</span></div>'
+      +(hayTes?chartMensualSVG(ingMes,gasMes):'<div style="color:var(--gray-400);font-size:12px;padding:14px;">Registra cobros y pagos en Tesorería para ver el gráfico.</div>')
+    +'</div>'
+    +'<div style="background:#fff;border-radius:12px;box-shadow:var(--shadow);padding:14px 16px;">'
+      +'<div style="font-weight:600;color:var(--navy);font-size:14px;margin-bottom:8px;">Ingresos por tipo ('+y+')</div>'
+      +chartTipoSVG(pares)
+    +'</div>'
+  +'</div>';
+  cont.innerHTML=html;
+}
 function renderDashboard() {
+  if(typeof renderCuadroMando === 'function') renderCuadroMando();
   const allTasks = window.tasks || [];
   const p = allTasks.filter(t => t.estado !== 'Completada');
   const set = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
