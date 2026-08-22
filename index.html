@@ -2,10 +2,10 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="version" content="2026-08-20-v6-graficos">
+<meta name="version" content="2026-08-20-v7-subcarpetas-despacho">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#0A2540">
-<title>Duraspinvest</title>
+<title>Duraspinvest · Despacho</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMAAAADACAYAAABS3GwHAAAE50lEQVR4nO3dTVbjRhiGUdknI1hBFgDrgHGPstKMMoZ1wAKyApiSQYc+tPGPZJWkqnrvHXfb8jnfoyrJP+yGDdzcPXxs8bzU7f31ebf2c67yhAaea6wRxGJPYOgpaakYij6ooWcNJWPYl3ogw89aSs7a7JIMPluauxrMWgEMP1ubO4NX1WPwqdE1q8HkFcDwU6trZnNSAIaf2k2d0dEBGH5aMWVWRwVg+GnN2Jm9GIDhp1VjZvdsAIaf1l2a4WLvBEOLTgbg7E8vzs3y0QAMP705NdO2QET7FoCzP706Ntv7S/8AenI447ZARBMA0X4FYPtDiq+z/kfJB357efq35OO14vb+8c8lH//t5emvJR+/Vrf3j38v/Ry2QETbD4PtD3k+Z94KQDQBEE0ARNvb/5Pq5u7hwwpANAEQTQBEEwDRBEA0ARBNAEQTANEEQDQBEK3oF2JKWPrLJanW+HLJV618iccKQDQBEE0ARBMA0aq7CN7ilyVceOeyAhBNAEQTANEEQDQBEE0ARBMA0QRANAEQTQBEEwDRBEA0ARBNAEQTANEEQLTqvhDjyymsyQpANAEQTQBEEwDRBEC06u4CbfGzKHO1cOeqld/qXJsVgGgCIJoAiCYAogmAaAIgmgCIJgCiCYBoAiCaAIgmAKIJgGgCIJoAiCYAou1u7h4+tj4I2IoVgGgCIJoAiCYAogmAaAIgmgCIJgCiCYBoAiCaAIgmAKIJgGgCIJoAiCYAogmAaAIgmgCIJgCiCYBo1f2Z1J68vTz9M/X/3N4//ljiWDjOz6IUdM3AXyKIZQlgpiWG/hQxlCeAK6w59KeIoQwBTFDD4B8SwjwCGKHGwT8khOu4DXpBC8M/DO0cZ20EcEZrQ9Xa8dbAFuiIHgbJlmgcK8CBHoZ/GPp5HUsTwBe9DU1vr2cJAvhfr8PS6+sqRQBD/0PS++ubIz6AlOFIeZ1TRQeQNhRpr3eM6AAg9n2A2j7FWdvxpIgMYOlhKzFgLRxjD3wjrKCSQ/X5WPbty4pbAVr91larx107K8AMaw6QFWEZUXeBSg7PVmfPks8rprAASg3P1luHrZ+/J3HXAF+1/rMlJc7gNb2eLUQH8GnKILVwi3Oq5AhcBA+/D8C54UwelF5FXQOMcXv/+MOg57ACnHC4KoiiT1aAEXof/tquSdYkAKIJgGgCIJoAiCYAogmAaAIgmgCIJgCiCYDu3+k+RwBEEwDRfBp0A1O3HMkfVluaFSBc8v5/GARAOAEQTQDB0rc/wyAAwgmgckvdAXL2/8lt0Eq59bkOAVTCH8jYhgBWUNPZ3PD/zjUA0QSwMGf/ugkghOE/TgBEEwDR9u+vz7utDwK28P76vLMCEM37AJ1xsTuNFWBBa98CNfzT7Yfh515o6wNhHsM/zefM2wI1zuDPI4BGGfwyfgXw/vrsT6ZWztCX8XXLbwWonKFflgAqY+DX9e3uj20QPTu84/ntfQC3ROnVsdn2RhjRjgZgFaA3p2b65AogAnpxbpZtgYh2NgCrAK27NMMXVwAR0KoxsztqCyQCWjN2ZkdfA4iAVkyZ1UkXwSKgdlNndPJdIBFQq2tmc9Yw+9wQNZhzUp71PoDVgK3NncFiA2w1YE2lTr7F3gm2GrCWkrO22NBaEShpqRPsKmdtMXCNNXYVm2xbBMExW2yj/wNHKI0+MOfFLAAAAABJRU5ErkJggg==">
@@ -391,9 +391,9 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
     <button id="btnNotif" onclick="activarNotificaciones()" style="background:rgba(255,255,255,0.1);color:#8A9BB0;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;" title="Activar notificaciones">🔔</button>
     <button id="btnHuella" onclick="gestionarHuella()" style="background:rgba(255,255,255,0.1);color:#8A9BB0;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;" title="Huella dactilar">👆</button>
     <span style="display:inline-flex;gap:5px;background:rgba(0,0,0,0.22);border-radius:8px;padding:3px;">
-      <a style="text-decoration:none;background:#D4A017;color:#1B2A4A;font-size:12px;font-weight:600;padding:5px 11px;border-radius:6px;">Tareas</a>
-      <a href="https://duraspinvest.github.io/duraspinvest-iva/" style="text-decoration:none;color:#cdd7e8;font-size:12px;font-weight:600;padding:5px 11px;border-radius:6px;">IVA</a>
-      <a href="https://duraspinvest.github.io/duraspinvest-nominas/" style="text-decoration:none;color:#cdd7e8;font-size:12px;font-weight:600;padding:5px 11px;border-radius:6px;">Nóminas</a>
+      <a style="text-decoration:none;background:#D4A017;color:#1B2A4A;font-size:12px;font-weight:600;padding:5px 11px;border-radius:6px;">Despacho</a>
+      <a href="https://duraspinvest.github.io/duraspinvest-iva/" style="text-decoration:none;color:#cdd7e8;font-size:12px;font-weight:600;padding:5px 11px;border-radius:6px;">Fiscal</a>
+      <a href="https://duraspinvest.github.io/duraspinvest-nominas/" style="text-decoration:none;color:#cdd7e8;font-size:12px;font-weight:600;padding:5px 11px;border-radius:6px;">Laboral</a>
     </span>
     <button onclick="doLogout()" style="background:rgba(255,255,255,0.1);color:#8A9BB0;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;">Salir</button>
   </div>
@@ -2092,6 +2092,38 @@ function showFicha(id) {
       parts.push('<input type="text" class="nota-input" id="expDocUrl_' + ei + '" placeholder="Enlace de OneDrive" style="width:100%;">');
       parts.push('<div style="display:flex;justify-content:flex-end;"><button class="btn btn-primary btn-sm" data-ei="' + ei + '" onclick="addDocAExpediente(window._fichaClienteId,this.dataset.ei)">Añadir</button></div>');
       parts.push('</div></div>');
+      // ---- Subcarpetas del expediente ----
+      var carpetas = exp.carpetas || [];
+      parts.push('<div style="padding:10px 14px;border-top:1px solid var(--gray-100);background:var(--gray-50);">');
+      parts.push('<div style="font-size:11px;font-weight:700;color:var(--gray-600);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px;">Subcarpetas</div>');
+      carpetas.forEach(function(carp, ci) {
+        parts.push('<div style="border:1px solid var(--gray-200);border-radius:8px;margin-bottom:8px;background:#fff;overflow:hidden;">');
+        parts.push('<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:var(--gray-50);">');
+        parts.push('<span style="font-size:12px;font-weight:600;color:var(--navy);">&#128194; ' + carp.nombre + ' <span style="color:var(--gray-400);font-weight:400;">(' + ((carp.docs || []).length) + ')</span></span>');
+        parts.push('<button class="icon-btn" data-ei="' + ei + '" data-ci="' + ci + '" onclick="deleteCarpeta(window._fichaClienteId,this.dataset.ei,this.dataset.ci)">&#215;</button>');
+        parts.push('</div>');
+        (carp.docs || []).forEach(function(d, di) {
+          parts.push('<div class="doc-item" style="padding:6px 10px;border-top:1px solid var(--gray-100);">');
+          parts.push('<div class="doc-icon">&#128196;</div><div class="doc-info"><div class="doc-nombre">' + d.nombre + '</div></div>');
+          parts.push('<div style="display:flex;gap:4px;align-items:center;">');
+          if (d.url) {
+            parts.push('<a href="' + d.url + '" target="_blank" class="btn btn-sm" style="background:var(--q2-bg);color:var(--q2);text-decoration:none;font-size:11px;">Abrir</a>');
+            parts.push('<a href="https://wa.me/?text=' + encodeURIComponent(d.nombre + ': ' + d.url) + '" target="_blank" class="btn btn-sm" style="background:#F0FDF4;color:#25D366;text-decoration:none;font-size:11px;">WA</a>');
+          }
+          parts.push('<button class="icon-btn" data-ei="' + ei + '" data-ci="' + ci + '" data-di="' + di + '" onclick="deleteDocCarpeta(window._fichaClienteId,this.dataset.ei,this.dataset.ci,this.dataset.di)">&#215;</button>');
+          parts.push('</div></div>');
+        });
+        parts.push('<div style="padding:8px 10px;border-top:1px solid var(--gray-100);display:flex;gap:6px;flex-direction:column;">');
+        parts.push('<input type="text" class="nota-input" id="carpDocNombre_' + ei + '_' + ci + '" placeholder="Nombre del documento" style="width:100%;">');
+        parts.push('<input type="text" class="nota-input" id="carpDocUrl_' + ei + '_' + ci + '" placeholder="Enlace de OneDrive (opcional)" style="width:100%;">');
+        parts.push('<div style="display:flex;justify-content:flex-end;"><button class="btn btn-primary btn-sm" data-ei="' + ei + '" data-ci="' + ci + '" onclick="addDocACarpeta(window._fichaClienteId,this.dataset.ei,this.dataset.ci)">Añadir doc</button></div>');
+        parts.push('</div></div>');
+      });
+      parts.push('<div style="display:flex;gap:6px;align-items:center;margin-top:2px;">');
+      parts.push('<input type="text" class="nota-input" id="nuevaCarpeta_' + ei + '" placeholder="Nombre de la subcarpeta (p. ej. Trabajador Juan, Empresa...)" style="flex:1;">');
+      parts.push('<button class="btn btn-primary btn-sm" data-ei="' + ei + '" onclick="addCarpeta(window._fichaClienteId,this.dataset.ei)">+ Subcarpeta</button>');
+      parts.push('</div>');
+      parts.push('</div>'); // cierra bloque subcarpetas
       parts.push('</div>'); // cierra exp-body desplegable
       parts.push('</div>');
     });
@@ -2598,6 +2630,7 @@ async function saveExpediente() {
     fechaCierre: document.getElementById('expFechaCi').value,
     notas: document.getElementById('expNotas').value.trim(),
     docs: idx !== '' && c.expedientes[parseInt(idx)] ? c.expedientes[parseInt(idx)].docs || [] : [],
+    carpetas: idx !== '' && c.expedientes[parseInt(idx)] ? c.expedientes[parseInt(idx)].carpetas || [] : [],
     creado: idx !== '' && c.expedientes[parseInt(idx)] ? c.expedientes[parseInt(idx)].creado : new Date().toISOString()
   };
   if (idx !== '') { c.expedientes[parseInt(idx)] = exp; }
@@ -2634,6 +2667,51 @@ async function deleteDocExp(cid, ei, di) {
   const c = (window.clients || []).find(x => String(x.id) === String(cid));
   if (!c) return;
   c.expedientes[parseInt(ei)].docs.splice(parseInt(di), 1);
+  await fbSet('clients', cid, c);
+  showFicha(cid);
+}
+
+// ── Subcarpetas dentro de un expediente ──────────────────────────────────────
+async function addCarpeta(cid, ei) {
+  const eiInt = parseInt(ei);
+  const inp = document.getElementById('nuevaCarpeta_' + ei);
+  const nombre = inp ? inp.value.trim() : '';
+  if (!nombre) return;
+  const c = (window.clients || []).find(x => String(x.id) === String(cid));
+  if (!c || !c.expedientes || !c.expedientes[eiInt]) return;
+  if (!c.expedientes[eiInt].carpetas) c.expedientes[eiInt].carpetas = [];
+  c.expedientes[eiInt].carpetas.push({ nombre, docs: [], creado: new Date().toISOString() });
+  if (!window._expOpen) window._expOpen = {}; window._expOpen[ei] = true;
+  await fbSet('clients', cid, c);
+  showFicha(cid);
+}
+async function deleteCarpeta(cid, ei, ci) {
+  if (!confirm('¿Eliminar esta subcarpeta y sus documentos?')) return;
+  const c = (window.clients || []).find(x => String(x.id) === String(cid));
+  if (!c) return;
+  c.expedientes[parseInt(ei)].carpetas.splice(parseInt(ci), 1);
+  await fbSet('clients', cid, c);
+  showFicha(cid);
+}
+async function addDocACarpeta(cid, ei, ci) {
+  const c = (window.clients || []).find(x => String(x.id) === String(cid));
+  if (!c) return;
+  const carp = c.expedientes[parseInt(ei)].carpetas[parseInt(ci)];
+  const nEl = document.getElementById('carpDocNombre_' + ei + '_' + ci);
+  const uEl = document.getElementById('carpDocUrl_' + ei + '_' + ci);
+  const nombre = nEl ? nEl.value.trim() : '';
+  if (!nombre) return;
+  if (!carp.docs) carp.docs = [];
+  carp.docs.push({ nombre, url: uEl ? uEl.value.trim() : '', fecha: new Date().toISOString() });
+  if (!window._expOpen) window._expOpen = {}; window._expOpen[ei] = true;
+  await fbSet('clients', cid, c);
+  showFicha(cid);
+}
+async function deleteDocCarpeta(cid, ei, ci, di) {
+  if (!confirm('¿Eliminar este documento?')) return;
+  const c = (window.clients || []).find(x => String(x.id) === String(cid));
+  if (!c) return;
+  c.expedientes[parseInt(ei)].carpetas[parseInt(ci)].docs.splice(parseInt(di), 1);
   await fbSet('clients', cid, c);
   showFicha(cid);
 }
