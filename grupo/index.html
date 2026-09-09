@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="version" content="2026-09-08-v1">
+<meta name="version" content="2026-09-09-v2">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#0A2540">
 <title>Gestión Grupo</title>
@@ -993,14 +993,35 @@ async function fbDel(col, id) {
 
 /* ══════════════ LOGIN ══════════════ */
 
+const ERRORES_LOGIN = {
+  'auth/invalid-credential': 'Email o contraseña incorrectos.',
+  'auth/wrong-password': 'Contraseña incorrecta.',
+  'auth/user-not-found': 'No existe ninguna cuenta con ese email.',
+  'auth/invalid-email': 'El email no tiene un formato válido.',
+  'auth/user-disabled': 'Esa cuenta está deshabilitada en Firebase.',
+  'auth/too-many-requests': 'Demasiados intentos fallidos. Espera unos minutos.',
+  'auth/network-request-failed': 'Sin conexión con Firebase. Revisa la red.',
+  'auth/unauthorized-domain': 'Este dominio no está autorizado en Firebase Auth.',
+  'auth/operation-not-allowed': 'El acceso con email y contraseña está desactivado en Firebase.',
+  'auth/api-key-not-valid': 'La clave de API no es válida.'
+};
+
 function doLogin() {
   const email = document.getElementById('loginEmail').value.trim();
   const pass = document.getElementById('loginPassword').value;
   const err = document.getElementById('loginErr');
   err.style.display = 'none';
-  window.fsSignIn(window.auth, email, pass).catch(() => {
-    err.textContent = 'Email o contraseña incorrectos.';
+  if (!email || !pass) {
+    err.textContent = 'Rellena el email y la contraseña.';
     err.style.display = 'block';
+    return;
+  }
+  window.fsSignIn(window.auth, email, pass).catch(e => {
+    const code = (e && e.code) || 'desconocido';
+    err.innerHTML = esc(ERRORES_LOGIN[code] || 'No se pudo entrar.') +
+      '<br><span style="color:var(--gray-400);font-size:11px">' + esc(code) + '</span>';
+    err.style.display = 'block';
+    console.error('Login fallido:', e);
   });
 }
 function doLogout() { window.fsSignOut(window.auth); }

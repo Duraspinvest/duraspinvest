@@ -6,7 +6,7 @@
       desplegada y el dispositivo tenga token FCM registrado.
 */
 
-const CACHE = 'grupo-v1';
+const CACHE = 'grupo-v2';
 const SHELL = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
