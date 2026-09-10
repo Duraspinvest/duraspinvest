@@ -18,7 +18,8 @@ Todas llevan prefijo `ca_` para no mezclarse con las de la asesoría
 (`tasks`, `clients`, `prospectos`, `planning`).
 
 ```
-ca_empresas/{id}   { nombre, cif, forma, color, notas, obligaciones[], orden }
+ca_empresas/{id}   { nombre, cif, forma, color, notas, obligaciones[], orden, desde,
+                     pygModo: 'acumulado' | 'mensual' }
 ca_tasks/{id}      { nombre, empresaId, cuadrante, fecha, estado, notas }
 ca_eventos/{id}    { titulo, empresaId, fecha, todoDia, inicio, fin, recordatorio, notas }
 ca_facturas/{id}   { empresaId, proveedor, numero, importe, fecha, vence,
@@ -77,7 +78,7 @@ que ignores a 10 días vuelve a saltar a 5 y otra vez el mismo día.
 | Qué avisa | Cómo se apaga |
 |---|---|
 | Factura de proveedor | Marcarla como pagada |
-| Modelo fiscal | Marcarlo como presentado en el planning |
+| Modelo fiscal | Marcarlo como presentado, o como *No aplica*, en el planning |
 | Tarea vencida o de hoy | Completarla |
 
 Si cambias la fecha de vencimiento de una factura, se borran sus descartes: el
@@ -117,6 +118,18 @@ contra tus cifras de enero-junio 2026: los cinco subtotales dan idéntico.
 hoja. Los conceptos marcados como gasto (4, 6, 7, 8, 14, retenciones y pagos a
 cuenta) se pasan a negativo solos aunque escribas el número en positivo.
 
+### Acumulado o mensual
+
+Cada empresa declara en su ficha cómo introduces la PyG. **Acumulado desde
+enero** es el valor por defecto y lo normal si sacas los datos de un programa de
+contabilidad: cada corte incluye lo anterior, y no hace falta cargar los doce
+meses, basta con los cortes que tengas. Un rango se calcula restando dos cortes:
+julio-septiembre es el corte de septiembre menos el de junio. **Importes propios
+de cada mes** hace que los meses del rango se sumen.
+
+Elegir mal el modo no rompe los datos, solo cómo se leen: se corrige cambiando
+el selector, sin volver a teclear nada.
+
 **Entrada mensual.** Un mes y una empresa cada vez. Hay un botón *Copiar mes
 anterior* para los meses que apenas cambian: copia los importes al formulario
 sin guardarlos, los ajustas y guardas.
@@ -136,10 +149,18 @@ atajos para los cuatro trimestres naturales, cada uno de los dos semestres y el
 año completo, que se marcan cuando el rango coincide. Todo lo demás se compone
 con los dos selectores. Lo enfrenta al mismo rango del ejercicio anterior, con
 variación en euros, en porcentaje y el peso de cada partida sobre la cifra de
-negocios. *Imprimir o guardar en PDF* usa el diálogo del navegador con una hoja
-de estilos de impresión propia: sale solo el informe, en A4, sin menús. También
-hay exportación a CSV con separador de punto y coma y BOM, para que Excel en
-español lo abra sin tocar nada.
+negocios. Tres formas de sacarlo:
+
+- **Excel**: genera un .xlsx real, sin librerías externas ni conexión. Los
+  importes van como números con formato de euro y los porcentajes como
+  porcentajes, así que se pueden sumar y graficar en Excel. Subtotales en
+  negrita y anchos de columna ya puestos.
+- **CSV**: separador de punto y coma y BOM, para abrirlo sin asistentes.
+- **Imprimir o PDF**: diálogo del navegador con hoja de estilos propia. Sale
+  solo el informe, en A4, sin menús ni avisos, y desde ahí eliges "Guardar como
+  PDF". Funciona esté abierta la pestaña que esté.
+
+Los tres respetan el rango de meses, la empresa seleccionada y el modo acumulado.
 
 **Panel.** Indicadores del periodo con su variación interanual, márgenes,
 evolución mes a mes de la cifra de negocios contra el año anterior, resultado
@@ -173,3 +194,14 @@ resultado agregado del grupo daría un número distinto y equivocado.
 **Comprobación:** con 19/21 y 7.505,00 € de deducciones en 2026, y 21/22 y
 8.190,00 € en 2025, el motor reproduce al céntimo el impuesto y la cuota de tus
 cuatro periodos (enero-junio y enero-septiembre de ambos ejercicios).
+
+## Vencimientos anteriores a tu alta
+
+Cada empresa tiene una fecha de **seguimiento fiscal desde**, en su ficha. Los
+vencimientos anteriores a esa fecha no generan aviso ni cuentan como vencidos,
+aunque sigan visibles en la rejilla del planning por si quieres rellenar
+histórico. Al crear una empresa se rellena sola con el mes en curso.
+
+Para casos sueltos, la celda del planning admite el estado **No aplica**, que
+silencia ese modelo y periodo sin darlo por presentado. Se distingue en la
+rejilla con un punto oscuro y la etiqueta N/A, y tiene su propio filtro.

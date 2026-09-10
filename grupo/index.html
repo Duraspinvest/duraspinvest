@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="version" content="2026-09-09-v2">
+<meta name="version" content="2026-09-10-v5">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#0A2540">
 <title>Gestión Grupo</title>
@@ -246,6 +246,12 @@ main{flex:1;padding:20px;max-width:1240px;margin:0 auto;width:100%;}
   .pyg-table th{background:#0A2540!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
   .pyg-table tr.pyg-total td{background:#FDF8EC!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
   .pyg-table tr{page-break-inside:avoid;}
+  .informe-cab{page-break-after:avoid;}
+  /* Al imprimir desde el botón, solo sale el informe */
+  body.imprimiendo .section{display:none!important;}
+  body.imprimiendo #pyg{display:block!important;}
+  body.imprimiendo #pygPaneentrada,body.imprimiendo #pygPanepanel{display:none!important;}
+  body.imprimiendo #pygPaneinforme{display:block!important;}
   @page{margin:14mm;size:A4;}
 }
 
@@ -634,6 +640,7 @@ label.fld{display:block;font-size:12px;font-weight:600;color:var(--gray-600);mar
         <option value="pendiente">Solo pendientes</option>
         <option value="proceso">Solo en proceso</option>
         <option value="presentado">Solo presentados</option>
+        <option value="no_aplica">Solo no aplicables</option>
       </select>
     </div>
   </div>
@@ -733,6 +740,19 @@ label.fld{display:block;font-size:12px;font-weight:600;color:var(--gray-600);mar
           <select class="inp" id="mForma"><option>SL</option><option>SA</option><option>SLU</option><option>SC</option></select>
         </div>
         <div class="fgroup"><label class="fld" for="mColor">Color en calendario</label><input class="inp" type="color" id="mColor" value="#0A2540" style="height:40px;padding:3px;"></div>
+      </div>
+      <div class="fgroup">
+        <label class="fld" for="mPygModo">Cómo introduces la cuenta de pérdidas y ganancias</label>
+        <select class="inp" id="mPygModo">
+          <option value="acumulado">Importes acumulados desde enero</option>
+          <option value="mensual">Importes propios de cada mes</option>
+        </select>
+        <div style="font-size:11px;color:var(--gray-400);margin-top:4px">Acumulado es lo habitual si los sacas de tu programa de contabilidad: cada corte incluye lo anterior.</div>
+      </div>
+      <div class="fgroup">
+        <label class="fld" for="mDesde">Seguimiento fiscal desde</label>
+        <input class="inp" type="month" id="mDesde">
+        <div style="font-size:11px;color:var(--gray-400);margin-top:4px">No se avisa de vencimientos anteriores a esta fecha. Déjalo vacío para controlarlos todos.</div>
       </div>
       <div class="fgroup">
         <label class="fld">Modelos que presenta</label>
@@ -847,6 +867,8 @@ label.fld{display:block;font-size:12px;font-weight:600;color:var(--gray-600);mar
           <button class="estado-btn" id="pcBtnProceso" onclick="setEstado('proceso')">En proceso</button>
           <button class="estado-btn" id="pcBtnPresentado" onclick="setEstado('presentado')">Presentado</button>
         </div>
+        <button class="estado-btn" id="pcBtnNoAplica" onclick="setEstado('no_aplica')" style="width:100%;margin-top:6px">No aplica en este periodo</button>
+        <div style="font-size:11px;color:var(--gray-400);margin-top:5px">Silencia el aviso sin darlo por presentado. Útil para lo anterior a tu alta.</div>
       </div>
       <div class="fgroup" id="pcImporteGroup">
         <label class="fld" for="pcImporte">Importe</label>
@@ -1145,6 +1167,8 @@ function vencimientosVigentes(anioDesde, anioHasta) {
       emps.forEach(e => {
         const obligs = e.obligaciones || [];
         if (!obligs.includes(v.modelo)) return;
+        // Nada anterior a la fecha en que empiezas a seguir a esa empresa.
+        if (e.desde && v.fecha < e.desde) return;
         const celda = getCelda(e.id, v.modelo, v.periodo, String(a));
         out.push({
           ...v, anio: String(a), empresaId: e.id, empresaNombre: e.nombre,
@@ -1161,7 +1185,7 @@ function vencimientosVigentes(anioDesde, anioHasta) {
 function renderDashboard() {
   const y = new Date().getFullYear();
   const hoy = hoyISO();
-  const vencs = vencimientosVigentes(y - 1, y + 1).filter(v => v.estado !== 'presentado');
+  const vencs = vencimientosVigentes(y - 1, y + 1).filter(v => v.estado !== 'presentado' && v.estado !== 'no_aplica');
   const tasks = (window.tasks || []).filter(t => enFoco(t.empresaId) && t.estado !== 'Completada');
 
   const vencidasV = vencs.filter(v => v.fecha < hoy).length;
@@ -1317,6 +1341,8 @@ function abrirEmpresa(id) {
   document.getElementById('mForma').value = e ? e.forma || 'SL' : 'SL';
   document.getElementById('mColor').value = e ? e.color || '#0A2540' : '#0A2540';
   document.getElementById('mNotas').value = e ? e.notas || '' : '';
+  document.getElementById('mDesde').value = e ? (e.desde ? e.desde.slice(0,7) : '') : hoyISO().slice(0,7);
+  document.getElementById('mPygModo').value = e ? (e.pygModo || 'acumulado') : 'acumulado';
   const obligs = e ? (e.obligaciones || []) : MODELOS_PLANOS.slice();
   document.getElementById('mObligaciones').innerHTML = MODELOS_PLANOS.map(m =>
     '<label><input type="checkbox" value="' + m + '"' + (obligs.includes(m) ? ' checked' : '') + '> ' + m + '</label>'
@@ -1336,6 +1362,8 @@ async function guardarEmpresa() {
     forma: document.getElementById('mForma').value,
     color: document.getElementById('mColor').value,
     notas: document.getElementById('mNotas').value.trim(),
+    desde: document.getElementById('mDesde').value ? document.getElementById('mDesde').value + '-01' : '',
+    pygModo: document.getElementById('mPygModo').value,
     obligaciones: Array.from(document.querySelectorAll('#mObligaciones input:checked')).map(i => i.value),
     orden: existente ? (existente.orden || 0) : (window.empresas || []).length,
     actualizado: new Date().toISOString()
@@ -1358,6 +1386,8 @@ async function crearSeis() {
     await fbSet('ca_empresas', uid(), {
       nombre: 'Sociedad ' + (i + 1),
       cif: '', forma: 'SL', color: colores[i], notas: '',
+      desde: hoyISO().slice(0,7) + '-01',
+      pygModo: 'acumulado',
       obligaciones: MODELOS_PLANOS.slice(),
       orden: i,
       actualizado: new Date().toISOString()
@@ -1400,7 +1430,7 @@ function itemsDelDia(ds) {
       empresasEnFoco().forEach(e => {
         if (!(e.obligaciones || []).includes(v.modelo)) return;
         const celda = getCelda(e.id, v.modelo, v.periodo, String(a));
-        if (celda && celda.estado === 'presentado') return;
+        if (celda && (celda.estado === 'presentado' || celda.estado === 'no_aplica')) return;
         out.push({ tipo:'fiscal', titulo:'M' + v.label, empresaId:e.id, empresaNombre:e.nombre, todoDia:true });
       });
     });
@@ -1591,11 +1621,13 @@ function celdaKey(empresaId, modelo, periodo, anio) { return empresaId + '_' + m
 function getCelda(empresaId, modelo, periodo, anio) { return (window.planningData || {})[celdaKey(empresaId, modelo, periodo, anio)]; }
 
 function estadoColor(e) {
-  return e === 'presentado' ? '#10B981' : e === 'proceso' ? '#F59E0B' : '#D6DEE8';
+  return e === 'presentado' ? '#10B981' : e === 'proceso' ? '#F59E0B'
+       : e === 'no_aplica' ? '#1E2C3A' : '#D6DEE8';
 }
 function estadoLabel(c) {
   if (!c || !c.estado || c.estado === 'pendiente') return '—';
   if (c.estado === 'proceso') return 'En curso';
+  if (c.estado === 'no_aplica') return 'N/A';
   if (c.sa) return 'SA';
   return c.importe ? c.importe : 'OK';
 }
@@ -1695,7 +1727,7 @@ function abrirCelda(empresaId, modelo, periodo, nombre) {
 
 function setEstado(e) {
   pcEstado = e;
-  [['pendiente','pcBtnPendiente'],['proceso','pcBtnProceso'],['presentado','pcBtnPresentado']].forEach(([k, id]) => {
+  [['pendiente','pcBtnPendiente'],['proceso','pcBtnProceso'],['presentado','pcBtnPresentado'],['no_aplica','pcBtnNoAplica']].forEach(([k, id]) => {
     const b = document.getElementById(id);
     b.style.background = k === e ? 'var(--navy)' : 'white';
     b.style.color = k === e ? 'white' : 'var(--gray-600)';
@@ -1889,7 +1921,7 @@ function alarmasActivas() {
 
   const y = new Date().getFullYear();
   vencimientosVigentes(y - 1, y + 1).forEach(v => {
-    if (v.estado === 'presentado') return;
+    if (v.estado === 'presentado' || v.estado === 'no_aplica') return;
     const n = nivelAlarma(v.fecha);
     if (!n) return;
     const d = diasHasta(v.fecha);
@@ -2194,6 +2226,50 @@ function desgloseIS(empresaId, anio, base) {
 
 function pygKey(empresaId, anio, mes) { return empresaId + '_' + anio + '_' + String(mes).padStart(2,'0'); }
 
+// ¿Esta empresa se lleva con importes acumulados desde enero?
+// Por defecto sí: es como salen de un programa de contabilidad.
+function esAcumulada(empresaId) {
+  const e = empresaById(empresaId);
+  if (!e) return true;
+  return e.pygModo !== 'mensual';
+}
+
+// Último documento disponible en el mes indicado o antes. En modo acumulado no
+// hace falta que estén los doce meses: basta con los cortes que hayas cargado.
+function valoresHasta(empresaId, anio, mes) {
+  for (let m = mes; m >= 1; m--) {
+    const d = (window.pyg || {})[pygKey(empresaId, anio, m)];
+    if (d && d.valores) return d.valores;
+  }
+  return null;
+}
+
+// Cifras de una empresa en un rango de meses, según cómo se lleve.
+function valoresRango(empresaId, anio, meses) {
+  const v = {};
+  PYG_INPUTS.forEach(k => v[k] = 0);
+  if (!meses.length) return v;
+  const a = meses[0], b = meses[meses.length - 1];
+
+  if (esAcumulada(empresaId)) {
+    // Acumulado: el rango es la diferencia entre dos cortes.
+    const fin = valoresHasta(empresaId, anio, b);
+    if (!fin) return v;
+    const ini = a > 1 ? valoresHasta(empresaId, anio, a - 1) : null;
+    PYG_INPUTS.forEach(k => {
+      v[k] = (parseFloat(fin[k]) || 0) - (ini ? (parseFloat(ini[k]) || 0) : 0);
+    });
+  } else {
+    // Mensual: se suman los meses del rango.
+    meses.forEach(m => {
+      const d = (window.pyg || {})[pygKey(empresaId, anio, m)];
+      if (!d || !d.valores) return;
+      PYG_INPUTS.forEach(k => { v[k] += (parseFloat(d.valores[k]) || 0); });
+    });
+  }
+  return v;
+}
+
 // Suma un periodo. Con "todas", el impuesto se calcula empresa a empresa sobre
 // su propio resultado y luego se consolida: los tramos no son aditivos.
 function pygPeriodo(empresaId, anio, meses) {
@@ -2201,14 +2277,7 @@ function pygPeriodo(empresaId, anio, meses) {
   const tot = {};
   PYG.forEach(p => tot[p.id] = 0);
   emps.forEach(eid => {
-    const v = {};
-    PYG_INPUTS.forEach(k => v[k] = 0);
-    meses.forEach(m => {
-      const doc = (window.pyg || {})[pygKey(eid, anio, m)];
-      if (!doc || !doc.valores) return;
-      PYG_INPUTS.forEach(k => { v[k] += (parseFloat(doc.valores[k]) || 0); });
-    });
-    const r = pygResolver(v);
+    const r = pygResolver(valoresRango(eid, anio, meses));
     r.imp = impuestoDe(eid, anio, r.C);
     r.cuota = r.imp + (r.ret || 0) + (r.pac || 0);
     PYG.forEach(p => tot[p.id] += (r[p.id] || 0));
@@ -2226,7 +2295,9 @@ function pygResolver(v) {
 
 function pygHayDatos(empresaId, anio, meses) {
   const emps = empresaId === 'todas' ? (window.empresas || []).map(e => e.id) : [empresaId];
-  return emps.some(eid => meses.some(m => (window.pyg || {})[pygKey(eid, anio, m)]));
+  return emps.some(eid => esAcumulada(eid)
+    ? !!valoresHasta(eid, anio, meses[meses.length - 1])
+    : meses.some(m => (window.pyg || {})[pygKey(eid, anio, m)]));
 }
 
 /* ── Navegación interna ── */
@@ -2263,15 +2334,19 @@ function renderPygEntrada(anio) {
   const doc = (window.pyg || {})[pygKey(empresaActiva, anio, mes)];
   const val = (doc && doc.valores) || {};
 
+  const acum = esAcumulada(empresaActiva);
   let h = '<div class="panel"><div class="panel-head">' +
-    '<div class="panel-title">' + esc(nombreEmpresa(empresaActiva)) + ' · ' + MESES[mes-1] + ' ' + anio + '</div>' +
-    '<div style="font-size:11px;color:var(--gray-400)">Gastos en negativo, igual que en tu Excel</div></div>' +
+    '<div class="panel-title">' + esc(nombreEmpresa(empresaActiva)) + ' · ' +
+      (acum ? 'acumulado a ' + MESES[mes-1] : MESES[mes-1]) + ' de ' + anio + '</div>' +
+    '<div style="font-size:11px;color:var(--gray-400)">' +
+      (acum ? 'Importes acumulados desde enero. Gastos en negativo.' : 'Importes solo de este mes. Gastos en negativo.') +
+    '</div></div>' +
     '<table class="pyg-table"><tbody>';
 
   PYG.forEach(p => {
     if (p.suma || p.calc) {
       h += '<tr class="pyg-sub' + (p.total ? ' pyg-total' : '') + '"><td>' + (p.n ? p.n + '. ' : '') + esc(p.label) +
-           (p.calc || p.id === 'cuota' ? '<span style="font-size:11px;font-weight:400;color:var(--gold-dark);margin-left:6px">acumulado enero–' + MESES[mes-1] + '</span>' : '') +
+           ((p.calc || p.id === 'cuota') && !acum ? '<span style="font-size:11px;font-weight:400;color:var(--gold-dark);margin-left:6px">acumulado enero–' + MESES[mes-1] + '</span>' : '') +
            (p.calc ? ' <button class="btn btn-ghost btn-sm" style="margin-left:8px" onclick="abrirConfigIS()">Configurar</button>' +
                      '<div style="font-size:11px;font-weight:400;color:var(--gray-400);margin-top:2px">' + esc(explicaIS(empresaActiva, anio)) + '</div>' : '') +
            '</td>' +
@@ -2309,33 +2384,40 @@ function normalizarSigno(el) {
 function recalcEntrada() {
   const anio = parseInt(document.getElementById('pygAnio').value);
   const mes = parseInt(document.getElementById('pygMesEntrada').value);
+  const acum = esAcumulada(empresaActiva);
 
-  // Lo que hay ahora mismo en el formulario: solo este mes.
   const v = {};
   PYG_INPUTS.forEach(k => {
     const el = document.getElementById('in_' + k);
     v[k] = el ? parseEur(el.value) : 0;
   });
-  const mesR = pygResolver(v);
 
-  // Acumulado del ejercicio: meses ya guardados más lo que se está tecleando.
-  const prev = acumuladoPrevio(empresaActiva, anio, mes);
-  const acu = {};
-  PYG_INPUTS.forEach(k => acu[k] = (prev[k] || 0) + (v[k] || 0));
+  // En modo acumulado lo tecleado ya es el acumulado del ejercicio.
+  // En modo mensual hay que sumarle los meses anteriores ya guardados.
+  let acu;
+  if (acum) {
+    acu = { ...v };
+  } else {
+    acu = {};
+    const prev = acumuladoPrevio(empresaActiva, anio, mes);
+    PYG_INPUTS.forEach(k => acu[k] = (prev[k] || 0) + (v[k] || 0));
+  }
+
+  const propio = pygResolver(v);
   const acuR = pygResolver(acu);
   const des = desgloseIS(empresaActiva, anio, acuR.C);
   acuR.imp = des.impuesto;
   acuR.cuota = acuR.imp + (acuR.ret || 0) + (acuR.pac || 0);
 
-  // Los subtotales del mes se muestran con las cifras del mes; el impuesto y la
-  // cuota, con el acumulado, que es lo que se pagaría si se cerrase hoy.
   PYG.filter(p => p.suma || p.calc).forEach(p => {
     const el = document.getElementById('calc_' + p.id);
     if (!el) return;
-    const usaAcumulado = (p.id === 'imp' || p.id === 'cuota');
-    const val = usaAcumulado ? acuR[p.id] : mesR[p.id];
+    // En acumulado toda la tabla es acumulada; en mensual, solo impuesto y cuota.
+    const usaAcumulado = acum || p.id === 'imp' || p.id === 'cuota';
+    const val = usaAcumulado ? acuR[p.id] : propio[p.id];
     el.textContent = fmtEur(val);
-    el.style.color = val < 0 ? 'var(--q1)' : usaAcumulado ? 'var(--gold-dark)' : 'var(--navy)';
+    el.style.color = val < 0 ? 'var(--q1)'
+      : (!acum && (p.id === 'imp' || p.id === 'cuota')) ? 'var(--gold-dark)' : 'var(--navy)';
   });
 
   renderPrevision(anio, mes, acuR, des);
@@ -2368,7 +2450,7 @@ function renderPrevision(anio, mes, acuR, des) {
   zona.innerHTML =
     '<div class="prev-cab"><div>' +
       '<div class="prev-tit">Previsión de pago a cierre de ' + MESES[mes-1] + '</div>' +
-      '<div class="prev-sub">Sobre el resultado acumulado de enero a ' + MESES[mes-1] + ', con los meses que tengas guardados</div>' +
+      '<div class="prev-sub">Sobre el resultado acumulado de enero a ' + MESES[mes-1] + '</div>' +
     '</div><button class="btn btn-ghost btn-sm" onclick="abrirConfigIS()">Configurar impuesto</button></div>' +
     '<div class="prev-grid">' +
       '<div class="prev-kpi"><div class="prev-kpi-num">' + fmtEur(acuR.C) + '</div><div class="prev-kpi-lab">Resultado antes de impuestos</div></div>' +
@@ -2468,31 +2550,11 @@ function renderPygInforme(anio) {
 
   h += '</tbody></table></div>' +
     '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px" class="no-print">' +
-    '<button class="btn btn-ghost" onclick="exportarCsv()">Exportar CSV</button>' +
-    '<button class="btn btn-navy" onclick="window.print()">Imprimir o guardar en PDF</button></div>';
+    '<button class="btn btn-ghost" onclick="exportarCsv()">CSV</button>' +
+    '<button class="btn btn-ghost" onclick="exportarExcel()">Excel</button>' +
+    '<button class="btn btn-navy" onclick="imprimirInforme()">Imprimir o PDF</button></div>';
 
   cont.innerHTML = h;
-}
-
-function exportarCsv() {
-  const anio = parseInt(document.getElementById('pygAnio').value);
-  const meses = mesesDelPeriodo();
-  const act = pygPeriodo(empresaActiva, anio, meses);
-  const ant = pygPeriodo(empresaActiva, anio - 1, meses);
-  let csv = 'Concepto;Ejercicio ' + anio + ';Ejercicio ' + (anio-1) + ';Variacion\n';
-  PYG.forEach(p => {
-    const a = act[p.id] || 0, b = ant[p.id] || 0;
-    csv += '"' + (p.n ? p.n + '. ' : '') + p.label.replace(/"/g,'""') + '";' +
-      String(a.toFixed(2)).replace('.', ',') + ';' +
-      String(b.toFixed(2)).replace('.', ',') + ';' +
-      String((a-b).toFixed(2)).replace('.', ',') + '\n';
-  });
-  const blob = new Blob(['\ufeff' + csv], { type:'text/csv;charset=utf-8' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'PyG_' + (empresaActiva === 'todas' ? 'grupo' : nombreEmpresa(empresaActiva).replace(/\s+/g,'_')) + '_' + rotuloCorto() + '_' + anio + '.csv';
-  a.click();
-  URL.revokeObjectURL(a.href);
 }
 
 /* ── Panel de indicadores ── */
@@ -2652,6 +2714,275 @@ function toast(msg) {
   window._toastT = setTimeout(() => { t.className = ''; }, 2200);
 }
 
+
+/* ══════════════ GENERADOR DE XLSX ══════════════ */
+/* Escribe un .xlsx real sin librerías externas: ZIP sin comprimir más los XML
+   mínimos que exige el formato. Los importes van como números con formato de
+   euro, no como texto, para que se puedan sumar en Excel. */
+
+const TABLA_CRC = (() => {
+  const t = new Uint32Array(256);
+  for (let i = 0; i < 256; i++) {
+    let c = i;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[i] = c >>> 0;
+  }
+  return t;
+})();
+
+function crc32(bytes) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) c = TABLA_CRC[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+const utf8 = s => new TextEncoder().encode(s);
+
+// Construye un ZIP con método "store" (sin comprimir), suficiente para xlsx.
+function zip(archivos) {
+  const locales = [], central = [];
+  let offset = 0;
+
+  const u16 = n => [n & 0xFF, (n >>> 8) & 0xFF];
+  const u32 = n => [n & 0xFF, (n >>> 8) & 0xFF, (n >>> 16) & 0xFF, (n >>> 24) & 0xFF];
+
+  archivos.forEach(f => {
+    const nombre = utf8(f.nombre);
+    const datos = utf8(f.contenido);
+    const crc = crc32(datos);
+
+    const cabecera = [
+      ...u32(0x04034b50), ...u16(20), ...u16(0x0800), ...u16(0),
+      ...u16(0), ...u16(0),
+      ...u32(crc), ...u32(datos.length), ...u32(datos.length),
+      ...u16(nombre.length), ...u16(0)
+    ];
+    locales.push(new Uint8Array(cabecera), nombre, datos);
+
+    central.push(new Uint8Array([
+      ...u32(0x02014b50), ...u16(20), ...u16(20), ...u16(0x0800), ...u16(0),
+      ...u16(0), ...u16(0),
+      ...u32(crc), ...u32(datos.length), ...u32(datos.length),
+      ...u16(nombre.length), ...u16(0), ...u16(0), ...u16(0), ...u16(0),
+      ...u32(0), ...u32(offset)
+    ]), nombre);
+
+    offset += cabecera.length + nombre.length + datos.length;
+  });
+
+  const tamCentral = central.reduce((s, b) => s + b.length, 0);
+  const fin = new Uint8Array([
+    ...u32(0x06054b50), ...u16(0), ...u16(0),
+    ...u16(archivos.length), ...u16(archivos.length),
+    ...u32(tamCentral), ...u32(offset), ...u16(0)
+  ]);
+
+  const partes = [...locales, ...central, fin];
+  const total = partes.reduce((s, b) => s + b.length, 0);
+  const salida = new Uint8Array(total);
+  let p = 0;
+  partes.forEach(b => { salida.set(b, p); p += b.length; });
+  return salida;
+}
+
+const escXml = s => String(s == null ? '' : s)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+
+function colLetra(n) {
+  let s = '';
+  while (n > 0) { const r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26); }
+  return s;
+}
+
+/* filas: array de arrays. Cada celda puede ser:
+   - string o number sueltos
+   - { v, estilo }  donde estilo: 'titulo' | 'cabecera' | 'euro' | 'euroFuerte' | 'pct' | 'fuerte' */
+const ESTILOS = { normal:0, fuerte:1, euro:2, euroFuerte:3, pct:4, cabecera:5, titulo:6 };
+
+function hojaXml(filas, anchos) {
+  let xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">';
+  if (anchos && anchos.length) {
+    xml += '<cols>' + anchos.map((a, i) =>
+      '<col min="' + (i+1) + '" max="' + (i+1) + '" width="' + a + '" customWidth="1"/>').join('') + '</cols>';
+  }
+  xml += '<sheetData>';
+  filas.forEach((fila, i) => {
+    const r = i + 1;
+    xml += '<row r="' + r + '">';
+    fila.forEach((celda, j) => {
+      if (celda === null || celda === undefined || celda === '') return;
+      const ref = colLetra(j + 1) + r;
+      const obj = (typeof celda === 'object') ? celda : { v: celda };
+      const s = ESTILOS[obj.estilo] || 0;
+      if (typeof obj.v === 'number' && isFinite(obj.v)) {
+        xml += '<c r="' + ref + '" s="' + s + '"><v>' + obj.v + '</v></c>';
+      } else {
+        xml += '<c r="' + ref + '" s="' + s + '" t="inlineStr"><is><t xml:space="preserve">' +
+               escXml(obj.v) + '</t></is></c>';
+      }
+    });
+    xml += '</row>';
+  });
+  return xml + '</sheetData></worksheet>';
+}
+
+function construirXlsx(nombreHoja, filas, anchos) {
+  const estilos = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+    '<numFmts count="2">' +
+      '<numFmt numFmtId="164" formatCode="#,##0.00\\ &quot;€&quot;"/>' +
+      '<numFmt numFmtId="165" formatCode="0.0%"/>' +
+    '</numFmts>' +
+    '<fonts count="3">' +
+      '<font><sz val="11"/><name val="Calibri"/></font>' +
+      '<font><b/><sz val="11"/><name val="Calibri"/></font>' +
+      '<font><b/><sz val="14"/><color rgb="FF0A2540"/><name val="Calibri"/></font>' +
+    '</fonts>' +
+    '<fills count="3">' +
+      '<fill><patternFill patternType="none"/></fill>' +
+      '<fill><patternFill patternType="gray125"/></fill>' +
+      '<fill><patternFill patternType="solid"><fgColor rgb="FF0A2540"/><bgColor indexed="64"/></patternFill></fill>' +
+    '</fills>' +
+    '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>' +
+    '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+    '<cellXfs count="7">' +
+      '<xf numFmtId="0"   fontId="0" fillId="0" borderId="0" xfId="0"/>' +
+      '<xf numFmtId="0"   fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>' +
+      '<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>' +
+      '<xf numFmtId="164" fontId="1" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/>' +
+      '<xf numFmtId="165" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>' +
+      '<xf numFmtId="0"   fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/>' +
+      '<xf numFmtId="0"   fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"/>' +
+    '</cellXfs>' +
+    '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>' +
+    '</styleSheet>';
+
+  return zip([
+    { nombre:'[Content_Types].xml', contenido:
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+      '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+      '<Default Extension="xml" ContentType="application/xml"/>' +
+      '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+      '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' +
+      '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' +
+      '</Types>' },
+    { nombre:'_rels/.rels', contenido:
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>' +
+      '</Relationships>' },
+    { nombre:'xl/workbook.xml', contenido:
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" ' +
+      'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+      '<sheets><sheet name="' + escXml(nombreHoja.slice(0,31)) + '" sheetId="1" r:id="rId1"/></sheets></workbook>' },
+    { nombre:'xl/_rels/workbook.xml.rels', contenido:
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>' +
+      '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' +
+      '</Relationships>' },
+    { nombre:'xl/styles.xml', contenido: estilos },
+    { nombre:'xl/worksheets/sheet1.xml', contenido: hojaXml(filas, anchos) }
+  ]);
+}
+
+
+/* ── Exportaciones del informe ── */
+
+function descargar(bytes, nombre, tipo) {
+  const blob = new Blob([bytes], { type: tipo });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = nombre;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+function nombreArchivo(ext, anio) {
+  const emp = empresaActiva === 'todas' ? 'Grupo' : nombreEmpresa(empresaActiva);
+  return 'PyG_' + emp.replace(/[^\wáéíóúñÁÉÍÓÚÑ ]/g, '').replace(/\s+/g, '_') +
+         '_' + rotuloCorto().replace('-', '_') + '_' + anio + '.' + ext;
+}
+
+// Construye las filas del informe una sola vez y las reutilizan Excel y CSV.
+function filasInforme(anio) {
+  const meses = mesesDelPeriodo();
+  const act = pygPeriodo(empresaActiva, anio, meses);
+  const ant = pygPeriodo(empresaActiva, anio - 1, meses);
+  const ventas = act.p1 || 0;
+  const rotulo = empresaActiva === 'todas' ? 'Consolidado del grupo' : nombreEmpresa(empresaActiva);
+
+  const filas = [
+    [{ v: rotulo + ' — Cuenta de pérdidas y ganancias', estilo:'titulo' }],
+    [rotuloPeriodo() + ' · ejercicio ' + anio + ' · modelo comparativo'],
+    [],
+    [{ v:'Concepto', estilo:'cabecera' }, { v:'Ejercicio ' + anio, estilo:'cabecera' },
+     { v:'Ejercicio ' + (anio-1), estilo:'cabecera' }, { v:'Variación', estilo:'cabecera' },
+     { v:'% variación', estilo:'cabecera' }, { v:'% s/ventas', estilo:'cabecera' }]
+  ];
+
+  PYG.forEach(p => {
+    const a = act[p.id] || 0, b = ant[p.id] || 0, dif = a - b;
+    const pct = b === 0 ? null : dif / Math.abs(b);
+    const sv = ventas === 0 ? null : a / ventas;
+    const fuerte = !!(p.total || p.suma);
+    filas.push([
+      { v: (p.n ? p.n + '. ' : '') + p.label, estilo: fuerte ? 'fuerte' : 'normal' },
+      { v: a, estilo: fuerte ? 'euroFuerte' : 'euro' },
+      { v: b, estilo: fuerte ? 'euroFuerte' : 'euro' },
+      { v: dif, estilo: fuerte ? 'euroFuerte' : 'euro' },
+      pct == null ? '' : { v: pct, estilo:'pct' },
+      sv == null ? '' : { v: sv, estilo:'pct' }
+    ]);
+  });
+
+  if (empresaActiva !== 'todas') {
+    filas.push([]);
+    filas.push([{ v:'Impuesto calculado: ' + explicaIS(empresaActiva, anio) }]);
+  }
+  filas.push([{ v:'Documento de trabajo para previsión. No sustituye a las cuentas oficiales.' }]);
+  return filas;
+}
+
+function exportarExcel() {
+  const anio = parseInt(document.getElementById('pygAnio').value);
+  try {
+    const bytes = construirXlsx('PyG ' + anio, filasInforme(anio), [52,16,16,16,12,12]);
+    descargar(bytes, nombreArchivo('xlsx', anio),
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    toast('Excel generado');
+  } catch (e) {
+    console.error(e);
+    alert('No se pudo generar el Excel. Prueba con la exportación CSV.');
+  }
+}
+
+function exportarCsv() {
+  const anio = parseInt(document.getElementById('pygAnio').value);
+  const filas = filasInforme(anio);
+  const celda = c => {
+    const v = (c && typeof c === 'object') ? c.v : c;
+    if (v == null || v === '') return '';
+    if (typeof v === 'number') return String(v.toFixed(4)).replace('.', ',');
+    return '"' + String(v).replace(/"/g, '""') + '"';
+  };
+  const csv = filas.map(f => f.map(celda).join(';')).join('\r\n');
+  descargar('\ufeff' + csv, nombreArchivo('csv', anio), 'text/csv;charset=utf-8');
+}
+
+function imprimirInforme() {
+  document.body.classList.add('imprimiendo');
+  const limpiar = () => document.body.classList.remove('imprimiendo');
+  window.addEventListener('afterprint', limpiar, { once: true });
+  setTimeout(limpiar, 60000);
+  window.print();
+}
 
 /* ══════════════ ARRANQUE ══════════════ */
 
