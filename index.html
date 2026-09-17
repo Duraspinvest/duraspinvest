@@ -242,7 +242,7 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
   window.duraspinvestNotifReady = true;
 
   // Listeners activos - se activan tras login
-  let unsubTasks, unsubClients, unsubProspectos, unsubPlanning, unsubTes, unsubTesRec;
+  let unsubTasks, unsubClients, unsubProspectos, unsubPlanning, unsubTes, unsubTesRec, unsubBandeja;
 
   function activarListeners() {
     // Tareas
@@ -287,6 +287,13 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
       window.tesRec = snap.docs.map(d => ({...d.data(), id: d.id}));
       if(typeof renderRecList === 'function' && document.getElementById('recModal') && document.getElementById('recModal').classList.contains('open')) renderRecList();
     });
+
+    // Bandeja de entrada (texto/audio compartidos desde WhatsApp u otras apps)
+    unsubBandeja = onSnapshot(collection(db, "bandeja"), (snap) => {
+      window.bandeja = snap.docs.map(d => ({...d.data(), id: d.id}))
+        .sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+      if(typeof renderBandeja === 'function') renderBandeja();
+    });
   }
 
   function desactivarListeners() {
@@ -296,6 +303,7 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
     if(unsubPlanning) unsubPlanning();
     if(unsubTes) unsubTes();
     if(unsubTesRec) unsubTesRec();
+    if(unsubBandeja) unsubBandeja();
   }
 
   onAuthStateChanged(auth, (user) => {
@@ -307,16 +315,20 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
       window.planningData = {};
       window.tesoreria = [];
       window.tesRec = [];
+      window.bandeja = [];
 
       document.getElementById('loginScreen').style.display = 'none';
       document.getElementById('appContent').style.display = 'flex';
       document.getElementById('userEmail').textContent = user.email;
-      
+
       // Activar listeners en tiempo real
       activarListeners();
-      
+
       // Renderizar dashboard inicial
       if(typeof renderDashboard === 'function') renderDashboard();
+
+      // Subir a Firestore lo que se haya compartido desde WhatsApp mientras no había sesión abierta
+      if(typeof procesarPendientesCompartidos === 'function') procesarPendientesCompartidos();
     } else {
       desactivarListeners();
       document.getElementById('loginScreen').style.display = 'flex';
@@ -433,6 +445,18 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
       <button id="btnGrabar" onclick="toggleGrabacion()" style="width:52px;height:52px;border-radius:50%;background:#EF4444;color:white;border:none;font-size:22px;cursor:pointer;flex-shrink:0;transition:all 0.2s;">🎙</button>
     </div>
     <div id="vozLista" style="margin-top:8px;"></div>
+  </div>
+
+  <!-- BANDEJA DE ENTRADA: texto/audios compartidos desde WhatsApp -->
+  <div style="margin-bottom:16px;">
+    <div class="card" style="margin-bottom:0;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <div style="font-size:14px;font-weight:600;color:var(--navy);">📥 Recibido por WhatsApp</div>
+        <span id="badgeBandeja" style="display:none;background:#EF4444;color:white;border-radius:20px;font-size:10px;padding:1px 8px;font-weight:700;"></span>
+      </div>
+      <div style="font-size:11px;color:var(--gray-400);margin-bottom:8px;">Comparte un mensaje o un audio de WhatsApp con "Duraspinvest" desde el menú Compartir y aparecerá aquí.</div>
+      <div id="bandejaLista"></div>
+    </div>
   </div>
 
   <div id="alertasPanel" style="display:none;background:#FEF2F2;border:1px solid #FECACA;border-radius:var(--radius);padding:14px 18px;margin-bottom:16px;">
@@ -2276,6 +2300,115 @@ function eliminarNotaVoz(id) {
   renderNotasVoz();
 }
 
+// ── Bandeja de entrada (compartido desde WhatsApp vía Web Share Target) ───────
+// share-sw.js deja lo compartido en IndexedDB (funciona aunque la app esté cerrada
+// o sin conexión); aquí lo recogemos y lo subimos a Firestore para verlo desde
+// cualquier dispositivo, igual que clientes o tareas.
+
+const BANDEJA_TAMANO_MAX_AUDIO = 900000; // límite ~1MB por documento en Firestore
+
+function abrirShareDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('duraspinvest_share', 1);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains('pendientes')) db.createObjectStore('pendientes', { keyPath: 'id' });
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function leerPendientesCompartidos() {
+  try {
+    const db = await abrirShareDB();
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction('pendientes', 'readonly');
+      const req = tx.objectStore('pendientes').getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => reject(req.error);
+    });
+  } catch(e) { console.error('Error leyendo pendientes compartidos:', e); return []; }
+}
+
+async function borrarPendienteCompartido(id) {
+  try {
+    const db = await abrirShareDB();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction('pendientes', 'readwrite');
+      tx.objectStore('pendientes').delete(id);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch(e) { console.error('Error borrando pendiente compartido:', e); }
+}
+
+function blobADataURL(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function procesarPendientesCompartidos() {
+  const pendientes = await leerPendientesCompartidos();
+  if (!pendientes.length) return;
+  for (const p of pendientes) {
+    try {
+      const doc = { id: p.id, tipo: p.tipo, fecha: p.fecha, origen: 'whatsapp' };
+      if (p.tipo === 'audio' && p.blob) {
+        if (p.blob.size > BANDEJA_TAMANO_MAX_AUDIO) {
+          console.warn('Audio compartido demasiado largo, se descarta:', p.id);
+          await borrarPendienteCompartido(p.id);
+          continue;
+        }
+        doc.audioData = await blobADataURL(p.blob);
+        if (p.texto) doc.texto = p.texto;
+      } else {
+        doc.texto = p.texto || '';
+      }
+      await fbSet('bandeja', p.id, doc);
+      await borrarPendienteCompartido(p.id);
+    } catch(e) { console.error('Error procesando pendiente compartido:', p.id, e); }
+  }
+}
+
+function escapeHtmlBandeja(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function renderBandeja() {
+  const lista = document.getElementById('bandejaLista');
+  const badge = document.getElementById('badgeBandeja');
+  if (!lista) return;
+  const items = window.bandeja || [];
+  if (badge) {
+    if (items.length) { badge.style.display = 'inline-block'; badge.textContent = items.length; }
+    else badge.style.display = 'none';
+  }
+  if (!items.length) {
+    lista.innerHTML = '<div class="empty" style="padding:12px 0;"><div class="empty-text">Nada pendiente por ahora.</div></div>';
+    return;
+  }
+  lista.innerHTML = items.map(n => {
+    const fecha = new Date(n.fecha).toLocaleDateString('es-ES',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+    const cuerpo = n.tipo === 'audio'
+      ? '<audio controls src="' + n.audioData + '" style="width:100%;height:32px;margin-top:4px;"></audio>' + (n.texto ? '<div style="font-size:12px;color:var(--gray-600);margin-top:4px;">' + escapeHtmlBandeja(n.texto) + '</div>' : '')
+      : '<div style="font-size:13px;color:var(--gray-800);white-space:pre-wrap;">' + escapeHtmlBandeja(n.texto) + '</div>';
+    return '<div class="voz-item" style="align-items:flex-start;">'
+      + '<div style="font-size:18px;">' + (n.tipo === 'audio' ? '🎙' : '💬') + '</div>'
+      + '<div style="flex:1;"><div style="font-size:11px;color:var(--gray-400);margin-bottom:2px;">' + fecha + '</div>' + cuerpo + '</div>'
+      + '<button class="icon-btn" data-id="' + n.id + '" onclick="eliminarBandeja(this.dataset.id)" style="color:#EF4444;font-size:18px;">&#215;</button></div>';
+  }).join('');
+}
+
+async function eliminarBandeja(id) {
+  if(!confirm('¿Eliminar este elemento de la bandeja?')) return;
+  await fbDelete('bandeja', id);
+}
+
 // ── Prospectos render ─────────────────────────────────────────────────────────
 
 function renderProspectos() {
@@ -2978,6 +3111,12 @@ checkBiometricAvailable();
 checkNotifStatus();
 updateHuellaBtn();
 renderNotasVoz();
+renderBandeja();
+
+// Service worker que recibe lo compartido desde WhatsApp u otras apps (Web Share Target)
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('share-sw.js').catch(e => console.error('Error registrando share-sw.js:', e));
+}
 document.getElementById('loginEmail').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('loginPassword').focus(); });
 document.getElementById('loginPassword').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
 </script>
