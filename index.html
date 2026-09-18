@@ -2629,7 +2629,15 @@ async function toggleGrabacion() {
 
 async function iniciarGrabacion() {
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    // Se desactiva la cancelación de eco / control automático de ganancia / reducción de ruido:
+    // por defecto el móvil las activa pensando en llamadas, y eso "cancela" justo el sonido
+    // del propio altavoz cuando se intenta grabar un audio de WhatsApp reproducido en voz alta.
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+    } catch(e2) {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true }); // por si el dispositivo rechaza esas restricciones
+    }
     mediaRecorder = new MediaRecorder(stream);
     audioChunks = [];
     mediaRecorder.ondataavailable = e => { if(e.data.size > 0) audioChunks.push(e.data); };
