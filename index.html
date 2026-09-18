@@ -1024,6 +1024,32 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
   </div>
 </div>
 
+<!-- ESCRIBIR POR EMAIL -->
+<div class="modal-overlay" id="emailModalOverlay" onclick="closeModalOutside(event,'emailModalOverlay')">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-title">✉ Escribir por email <span id="emailModalCliente" style="color:var(--gray-400);font-weight:400;font-size:13px;"></span></div>
+    <div class="form-group">
+      <label class="form-label">Asunto</label>
+      <input type="text" class="form-input" id="emailAsunto" placeholder="Asunto del correo…" oninput="guardarBorradorEmail()">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Mensaje</label>
+      <textarea class="form-input" id="emailTexto" rows="6" placeholder="Escribe el mensaje…" oninput="guardarBorradorEmail()" style="resize:vertical;"></textarea>
+    </div>
+    <div id="emailSinCorreo" style="display:none;font-size:12px;color:var(--q1);margin-bottom:10px;">⚠ Este cliente no tiene email guardado. Edítalo en su ficha o escríbelo al enviar.</div>
+    <div style="font-size:11px;color:var(--gray-400);margin-bottom:10px;">Se abrirá tu app de correo con esto ya escrito. Los archivos hay que adjuntarlos allí a mano — desde un enlace no se pueden adjuntar automáticamente.</div>
+    <div style="font-size:11px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">Insertar enlace</div>
+    <div id="emailChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;max-height:140px;overflow-y:auto;"></div>
+    <div class="modal-actions" style="justify-content:space-between;">
+      <button class="btn btn-secondary" onclick="descartarBorradorEmail()">Descartar borrador</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-secondary" onclick="closeModal('emailModalOverlay')">Cerrar</button>
+        <button class="btn btn-primary" style="background:var(--navy-mid);" onclick="enviarEmailCliente()">Abrir en correo →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- MENSAJE A VARIOS CLIENTES -->
 <div class="modal-overlay" id="difusionModalOverlay" onclick="closeModalOutside(event,'difusionModalOverlay')">
   <div class="modal" style="max-width:560px;">
@@ -2930,6 +2956,7 @@ function showFicha(id) {
   parts.push('</div>');
   parts.push('<div style="display:flex;gap:6px;">');
   parts.push('<button class="btn btn-sm" style="background:#25D366;color:white;" onclick="abrirWhatsappCliente(window._fichaClienteId)">💬 WhatsApp</button>');
+  parts.push('<button class="btn btn-sm" style="background:var(--navy-mid);color:white;" onclick="abrirEmailCliente(window._fichaClienteId)">✉ Email</button>');
   parts.push('<button class="btn btn-sm" style="background:var(--navy-mid);color:white;" onclick="openClienteModal(window._fichaClienteId)">Editar</button>');
   parts.push('<button class="btn btn-sm btn-danger" onclick="deleteCliente(window._fichaClienteId)">Eliminar</button>');
   parts.push('</div></div>');
@@ -3214,11 +3241,79 @@ function descartarBorradorWa() {
   document.getElementById('waTexto').value = '';
 }
 
-async function registrarComunicacionCliente(cid, resumen) {
+// ── Escribir por email (mismo patrón que WhatsApp: borrador persistente + enlaces) ──
+
+let emailDrafts = {};
+let emailCidActual = null;
+
+function abrirEmailCliente(cid) {
+  const c = (window.clients || []).find(x => String(x.id) === String(cid));
+  if (!c) return;
+  emailCidActual = cid;
+  document.getElementById('emailModalCliente').textContent = '· ' + c.nombre;
+  document.getElementById('emailSinCorreo').style.display = c.email ? 'none' : 'block';
+
+  if (!emailDrafts[cid]) emailDrafts[cid] = { asunto: '', texto: 'Hola ' + (c.nombre || '') + ',\n\n' };
+  document.getElementById('emailAsunto').value = emailDrafts[cid].asunto;
+  document.getElementById('emailTexto').value = emailDrafts[cid].texto;
+
+  const chips = WA_ENLACES_APP.concat(documentosClienteParaWa(c));
+  const chipsEl = document.getElementById('emailChips');
+  if (!chips.length) {
+    chipsEl.innerHTML = '<div style="font-size:12px;color:var(--gray-400);">Este cliente no tiene documentos con enlace guardados todavía.</div>';
+  } else {
+    chipsEl.innerHTML = chips.map((d, i) =>
+      '<button type="button" class="btn btn-sm" style="background:var(--gray-100);color:var(--gray-600);" data-i="' + i + '" onclick="insertarEnlaceEmail(this.dataset.i)">🔗 ' + agendaEsc(d.nombre) + '</button>'
+    ).join('');
+    window._emailChipsActuales = chips;
+  }
+
+  document.getElementById('emailModalOverlay').classList.add('open');
+}
+
+function insertarEnlaceEmail(i) {
+  const d = (window._emailChipsActuales || [])[i];
+  if (!d) return;
+  const ta = document.getElementById('emailTexto');
+  const sep = ta.value && !ta.value.endsWith('\n') && !ta.value.endsWith(' ') ? '\n' : '';
+  ta.value += sep + d.nombre + ': ' + d.url + '\n';
+  guardarBorradorEmail();
+  ta.focus();
+}
+
+function guardarBorradorEmail() {
+  if (!emailCidActual) return;
+  emailDrafts[emailCidActual] = {
+    asunto: document.getElementById('emailAsunto').value,
+    texto: document.getElementById('emailTexto').value
+  };
+}
+
+function descartarBorradorEmail() {
+  if (!emailCidActual) return;
+  if (!confirm('¿Descartar el correo escrito para este cliente?')) return;
+  delete emailDrafts[emailCidActual];
+  document.getElementById('emailAsunto').value = '';
+  document.getElementById('emailTexto').value = '';
+}
+
+function enviarEmailCliente() {
+  const c = (window.clients || []).find(x => String(x.id) === String(emailCidActual));
+  const asunto = document.getElementById('emailAsunto').value;
+  const texto = document.getElementById('emailTexto').value;
+  const destino = (c && c.email) ? c.email : '';
+  const url = 'mailto:' + encodeURIComponent(destino) + '?subject=' + encodeURIComponent(asunto) + '&body=' + encodeURIComponent(texto);
+  window.location.href = url;
+  registrarComunicacionCliente(emailCidActual, resumenParaHistorial((asunto ? asunto + ' — ' : '') + texto), 'Email');
+  // No se borra el borrador: si hay que retocarlo o reenviarlo, sigue ahí.
+}
+
+async function registrarComunicacionCliente(cid, resumen, canal) {
   const c = (window.clients || []).find(x => String(x.id) === String(cid));
   if (!c) return;
   if (!c.notas) c.notas = [];
-  c.notas.unshift({ texto: '💬 WhatsApp: ' + resumen, fecha: new Date().toISOString() });
+  const etiqueta = canal === 'Email' ? '✉ Email' : '💬 WhatsApp';
+  c.notas.unshift({ texto: etiqueta + ': ' + resumen, fecha: new Date().toISOString() });
   await fbSet('clients', cid, c);
 }
 
