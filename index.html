@@ -251,6 +251,10 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
       if(typeof renderDashboard === 'function') renderDashboard();
       if(typeof renderEisenhower === 'function') renderEisenhower();
       if(typeof renderAgenda === 'function') renderAgenda();
+      if(!window._briefingComprobado && typeof comprobarBriefingAutomatico === 'function') {
+        window._briefingComprobado = true;
+        setTimeout(comprobarBriefingAutomatico, 400); // pequeño margen para que clientes/tareas terminen de cargar
+      }
     });
 
     // Clientes
@@ -402,6 +406,7 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
   <div style="display:flex;align-items:center;gap:12px;">
     <div class="header-date" id="headerDate"></div>
     <span id="userEmail" style="color:#5A7FA8;font-size:11px;display:none;"></span>
+    <button onclick="abrirBuscador()" style="background:rgba(255,255,255,0.1);color:#8A9BB0;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;" title="Buscar">🔍</button>
     <button id="btnNotif" onclick="activarNotificaciones()" style="background:rgba(255,255,255,0.1);color:#8A9BB0;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;" title="Activar notificaciones">🔔</button>
     <button id="btnHuella" onclick="gestionarHuella()" style="background:rgba(255,255,255,0.1);color:#8A9BB0;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;" title="Huella dactilar">👆</button>
     <span style="display:inline-flex;gap:5px;background:rgba(0,0,0,0.22);border-radius:8px;padding:3px;">
@@ -447,6 +452,7 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
     </div>
     <div style="margin-bottom:10px;">
       <button id="btnVozTarea" class="btn btn-sm" onclick="toggleVozTarea()" style="background:var(--navy);color:white;">🎙️ Añadir cita o tarea por voz</button>
+      <button class="btn btn-sm" onclick="abrirBriefingDia()" style="background:var(--gray-100);color:var(--gray-600);">☀ Resumen del día</button>
       <div id="vozTareaStatus" style="font-size:12px;color:var(--gray-500);margin-top:6px;"></div>
     </div>
     <div id="agendaBody"></div>
@@ -488,7 +494,10 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
   </div>
 
   <div id="alertasPanel" style="display:none;background:#FEF2F2;border:1px solid #FECACA;border-radius:var(--radius);padding:14px 18px;margin-bottom:16px;">
-    <div style="font-size:13px;font-weight:600;color:#EF4444;margin-bottom:8px;">🔴 Alertas urgentes</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <div style="font-size:13px;font-weight:600;color:#EF4444;">🔴 Alertas urgentes</div>
+      <button class="icon-btn" title="Cambiar a partir de cuántos días avisa de 'esperando cliente'" onclick="configurarUmbralEspera()" style="font-size:12px;color:var(--gray-400);">⚙</button>
+    </div>
     <div id="alertasList"></div>
   </div>
 
@@ -502,6 +511,12 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
 <div id="resumen" class="section">
   <div style="font-size:18px;font-weight:600;color:var(--navy);margin-bottom:12px;">Cuadro de mando</div>
   <div id="cuadroMando" style="margin-bottom:20px;"></div>
+
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+    <div style="font-size:16px;font-weight:600;color:var(--navy);">🕸 Clientes sin actividad reciente</div>
+    <button class="icon-btn" title="Cambiar a partir de cuántos días se considera inactivo" onclick="configurarUmbralInactividad()" style="font-size:12px;color:var(--gray-400);">⚙</button>
+  </div>
+  <div id="clientesInactivosCard" style="background:#fff;border-radius:12px;box-shadow:var(--shadow);padding:14px 16px;margin-bottom:20px;"></div>
 </div>
 
 <!-- EISENHOWER -->
@@ -565,6 +580,8 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
           <input type="file" id="excelInput" accept=".xlsx,.xls" style="display:none;" onchange="importarExcel(this)">
           <button class="btn btn-sm" style="background:var(--q2-bg);color:var(--q2);border:1px solid var(--q2-border);" onclick="document.getElementById('excelInput').click()">⬆ Importar Excel</button>
         </div>
+        <button class="btn btn-sm" style="background:#25D366;color:white;" onclick="abrirDifusion()">📢 Mensaje a varios</button>
+        <button class="btn btn-sm" style="background:var(--navy-mid);color:white;" onclick="abrirGenerarFiscal()">📅 Tareas fiscales</button>
         <button class="btn btn-primary btn-sm" onclick="openClienteModal()">+ Nuevo cliente</button>
       </div>
     </div>
@@ -806,6 +823,13 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
       <div class="form-group"><label class="form-label">Hora (opcional)</label><input type="time" class="form-input" id="tHora"></div>
     </div>
     <div class="form-group"><label class="form-label">Notas</label><input type="text" class="form-input" id="tNotas" placeholder="Observaciones opcionales"></div>
+    <div class="form-group">
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--gray-800);cursor:pointer;">
+        <input type="checkbox" id="tEsperando" style="width:16px;height:16px;">
+        ⏳ Esperando respuesta/documentación del cliente
+      </label>
+      <div id="tEsperandoDesde" style="font-size:11px;color:var(--gray-400);margin-top:4px;margin-left:24px;"></div>
+    </div>
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="closeModal('taskModalOverlay')">Cancelar</button>
       <button class="btn btn-primary" onclick="saveTask()">Guardar tarea</button>
@@ -980,6 +1004,139 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
   </div>
 </div>
 
+<!-- ESCRIBIR POR WHATSAPP -->
+<div class="modal-overlay" id="waModalOverlay" onclick="closeModalOutside(event,'waModalOverlay')">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-title">💬 Escribir por WhatsApp <span id="waModalCliente" style="color:var(--gray-400);font-weight:400;font-size:13px;"></span></div>
+    <div class="form-group">
+      <textarea class="form-input" id="waTexto" rows="6" placeholder="Escribe el mensaje…" oninput="guardarBorradorWa()" style="resize:vertical;"></textarea>
+    </div>
+    <div id="waSinTelefono" style="display:none;font-size:12px;color:var(--q1);margin-bottom:10px;">⚠ Este cliente no tiene teléfono guardado. Edítalo en su ficha o escribe el número al enviar.</div>
+    <div style="font-size:11px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">Insertar enlace</div>
+    <div id="waChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;max-height:140px;overflow-y:auto;"></div>
+    <div class="modal-actions" style="justify-content:space-between;">
+      <button class="btn btn-secondary" onclick="descartarBorradorWa()">Descartar borrador</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-secondary" onclick="closeModal('waModalOverlay')">Cerrar</button>
+        <button class="btn btn-primary" style="background:#25D366;" onclick="enviarWhatsappCliente()">Enviar por WhatsApp →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MENSAJE A VARIOS CLIENTES -->
+<div class="modal-overlay" id="difusionModalOverlay" onclick="closeModalOutside(event,'difusionModalOverlay')">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-title">📢 Mensaje a varios clientes</div>
+
+    <div id="difusionPaso1">
+      <div class="form-group">
+        <label class="form-label">Plantilla</label>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <select class="form-input" id="difusionPlantillaSelect" style="flex:1;min-width:160px;" onchange="cargarPlantillaDifusion()">
+            <option value="">— Sin plantilla / mensaje en blanco —</option>
+          </select>
+          <button class="btn btn-sm" style="background:var(--gray-100);color:var(--gray-600);" onclick="guardarPlantillaDifusion()">💾 Guardar como plantilla</button>
+          <button class="btn btn-sm" style="background:var(--gray-100);color:var(--gray-600);" onclick="eliminarPlantillaDifusion()">🗑 Eliminar plantilla</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Mensaje</label>
+        <textarea class="form-input" id="difusionTexto" rows="5" placeholder="Escribe el mensaje…" style="resize:vertical;"></textarea>
+        <div style="font-size:11px;color:var(--gray-400);margin-top:4px;">Escribe <b>{nombre}</b> donde quieras que salga el nombre de cada cliente. La plantilla es un punto de partida: siempre puedes retocar fechas o plazos antes de continuar.</div>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">Insertar enlace</div>
+      <div id="difusionChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;"></div>
+
+      <div style="font-size:11px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">Destinatarios</div>
+      <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
+        <input type="text" class="nota-input" id="difusionBuscar" placeholder="Filtrar por nombre…" style="flex:1;min-width:140px;" oninput="renderDifusionLista()">
+        <button class="btn btn-sm" style="background:var(--gray-100);color:var(--gray-600);" onclick="difusionMarcarTodos(true)">Todos</button>
+        <button class="btn btn-sm" style="background:var(--gray-100);color:var(--gray-600);" onclick="difusionMarcarTodos(false)">Ninguno</button>
+      </div>
+      <div id="difusionLista" style="max-height:220px;overflow-y:auto;border:1px solid var(--gray-100);border-radius:8px;padding:6px;margin-bottom:14px;"></div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeModal('difusionModalOverlay')">Cancelar</button>
+        <button class="btn btn-primary" style="background:#25D366;" onclick="generarColaDifusion()">Continuar <span id="difusionCount"></span> →</button>
+      </div>
+    </div>
+
+    <div id="difusionPaso2" style="display:none;">
+      <div style="font-size:12px;color:var(--gray-600);margin-bottom:10px;">WhatsApp no deja enviar a varios a la vez automáticamente: toca "Enviar" en cada cliente, uno a uno. Se va marcando quién falta, y si sales a mitad, al volver a abrir esto sigue por donde lo dejaste.</div>
+      <div id="difusionColaLista" style="max-height:340px;overflow-y:auto;"></div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="difusionVolverPaso1()">← Editar mensaje/lista</button>
+        <button class="btn btn-secondary" onclick="difusionFinalizar()">Cerrar y borrar cola</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- GENERAR TAREAS FISCALES -->
+<div class="modal-overlay" id="fiscalModalOverlay" onclick="closeModalOutside(event,'fiscalModalOverlay')">
+  <div class="modal" style="max-width:600px;">
+    <div class="modal-title">📅 Generar tareas fiscales</div>
+    <div style="font-size:11px;color:var(--gray-400);margin-bottom:12px;">Fechas orientativas del régimen general (se desplazan si caen en fin de semana o festivo — confirma siempre en el calendario oficial de la AEAT antes de dar por buena la fecha). Solo se muestran obligaciones marcadas en la ficha de cada cliente que no tengan ya una tarea creada.</div>
+    <div class="form-group">
+      <label class="form-label">Ver obligaciones de los próximos</label>
+      <select class="form-input" id="fiscalRango" onchange="renderFiscalLista()" style="max-width:220px;">
+        <option value="15">15 días</option>
+        <option value="30" selected>30 días</option>
+        <option value="45">45 días</option>
+        <option value="60">60 días</option>
+      </select>
+    </div>
+    <div id="fiscalLista" style="max-height:340px;overflow-y:auto;border:1px solid var(--gray-100);border-radius:8px;padding:6px;margin-bottom:14px;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('fiscalModalOverlay')">Cerrar</button>
+      <button class="btn btn-primary" onclick="crearTareasFiscalesSeleccionadas()">Crear tareas seleccionadas</button>
+    </div>
+  </div>
+</div>
+
+<!-- RESUMEN DEL DÍA (briefing) -->
+<div class="modal-overlay" id="briefingModalOverlay" onclick="closeModalOutside(event,'briefingModalOverlay')">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-title" id="briefingTitulo">☀ Resumen del día</div>
+    <div id="briefingBody" style="max-height:60vh;overflow-y:auto;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="closeModal('briefingModalOverlay')">Listo, a trabajar</button>
+    </div>
+  </div>
+</div>
+
+<!-- PLANTILLAS DE CHECKLIST DE CIERRE -->
+<div class="modal-overlay" id="checklistPlantillaModalOverlay" onclick="closeModalOutside(event,'checklistPlantillaModalOverlay')">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-title">📋 Plantillas de checklist de cierre</div>
+    <div class="form-group">
+      <label class="form-label">Plantilla</label>
+      <select class="form-input" id="checklistPlantillaSelect" onchange="cargarChecklistPlantillaEnEditor()"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Nombre</label>
+      <input type="text" class="form-input" id="checklistPlantillaNombre" placeholder="Ej: Cierre trimestre IVA">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Pasos (uno por línea)</label>
+      <textarea class="form-input" id="checklistPlantillaItems" rows="6" placeholder="Revisar facturas emitidas y recibidas&#10;Conciliar bancos&#10;Presentar el modelo&#10;Avisar al cliente del resultado" style="resize:vertical;"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-danger btn-sm" onclick="eliminarChecklistPlantilla()">Eliminar</button>
+      <button class="btn btn-secondary" onclick="closeModal('checklistPlantillaModalOverlay')">Cerrar</button>
+      <button class="btn btn-primary" onclick="guardarChecklistPlantilla()">Guardar plantilla</button>
+    </div>
+  </div>
+</div>
+
+<!-- BUSCADOR GLOBAL -->
+<div class="modal-overlay" id="buscarModalOverlay" onclick="closeModalOutside(event,'buscarModalOverlay')">
+  <div class="modal" style="max-width:480px;">
+    <input type="text" class="form-input" id="buscarInput" placeholder="Buscar cliente, tarea o prospecto…" oninput="filtrarBuscador()" style="margin-bottom:14px;">
+    <div id="buscarResultados" style="max-height:60vh;overflow-y:auto;"></div>
+  </div>
+</div>
+
 <script>
 // Variables globales - gestionadas por Firebase
 window.tasks = window.tasks || [];
@@ -1003,7 +1160,7 @@ function showSection(id, btn) {
   else if (id === 'prospectos') renderProspectos();
   else if (id === 'registro') renderRegistro();
   else if (id === 'tesoreria') { initTesMes(); renderTesoreria(); }
-  else if (id === 'resumen') renderCuadroMando();
+  else if (id === 'resumen') { renderCuadroMando(); renderClientesInactivos(); }
 }
 
 function onFab() {
@@ -1024,8 +1181,18 @@ function editTask(id) {
   document.getElementById('tHora').value = t.hora || '';
   document.getElementById('tCuadrante').value = t.cuadrante || 'Q1 Importante + urgente';
   document.getElementById('tArea').value = t.area || 'Fiscal';
+  document.getElementById('tEsperando').checked = !!t.esperandoCliente;
+  actualizarTEsperandoDesde(t.esperandoDesde);
   document.getElementById('taskModalOverlay').classList.add('open');
   document.getElementById('tNombre').focus();
+}
+
+function actualizarTEsperandoDesde(iso) {
+  const el = document.getElementById('tEsperandoDesde');
+  if (!el) return;
+  if (!iso) { el.textContent = ''; return; }
+  const dias = Math.round((new Date() - new Date(iso)) / 86400000);
+  el.textContent = 'Marcada hace ' + (dias <= 0 ? 'hoy' : dias + ' día' + (dias === 1 ? '' : 's'));
 }
 
 function openTaskModal(q, fechaPre, horaPre) {
@@ -1035,6 +1202,8 @@ function openTaskModal(q, fechaPre, horaPre) {
   document.getElementById('tNotas').value = '';
   document.getElementById('tFecha').value = fechaPre || '';
   document.getElementById('tHora').value = horaPre || '';
+  document.getElementById('tEsperando').checked = false;
+  actualizarTEsperandoDesde(null);
   if (q) document.getElementById('tCuadrante').value = q;
   document.getElementById('taskModalOverlay').classList.add('open');
   document.getElementById('tNombre').focus();
@@ -1113,6 +1282,11 @@ async function saveTask() {
   if (!nombre) return document.getElementById('tNombre').focus();
   const idExistente = document.getElementById('tId').value;
   const taskExistente = idExistente ? (window.tasks || []).find(t => String(t.id) === String(idExistente)) : null;
+  const esperandoMarcado = document.getElementById('tEsperando').checked;
+  let esperandoDesde = '';
+  if (esperandoMarcado) {
+    esperandoDesde = (taskExistente && taskExistente.esperandoCliente && taskExistente.esperandoDesde) ? taskExistente.esperandoDesde : new Date().toISOString();
+  }
   const task = {
     id: idExistente || String(Date.now()),
     nombre,
@@ -1122,6 +1296,8 @@ async function saveTask() {
     fecha: document.getElementById('tFecha').value,
     hora: document.getElementById('tHora').value,
     notas: document.getElementById('tNotas').value.trim(),
+    esperandoCliente: esperandoMarcado,
+    esperandoDesde: esperandoDesde,
     estado: taskExistente ? taskExistente.estado : 'Pendiente',
     creado: taskExistente ? taskExistente.creado : new Date().toISOString(),
     modificado: new Date().toISOString()
@@ -1464,6 +1640,123 @@ async function deleteNota(cid, idx) {
   showFicha(cid);
 }
 
+// ── Checklist de cierre (plantillas clonables por cliente) ────────────────────
+
+const CHECKLIST_PLANTILLAS_LS_KEY = 'duraspinvest_checklist_plantillas';
+
+function checklistPlantillasLeer() {
+  try {
+    const raw = localStorage.getItem(CHECKLIST_PLANTILLAS_LS_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch (e) { return []; }
+}
+
+function checklistPlantillasGuardarTodas(arr) {
+  try { localStorage.setItem(CHECKLIST_PLANTILLAS_LS_KEY, JSON.stringify(arr)); } catch (e) {}
+}
+
+function opcionesChecklistPlantillasHtml() {
+  const plantillas = checklistPlantillasLeer();
+  if (!plantillas.length) return '<option value="">Sin plantillas — crea una con "✎ Plantillas"</option>';
+  return '<option value="">Elegir plantilla…</option>' + plantillas.map((p, i) => '<option value="' + i + '">' + agendaEsc(p.nombre) + '</option>').join('');
+}
+
+async function aplicarChecklistPlantilla(cid) {
+  const sel = document.getElementById('checklistAplicarSelect');
+  const i = parseInt(sel.value, 10);
+  const plantillas = checklistPlantillasLeer();
+  if (!Number.isFinite(i) || !plantillas[i]) { alert('Elige primero una plantilla de la lista.'); return; }
+  const c = (window.clients || []).find(x => String(x.id) === String(cid));
+  if (!c) return;
+  if (!c.checklist) c.checklist = [];
+  plantillas[i].items.forEach(function(texto) { c.checklist.push({ texto, hecho: false }); });
+  await fbSet('clients', cid, c);
+  showFicha(cid);
+}
+
+async function toggleChecklistItem(cid, idx, hecho) {
+  const c = (window.clients || []).find(x => String(x.id) === String(cid));
+  if (!c || !c.checklist) return;
+  c.checklist[parseInt(idx, 10)].hecho = hecho;
+  await fbSet('clients', cid, c);
+}
+
+async function eliminarChecklistItem(cid, idx) {
+  const c = (window.clients || []).find(x => String(x.id) === String(cid));
+  if (!c || !c.checklist) return;
+  c.checklist.splice(parseInt(idx, 10), 1);
+  await fbSet('clients', cid, c);
+  showFicha(cid);
+}
+
+async function addChecklistItem(cid) {
+  const inp = document.getElementById('checklistItemNuevo');
+  const texto = inp.value.trim();
+  if (!texto) return;
+  const c = (window.clients || []).find(x => String(x.id) === String(cid));
+  if (!c) return;
+  if (!c.checklist) c.checklist = [];
+  c.checklist.push({ texto, hecho: false });
+  await fbSet('clients', cid, c);
+  inp.value = '';
+  showFicha(cid);
+}
+
+function abrirGestionChecklistPlantillas() {
+  document.getElementById('checklistPlantillaModalOverlay').classList.add('open');
+  renderChecklistPlantillaSelect();
+  document.getElementById('checklistPlantillaSelect').value = '';
+  document.getElementById('checklistPlantillaNombre').value = '';
+  document.getElementById('checklistPlantillaItems').value = '';
+}
+
+function renderChecklistPlantillaSelect() {
+  const sel = document.getElementById('checklistPlantillaSelect');
+  const plantillas = checklistPlantillasLeer();
+  sel.innerHTML = '<option value="">— Nueva plantilla —</option>' + plantillas.map((p, i) => '<option value="' + i + '">' + agendaEsc(p.nombre) + '</option>').join('');
+}
+
+function cargarChecklistPlantillaEnEditor() {
+  const sel = document.getElementById('checklistPlantillaSelect');
+  const i = parseInt(sel.value, 10);
+  const plantillas = checklistPlantillasLeer();
+  if (!Number.isFinite(i) || !plantillas[i]) {
+    document.getElementById('checklistPlantillaNombre').value = '';
+    document.getElementById('checklistPlantillaItems').value = '';
+    return;
+  }
+  document.getElementById('checklistPlantillaNombre').value = plantillas[i].nombre;
+  document.getElementById('checklistPlantillaItems').value = plantillas[i].items.join('\n');
+}
+
+function guardarChecklistPlantilla() {
+  const nombre = document.getElementById('checklistPlantillaNombre').value.trim();
+  const items = document.getElementById('checklistPlantillaItems').value.split('\n').map(s => s.trim()).filter(Boolean);
+  if (!nombre || !items.length) { alert('Pon un nombre y al menos un paso.'); return; }
+  const plantillas = checklistPlantillasLeer();
+  const sel = document.getElementById('checklistPlantillaSelect');
+  const i = parseInt(sel.value, 10);
+  if (Number.isFinite(i) && plantillas[i]) plantillas[i] = { nombre, items };
+  else plantillas.push({ nombre, items });
+  checklistPlantillasGuardarTodas(plantillas);
+  renderChecklistPlantillaSelect();
+  alert('Plantilla guardada.');
+}
+
+function eliminarChecklistPlantilla() {
+  const sel = document.getElementById('checklistPlantillaSelect');
+  const i = parseInt(sel.value, 10);
+  const plantillas = checklistPlantillasLeer();
+  if (!Number.isFinite(i) || !plantillas[i]) { alert('Elige primero una plantilla de la lista.'); return; }
+  if (!confirm('¿Eliminar la plantilla "' + plantillas[i].nombre + '"?')) return;
+  plantillas.splice(i, 1);
+  checklistPlantillasGuardarTodas(plantillas);
+  renderChecklistPlantillaSelect();
+  document.getElementById('checklistPlantillaNombre').value = '';
+  document.getElementById('checklistPlantillaItems').value = '';
+}
+
 async function addDoc(cid) {
   const inpNombre = document.getElementById('docNombre_' + cid);
   const inpUrl = document.getElementById('docUrl_' + cid);
@@ -1580,6 +1873,102 @@ function daysUntil(d) {
   const a = new Date(d), b = new Date();
   a.setHours(0,0,0,0); b.setHours(0,0,0,0);
   return Math.round((a - b) / 86400000);
+}
+
+function diasEsperandoCliente(t) {
+  if (!t || !t.esperandoCliente || !t.esperandoDesde) return null;
+  return Math.max(0, Math.round((new Date() - new Date(t.esperandoDesde)) / 86400000));
+}
+
+const UMBRAL_ESPERA_LS_KEY = 'duraspinvest_umbral_espera';
+const UMBRAL_ESPERA_DEFECTO = 7;
+
+function umbralEsperaLeer() {
+  try {
+    const raw = localStorage.getItem(UMBRAL_ESPERA_LS_KEY);
+    const n = raw !== null ? parseInt(raw, 10) : NaN;
+    return Number.isFinite(n) && n > 0 ? n : UMBRAL_ESPERA_DEFECTO;
+  } catch (e) { return UMBRAL_ESPERA_DEFECTO; }
+}
+
+const UMBRAL_INACTIVIDAD_LS_KEY = 'duraspinvest_umbral_inactividad';
+const UMBRAL_INACTIVIDAD_DEFECTO = 60;
+
+function umbralInactividadLeer() {
+  try {
+    const raw = localStorage.getItem(UMBRAL_INACTIVIDAD_LS_KEY);
+    const n = raw !== null ? parseInt(raw, 10) : NaN;
+    return Number.isFinite(n) && n > 0 ? n : UMBRAL_INACTIVIDAD_DEFECTO;
+  } catch (e) { return UMBRAL_INACTIVIDAD_DEFECTO; }
+}
+
+function configurarUmbralInactividad() {
+  const actual = umbralInactividadLeer();
+  const resp = prompt('Avisar cuando un cliente lleve sin ninguna actividad registrada más de (días):', String(actual));
+  if (resp === null) return;
+  const n = parseInt(resp, 10);
+  if (!Number.isFinite(n) || n <= 0) { alert('Introduce un número de días válido.'); return; }
+  try { localStorage.setItem(UMBRAL_INACTIVIDAD_LS_KEY, String(n)); } catch (e) {}
+  renderClientesInactivos();
+}
+
+function ultimaActividadCliente(c) {
+  const fechas = [];
+  (c.notas || []).forEach(n => { if (n.fecha) fechas.push(n.fecha); });
+  (c.docs || []).forEach(d => { if (d.fecha) fechas.push(d.fecha); });
+  (c.expedientes || []).forEach(e => {
+    if (e.fechaApertura) fechas.push(e.fechaApertura);
+    if (e.fechaCierre) fechas.push(e.fechaCierre);
+  });
+  (window.tasks || []).filter(t => t.cliente === c.nombre).forEach(t => {
+    if (t.modificado) fechas.push(t.modificado);
+    else if (t.creado) fechas.push(t.creado);
+  });
+  if (!fechas.length) return null;
+  return fechas.reduce((max, f) => (new Date(f) > new Date(max) ? f : max), fechas[0]);
+}
+
+function renderClientesInactivos() {
+  const cont = document.getElementById('clientesInactivosCard');
+  if (!cont) return;
+  const umbral = umbralInactividadLeer();
+  const clientes = (window.clients || []).filter(c => (c.categoria || 'despacho') !== 'auxiliar');
+  const hoy = new Date();
+  const inactivos = clientes.map(c => {
+    const ultima = ultimaActividadCliente(c);
+    const dias = ultima ? Math.round((hoy - new Date(ultima)) / 86400000) : null;
+    return { c, ultima, dias };
+  }).filter(x => x.dias === null || x.dias >= umbral)
+    .sort((a, b) => (b.dias === null ? 999999 : b.dias) - (a.dias === null ? 999999 : a.dias));
+
+  if (!inactivos.length) {
+    cont.innerHTML = '<div style="font-size:13px;color:var(--gray-400);">Todos tus clientes tienen actividad reciente (menos de ' + umbral + ' días). 🎉</div>';
+    return;
+  }
+  cont.innerHTML = inactivos.map(x => {
+    const desc = x.dias === null
+      ? 'Sin ninguna actividad registrada todavía'
+      : 'Última actividad hace ' + x.dias + ' día(s)';
+    return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 4px;border-bottom:1px solid var(--gray-50);cursor:pointer;" onclick="goSec(\'clientes\');showClientesList();showFicha(\'' + x.c.id + '\')">' +
+      '<div><div style="font-size:13px;font-weight:600;color:var(--navy);">' + agendaEsc(x.c.nombre) + '</div><div style="font-size:11px;color:var(--gray-400);">' + desc + '</div></div>' +
+      '<span style="font-size:11px;">→</span></div>';
+  }).join('');
+}
+
+function configurarUmbralEspera() {
+  const actual = umbralEsperaLeer();
+  const resp = prompt('Avisar cuando una tarea lleve "esperando cliente" más de (días):', String(actual));
+  if (resp === null) return;
+  const n = parseInt(resp, 10);
+  if (!Number.isFinite(n) || n <= 0) { alert('Introduce un número de días válido.'); return; }
+  try { localStorage.setItem(UMBRAL_ESPERA_LS_KEY, String(n)); } catch (e) {}
+  updateBadges();
+}
+
+function esperaBadgeHtml(t) {
+  const dias = diasEsperandoCliente(t);
+  if (dias === null) return '';
+  return '<span style="background:#FEF3C7;color:#92400E;font-weight:700;padding:1px 8px;border-radius:20px;font-size:10px;white-space:nowrap;">⏳ hace ' + (dias === 0 ? 'hoy' : dias + 'd') + '</span>';
 }
 
 function initials(n) {
@@ -1723,11 +2112,74 @@ function renderDashboard() {
     const dc = days <= 2 ? 'urgent' : days <= 7 ? 'soon' : 'ok';
     const dt = days < 0 ? `Venció hace ${Math.abs(days)}d` : days === 0 ? 'Hoy' : days === 1 ? 'Mañana' : `${days} días`;
     const ds = t.fecha ? new Date(t.fecha + 'T12:00:00').toLocaleDateString('es-ES', {day:'2-digit',month:'short'}) : '';
-    return `<div class="task-item"><div class="task-dot ${qClass(t.cuadrante)}"></div><div class="task-info"><div class="task-name">${t.nombre}</div><div class="task-meta">${t.area||''}${t.cliente ? ' · ' + t.cliente : ''}</div></div><div style="text-align:right"><div class="task-date">${ds}</div><span class="days-badge ${dc}">${dt}</span></div></div>`;
+    return `<div class="task-item"><div class="task-dot ${qClass(t.cuadrante)}"></div><div class="task-info"><div class="task-name" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${t.nombre} ${esperaBadgeHtml(t)}</div><div class="task-meta">${t.area||''}${t.cliente ? ' · ' + t.cliente : ''}</div></div><div style="text-align:right"><div class="task-date">${ds}</div><span class="days-badge ${dc}">${dt}</span></div></div>`;
   }).join('');
 
   // Actualizar badges y alertas
   updateBadges();
+}
+
+// ── Resumen del día (briefing condensado) ──────────────────────────────────────
+
+const BRIEFING_LS_KEY = 'duraspinvest_briefing_ultimo_dia';
+
+function renderBriefingDia() {
+  const hoyISO = (typeof agendaISO === 'function') ? agendaISO(new Date()) : new Date().toISOString().slice(0,10);
+  document.getElementById('briefingTitulo').textContent = '☀ ' + new Date().toLocaleDateString('es-ES', {weekday:'long', day:'numeric', month:'long'});
+  const allTasks = window.tasks || [];
+  let html = '';
+
+  // Agenda de hoy
+  const deHoy = (typeof agendaTareasDeFecha === 'function') ? agendaTareasDeFecha(hoyISO) : allTasks.filter(t => t.fecha === hoyISO && t.estado !== 'Completada');
+  const vencHoy = (typeof getVencimientosDelDia === 'function') ? getVencimientosDelDia(hoyISO, String(new Date().getFullYear())) : [];
+  html += '<div style="font-size:12px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.4px;margin:10px 0 6px;">Hoy en la agenda</div>';
+  if (!deHoy.length && !vencHoy.length) {
+    html += '<div style="font-size:13px;color:var(--gray-400);padding:4px 0 8px;">Sin tareas ni citas para hoy.</div>';
+  } else {
+    deHoy.forEach(t => {
+      html += '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px;">' +
+        '<span class="task-dot ' + qClass(t.cuadrante) + '"></span>' +
+        (t.hora ? '<b>' + agendaEsc(t.hora) + '</b> ' : '') + agendaEsc(t.nombre) + (t.cliente ? ' · ' + agendaEsc(t.cliente) : '') + esperaBadgeHtml(t) + '</div>';
+    });
+    vencHoy.forEach(v => {
+      html += '<div style="font-size:13px;padding:5px 0;color:#92400E;">🧾 Vence hoy: ' + agendaEsc(v.label) + ' (' + v.numClientes + ' cliente(s))</div>';
+    });
+  }
+
+  // Alertas urgentes (vencidas / hoy / mañana + esperando cliente)
+  const umbralEspera = umbralEsperaLeer();
+  const alertas = [];
+  allTasks.filter(t => t.estado !== 'Completada' && t.fecha).forEach(t => {
+    const days = daysUntil(t.fecha);
+    if (days !== null && days < 0) alertas.push('⚠ <b>' + agendaEsc(t.nombre) + '</b> — venció hace ' + Math.abs(days) + ' día(s)');
+    else if (days === 0) alertas.push('🔴 <b>' + agendaEsc(t.nombre) + '</b> — vence HOY');
+  });
+  allTasks.filter(t => t.estado !== 'Completada').forEach(t => {
+    const dias = diasEsperandoCliente(t);
+    if (dias !== null && dias >= umbralEspera) alertas.push('⏳ <b>' + agendaEsc(t.nombre) + '</b> — ' + dias + ' día(s) esperando al cliente' + (t.cliente ? ' · ' + agendaEsc(t.cliente) : ''));
+  });
+  html += '<div style="font-size:12px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.4px;margin:14px 0 6px;">Alertas</div>';
+  if (!alertas.length) {
+    html += '<div style="font-size:13px;color:var(--gray-400);padding:4px 0;">Sin alertas pendientes. 🎉</div>';
+  } else {
+    html += alertas.map(a => '<div style="font-size:13px;padding:4px 0;">' + a + '</div>').join('');
+  }
+
+  document.getElementById('briefingBody').innerHTML = html;
+}
+
+function abrirBriefingDia() {
+  renderBriefingDia();
+  document.getElementById('briefingModalOverlay').classList.add('open');
+  try { localStorage.setItem(BRIEFING_LS_KEY, agendaISO(new Date())); } catch (e) {}
+}
+
+function comprobarBriefingAutomatico() {
+  try {
+    const hoyISO = agendaISO(new Date());
+    if (localStorage.getItem(BRIEFING_LS_KEY) === hoyISO) return;
+  } catch (e) {}
+  abrirBriefingDia();
 }
 
 function updateBadges() {
@@ -1797,6 +2249,15 @@ function updateBadges() {
     }
   });
 
+  // Tareas "esperando cliente" que llevan demasiado tiempo sin respuesta
+  const umbralEspera = umbralEsperaLeer();
+  allTasks.filter(t => t.estado !== 'Completada').forEach(t => {
+    const dias = diasEsperandoCliente(t);
+    if (dias !== null && dias >= umbralEspera) {
+      alertas.push(`<div style="font-size:13px;color:#92400E;margin-bottom:4px;">⏳ <strong>${t.nombre}</strong> — llevas ${dias} día(s) esperando al cliente${t.cliente ? ' · ' + t.cliente : ''}</div>`);
+    }
+  });
+
   if (alertas.length > 0) {
     alertasPanel.style.display = 'block';
     alertasList.innerHTML = alertas.join('');
@@ -1825,7 +2286,7 @@ function renderEisenhower() {
     el.innerHTML = list.map(t => {
       const days = daysUntil(t.fecha);
       const ds = t.fecha ? new Date(t.fecha + 'T12:00:00').toLocaleDateString('es-ES', {day:'2-digit',month:'short',year:'numeric'}) : '';
-      return `<div class="q-task"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;"><div class="q-task-name">${t.nombre}</div><div style="display:flex;gap:2px;flex-shrink:0;"><button class="icon-btn" onclick="editTask('${t.id}')" title="Editar">✏</button><button class="icon-btn" onclick="completeTask('${t.id}')" title="Completar">✓</button><button class="icon-btn" onclick="deleteTask('${t.id}')" title="Eliminar">×</button></div></div><div class="q-task-meta"><span>${t.area||''}</span>${t.cliente ? `<span>· ${t.cliente}</span>` : ''} ${ds ? `<span class="q-task-date">· ${ds}</span>` : ''} ${days !== null && days <= 7 && days >= 0 ? `<span style="color:var(--q1);font-weight:600;">· ${days === 0 ? 'Hoy' : days === 1 ? 'Mañana' : days + 'd'}</span>` : ''}</div></div>`;
+      return `<div class="q-task"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;"><div class="q-task-name">${t.nombre}</div><div style="display:flex;gap:2px;flex-shrink:0;"><button class="icon-btn" onclick="editTask('${t.id}')" title="Editar">✏</button><button class="icon-btn" onclick="completeTask('${t.id}')" title="Completar">✓</button><button class="icon-btn" onclick="deleteTask('${t.id}')" title="Eliminar">×</button></div></div><div class="q-task-meta"><span>${t.area||''}</span>${t.cliente ? `<span>· ${t.cliente}</span>` : ''} ${ds ? `<span class="q-task-date">· ${ds}</span>` : ''} ${days !== null && days <= 7 && days >= 0 ? `<span style="color:var(--q1);font-weight:600;">· ${days === 0 ? 'Hoy' : days === 1 ? 'Mañana' : days + 'd'}</span>` : ''} ${esperaBadgeHtml(t)}</div></div>`;
     }).join('');
   });
 }
@@ -1953,6 +2414,97 @@ function getVencimientosDelDia(ds, anio) {
   }).filter(v => v.numClientes > 0);
 }
 
+// ── Generación automática de tareas fiscales por cliente ──────────────────────
+
+function marcadorFiscal(modelo, fecha) { return '[FISCAL:' + modelo + ':' + fecha + ']'; }
+
+function tareasFiscalesPendientesEnRango(dias) {
+  const hoy = new Date(); hoy.setHours(0,0,0,0);
+  const limite = new Date(hoy.getTime() + dias * 86400000);
+  const anioActual = String(hoy.getFullYear());
+  const anioSiguiente = String(hoy.getFullYear() + 1);
+  // getVencimientosFiscales ya devuelve, dentro de cada año "base", también los vencimientos
+  // de enero/febrero del año siguiente, así que con año actual + año siguiente cubrimos el rango.
+  const todos = getVencimientosFiscales(anioActual).concat(getVencimientosFiscales(anioSiguiente));
+  const vistos = new Set();
+  const resultado = [];
+  todos.forEach(v => {
+    const clave = v.fecha + '|' + v.modelo + '|' + v.label;
+    if (vistos.has(clave)) return; // evita duplicar los 4T/anuales que ambos años generan igual
+    const d = new Date(v.fecha + 'T00:00:00');
+    if (d < hoy || d > limite) return;
+    vistos.add(clave);
+    const clientes = getClientesObligadosModelo(v.modelo);
+    clientes.forEach(c => {
+      const marcador = marcadorFiscal(v.modelo, v.fecha);
+      const yaExiste = (window.tasks || []).some(t => (t.notas || '').indexOf(marcador) >= 0);
+      resultado.push({ cid: c.id, cliente: c.nombre, modelo: v.modelo, label: v.label, fecha: v.fecha, marcador, yaExiste });
+    });
+  });
+  resultado.sort((a,b) => a.fecha.localeCompare(b.fecha) || a.cliente.localeCompare(b.cliente));
+  return resultado;
+}
+
+function abrirGenerarFiscal() {
+  document.getElementById('fiscalModalOverlay').classList.add('open');
+  renderFiscalLista();
+}
+
+function renderFiscalLista() {
+  const dias = parseInt((document.getElementById('fiscalRango')||{}).value || '30', 10);
+  const items = tareasFiscalesPendientesEnRango(dias);
+  const cont = document.getElementById('fiscalLista');
+  const pendientes = items.filter(it => !it.yaExiste);
+  if (!items.length) {
+    cont.innerHTML = '<div style="font-size:12px;color:var(--gray-400);padding:8px;">No hay obligaciones fiscales de tus clientes en ese plazo.</div>';
+    return;
+  }
+  cont.innerHTML = items.map((it, i) => {
+    const fechaFmt = new Date(it.fecha + 'T12:00:00').toLocaleDateString('es-ES', {day:'2-digit',month:'short'});
+    if (it.yaExiste) {
+      return '<div style="display:flex;align-items:center;gap:8px;padding:6px 4px;font-size:13px;color:var(--gray-400);border-bottom:1px solid var(--gray-50);">' +
+        '<span style="width:15px;text-align:center;">✓</span>' + agendaEsc(it.cliente) + ' — ' + agendaEsc(it.label) + ' · ' + fechaFmt + ' <span style="font-size:10px;">(ya tiene tarea)</span></div>';
+    }
+    return '<label style="display:flex;align-items:center;gap:8px;padding:6px 4px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--gray-50);">' +
+      '<input type="checkbox" class="fiscalChk" data-i="' + i + '" checked style="width:15px;height:15px;">' +
+      agendaEsc(it.cliente) + ' — ' + agendaEsc(it.label) + ' · <b>' + fechaFmt + '</b>' +
+      '</label>';
+  }).join('');
+  cont.dataset.items = JSON.stringify(items);
+  if (!pendientes.length) {
+    cont.innerHTML += '<div style="font-size:11px;color:var(--gray-400);padding:8px 4px;">Todas las obligaciones de este plazo ya tienen su tarea creada.</div>';
+  }
+}
+
+async function crearTareasFiscalesSeleccionadas() {
+  const cont = document.getElementById('fiscalLista');
+  const items = JSON.parse(cont.dataset.items || '[]');
+  const marcados = Array.from(cont.querySelectorAll('.fiscalChk:checked')).map(el => items[parseInt(el.dataset.i, 10)]);
+  if (!marcados.length) { alert('Selecciona al menos una obligación.'); return; }
+  let i = 0;
+  for (const it of marcados) {
+    const task = {
+      id: String(Date.now() + i),
+      nombre: it.label + ' — ' + it.cliente,
+      cliente: it.cliente,
+      cuadrante: 'Q2 Importante no urgente',
+      area: 'Fiscal',
+      fecha: it.fecha,
+      hora: '',
+      notas: it.marcador + ' Generada automáticamente desde "Tareas fiscales".',
+      esperandoCliente: false,
+      esperandoDesde: '',
+      estado: 'Pendiente',
+      creado: new Date().toISOString(),
+      modificado: new Date().toISOString()
+    };
+    await fbSet('tasks', task.id, task);
+    i++;
+  }
+  alert('Creadas ' + marcados.length + ' tarea(s) fiscal(es).');
+  renderFiscalLista();
+}
+
 function changeMonth(dir) {
   calMonth += dir;
   if (calMonth > 11) { calMonth = 0; calYear++; }
@@ -2031,7 +2583,10 @@ function agendaChipTarea(t, opts) {
   const hora = t.hora ? '<b>' + t.hora + '</b> · ' : '';
   const completada = t.estado === 'Completada';
   return '<div onclick="editTask(\'' + t.id + '\')" style="cursor:pointer;background:' + bg + ';border-left:4px solid ' + color + ';border-radius:6px;padding:6px 10px;margin-bottom:6px;' + (completada ? 'opacity:0.55;' : '') + (opts.compact ? 'font-size:12px;' : 'font-size:13px;') + '">'
+    + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'
     + '<div style="font-weight:600;color:var(--gray-800);' + (completada ? 'text-decoration:line-through;' : '') + '">' + hora + agendaEsc(t.nombre) + '</div>'
+    + esperaBadgeHtml(t)
+    + '</div>'
     + (t.cliente ? '<div style="font-size:11px;color:var(--gray-600);margin-top:1px;">' + agendaEsc(t.cliente) + (t.area ? ' · ' + t.area : '') + '</div>' : (t.area ? '<div style="font-size:11px;color:var(--gray-600);margin-top:1px;">' + t.area + '</div>' : ''))
     + '</div>';
 }
@@ -2374,6 +2929,7 @@ function showFicha(id) {
   parts.push('<div style="margin-top:6px;font-size:12px;color:var(--gray-400);">' + catLabel + '</div>');
   parts.push('</div>');
   parts.push('<div style="display:flex;gap:6px;">');
+  parts.push('<button class="btn btn-sm" style="background:#25D366;color:white;" onclick="abrirWhatsappCliente(window._fichaClienteId)">💬 WhatsApp</button>');
   parts.push('<button class="btn btn-sm" style="background:var(--navy-mid);color:white;" onclick="openClienteModal(window._fichaClienteId)">Editar</button>');
   parts.push('<button class="btn btn-sm btn-danger" onclick="deleteCliente(window._fichaClienteId)">Eliminar</button>');
   parts.push('</div></div>');
@@ -2403,7 +2959,7 @@ function showFicha(id) {
       var ds = t.fecha ? new Date(t.fecha+'T12:00:00').toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'}) : 'Sin fecha';
       parts.push('<div class="ficha-task-item">');
       parts.push('<div class="task-dot ' + qClass(t.cuadrante) + '"></div>');
-      parts.push('<div style="flex:1"><div style="font-size:13px;font-weight:500;">' + t.nombre + '</div>');
+      parts.push('<div style="flex:1"><div style="font-size:13px;font-weight:500;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">' + t.nombre + esperaBadgeHtml(t) + '</div>');
       parts.push('<div style="font-size:11px;color:var(--gray-400);">' + (t.area||'') + ' · ' + ds + '</div></div>');
       parts.push('<button class="icon-btn" data-tid="' + t.id + '" onclick="completeTask(this.dataset.tid);setTimeout(function(){showFicha(window._fichaClienteId)},800)">&#10003;</button>');
       parts.push('</div>');
@@ -2412,6 +2968,46 @@ function showFicha(id) {
     parts.push('<div class="empty" style="padding:20px;">Sin tareas pendientes</div>');
   }
   parts.push('</div>');
+
+  // Checklist de cierre (trimestre / ejercicio)
+  parts.push('<div class="ficha-section">');
+  parts.push('<div class="ficha-section-header"><span class="ficha-section-title">Checklist de cierre</span>');
+  parts.push('<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">');
+  parts.push('<select class="form-input" id="checklistAplicarSelect" style="font-size:12px;padding:4px 8px;height:auto;">' + opcionesChecklistPlantillasHtml() + '</select>');
+  parts.push('<button class="btn btn-sm" style="background:var(--gray-100);color:var(--gray-600);" onclick="aplicarChecklistPlantilla(window._fichaClienteId)">Aplicar</button>');
+  parts.push('<button class="btn btn-sm" style="background:var(--gray-100);color:var(--gray-600);" onclick="abrirGestionChecklistPlantillas()">✎ Plantillas</button>');
+  parts.push('</div></div>');
+  var checklist = c.checklist || [];
+  if (checklist.length) {
+    checklist.forEach(function(it, ci) {
+      parts.push('<div class="ficha-task-item">');
+      parts.push('<input type="checkbox" ' + (it.hecho ? 'checked' : '') + ' data-ci="' + ci + '" onchange="toggleChecklistItem(window._fichaClienteId,this.dataset.ci,this.checked)" style="width:16px;height:16px;flex-shrink:0;">');
+      parts.push('<div style="flex:1;font-size:13px;margin-left:8px;' + (it.hecho ? 'color:var(--gray-400);text-decoration:line-through;' : '') + '">' + agendaEsc(it.texto) + '</div>');
+      parts.push('<button class="icon-btn" data-ci="' + ci + '" onclick="eliminarChecklistItem(window._fichaClienteId,this.dataset.ci)">&#215;</button>');
+      parts.push('</div>');
+    });
+  } else {
+    parts.push('<div class="empty" style="padding:16px;">Sin checklist. Aplica una plantilla o añade un paso suelto.</div>');
+  }
+  parts.push('<div class="nota-input-row">');
+  parts.push('<input type="text" class="nota-input" id="checklistItemNuevo" placeholder="Añadir paso suelto…">');
+  parts.push('<button class="btn btn-primary btn-sm" style="align-self:flex-end;" onclick="addChecklistItem(window._fichaClienteId)">Añadir</button>');
+  parts.push('</div></div>');
+
+  // Prospecto / agenda personal relacionada (mismo nombre)
+  var prospectosRel = (window.prospectos || []).filter(function(p) { return (p.nombre||'').toLowerCase() === (c.nombre||'').toLowerCase(); });
+  if (prospectosRel.length) {
+    parts.push('<div class="ficha-section">');
+    parts.push('<div class="ficha-section-header"><span class="ficha-section-title">Prospecto / agenda relacionada</span></div>');
+    prospectosRel.forEach(function(p) {
+      var pf = p.fecha ? new Date(p.fecha+'T12:00:00').toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'}) : '';
+      parts.push('<div class="ficha-task-item" style="cursor:pointer;" data-pid="' + p.id + '" onclick="goSec(\'prospectos\');openProspectoModal(this.dataset.pid)">');
+      parts.push('<div style="flex:1"><div style="font-size:13px;font-weight:500;">' + (p.tipo||'Prospecto') + (pf ? ' · ' + pf : '') + '</div>');
+      if (p.notas) parts.push('<div style="font-size:11px;color:var(--gray-400);">' + agendaEsc(p.notas).slice(0,80) + '</div>');
+      parts.push('</div></div>');
+    });
+    parts.push('</div>');
+  }
 
   // Pólizas
   parts.push('<div class="ficha-section">');
@@ -2541,6 +3137,401 @@ function showFicha(id) {
   fichaEl.innerHTML = parts.join('');
 }
 
+// ── Escribir por WhatsApp (con borrador persistente y enlaces rápidos) ────────
+// El borrador se guarda por cliente en memoria mientras dura la sesión, así que
+// cambiar de pestaña dentro de la app (para consultar algo) no borra lo escrito.
+
+let waDrafts = {};
+let waCidActual = null;
+
+const WA_ENLACES_APP = [
+  { nombre: 'App Fiscal', url: 'https://duraspinvest.github.io/duraspinvest-iva/' },
+  { nombre: 'App Laboral', url: 'https://duraspinvest.github.io/duraspinvest-nominas/' }
+];
+
+function normalizarTelWa(tel) {
+  let d = String(tel || '').replace(/[^\d]/g, '');
+  if (!d) return '';
+  if (d.length === 9) d = '34' + d; // prefijo España por defecto
+  return d;
+}
+
+function documentosClienteParaWa(c) {
+  const out = [];
+  (c.docs || []).forEach(d => { if (d.url) out.push({ nombre: d.nombre, url: d.url }); });
+  (c.expedientes || []).forEach(exp => {
+    (exp.docs || []).forEach(d => { if (d.url) out.push({ nombre: exp.nombre + ' · ' + d.nombre, url: d.url }); });
+    (exp.carpetas || []).forEach(carp => {
+      (carp.docs || []).forEach(d => { if (d.url) out.push({ nombre: exp.nombre + '/' + carp.nombre + ' · ' + d.nombre, url: d.url }); });
+    });
+  });
+  return out;
+}
+
+function abrirWhatsappCliente(cid) {
+  const c = (window.clients || []).find(x => String(x.id) === String(cid));
+  if (!c) return;
+  waCidActual = cid;
+  document.getElementById('waModalCliente').textContent = '· ' + c.nombre;
+  document.getElementById('waSinTelefono').style.display = c.tel ? 'none' : 'block';
+
+  if (waDrafts[cid] === undefined) waDrafts[cid] = 'Hola ' + (c.nombre || '') + ', ';
+  document.getElementById('waTexto').value = waDrafts[cid];
+
+  const chips = WA_ENLACES_APP.concat(documentosClienteParaWa(c));
+  const chipsEl = document.getElementById('waChips');
+  if (!chips.length) {
+    chipsEl.innerHTML = '<div style="font-size:12px;color:var(--gray-400);">Este cliente no tiene documentos con enlace guardados todavía.</div>';
+  } else {
+    chipsEl.innerHTML = chips.map((d, i) =>
+      '<button type="button" class="btn btn-sm" style="background:var(--gray-100);color:var(--gray-600);" data-i="' + i + '" onclick="insertarEnlaceWa(this.dataset.i)">🔗 ' + agendaEsc(d.nombre) + '</button>'
+    ).join('');
+    window._waChipsActuales = chips;
+  }
+
+  document.getElementById('waModalOverlay').classList.add('open');
+}
+
+function insertarEnlaceWa(i) {
+  const d = (window._waChipsActuales || [])[i];
+  if (!d) return;
+  const ta = document.getElementById('waTexto');
+  const sep = ta.value && !ta.value.endsWith('\n') && !ta.value.endsWith(' ') ? '\n' : '';
+  ta.value += sep + d.nombre + ': ' + d.url + '\n';
+  guardarBorradorWa();
+  ta.focus();
+}
+
+function guardarBorradorWa() {
+  if (!waCidActual) return;
+  waDrafts[waCidActual] = document.getElementById('waTexto').value;
+}
+
+function descartarBorradorWa() {
+  if (!waCidActual) return;
+  if (!confirm('¿Descartar el mensaje escrito para este cliente?')) return;
+  delete waDrafts[waCidActual];
+  document.getElementById('waTexto').value = '';
+}
+
+async function registrarComunicacionCliente(cid, resumen) {
+  const c = (window.clients || []).find(x => String(x.id) === String(cid));
+  if (!c) return;
+  if (!c.notas) c.notas = [];
+  c.notas.unshift({ texto: '💬 WhatsApp: ' + resumen, fecha: new Date().toISOString() });
+  await fbSet('clients', cid, c);
+}
+
+function resumenParaHistorial(texto) {
+  const t = (texto || '').replace(/\s+/g, ' ').trim();
+  return t.length > 140 ? t.slice(0, 140) + '…' : t;
+}
+
+function enviarWhatsappCliente() {
+  const c = (window.clients || []).find(x => String(x.id) === String(waCidActual));
+  const texto = document.getElementById('waTexto').value;
+  const tel = normalizarTelWa(c && c.tel);
+  const url = 'https://wa.me/' + tel + '?text=' + encodeURIComponent(texto);
+  window.open(url, '_blank');
+  registrarComunicacionCliente(waCidActual, resumenParaHistorial(texto));
+  // No se borra el borrador: si el envío no llega a completarse o hay que retocarlo, sigue ahí.
+}
+
+// ── Mensaje a varios clientes (difusión) ──────────────────────────────────────
+
+const DIFUSION_LS_KEY = 'duraspinvest_difusion';
+let difusionSeleccion = new Set();
+
+function abrirDifusion() {
+  const overlay = document.getElementById('difusionModalOverlay');
+  overlay.classList.add('open');
+  // Si hay una cola pendiente guardada, retomarla directamente en el paso 2.
+  const guardada = difusionLeerGuardada();
+  if (guardada && guardada.ids && guardada.ids.length && Object.keys(guardada.enviados||{}).length < guardada.ids.length) {
+    mostrarPasoDifusion(2);
+    renderColaDifusion();
+    return;
+  }
+  mostrarPasoDifusion(1);
+  document.getElementById('difusionTexto').value = (guardada && guardada.mensaje) || '';
+  document.getElementById('difusionBuscar').value = '';
+  difusionSeleccion = new Set((guardada && guardada.ids) || []);
+  renderDifusionChips();
+  renderDifusionLista();
+  renderPlantillasDifusionSelect();
+}
+
+// ── Plantillas de mensaje para la difusión ────────────────────────────────────
+
+const DIFUSION_PLANTILLAS_LS_KEY = 'duraspinvest_difusion_plantillas';
+
+function plantillasDifusionLeer() {
+  try {
+    const raw = localStorage.getItem(DIFUSION_PLANTILLAS_LS_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch (e) { return []; }
+}
+
+function plantillasDifusionGuardarTodas(arr) {
+  try { localStorage.setItem(DIFUSION_PLANTILLAS_LS_KEY, JSON.stringify(arr)); } catch (e) {}
+}
+
+function renderPlantillasDifusionSelect() {
+  const sel = document.getElementById('difusionPlantillaSelect');
+  if (!sel) return;
+  const plantillas = plantillasDifusionLeer();
+  sel.innerHTML = '<option value="">— Sin plantilla / mensaje en blanco —</option>' +
+    plantillas.map((p, i) => '<option value="' + i + '">' + agendaEsc(p.nombre) + '</option>').join('');
+  sel.value = '';
+}
+
+function cargarPlantillaDifusion() {
+  const sel = document.getElementById('difusionPlantillaSelect');
+  const i = parseInt(sel.value, 10);
+  const plantillas = plantillasDifusionLeer();
+  if (!Number.isFinite(i) || !plantillas[i]) return;
+  document.getElementById('difusionTexto').value = plantillas[i].texto;
+}
+
+function guardarPlantillaDifusion() {
+  const texto = document.getElementById('difusionTexto').value.trim();
+  if (!texto) { alert('Escribe primero el mensaje que quieres guardar como plantilla.'); return; }
+  const plantillas = plantillasDifusionLeer();
+  const sel = document.getElementById('difusionPlantillaSelect');
+  const iActual = parseInt(sel.value, 10);
+  const existente = Number.isFinite(iActual) ? plantillas[iActual] : null;
+  const nombre = prompt('Nombre de la plantilla:', (existente && existente.nombre) || '');
+  if (!nombre) return;
+  if (existente) {
+    existente.nombre = nombre;
+    existente.texto = texto;
+  } else {
+    plantillas.push({ nombre, texto });
+  }
+  plantillasDifusionGuardarTodas(plantillas);
+  renderPlantillasDifusionSelect();
+  sel.value = String(plantillas.findIndex(p => p.nombre === nombre));
+}
+
+function eliminarPlantillaDifusion() {
+  const sel = document.getElementById('difusionPlantillaSelect');
+  const i = parseInt(sel.value, 10);
+  const plantillas = plantillasDifusionLeer();
+  if (!Number.isFinite(i) || !plantillas[i]) { alert('Selecciona primero una plantilla de la lista.'); return; }
+  if (!confirm('¿Eliminar la plantilla "' + plantillas[i].nombre + '"?')) return;
+  plantillas.splice(i, 1);
+  plantillasDifusionGuardarTodas(plantillas);
+  renderPlantillasDifusionSelect();
+}
+
+function renderDifusionChips() {
+  const cont = document.getElementById('difusionChips');
+  cont.innerHTML = WA_ENLACES_APP.map((e, i) =>
+    '<button type="button" class="btn btn-sm" style="background:var(--gray-100);color:var(--gray-600);" onclick="insertarEnlaceDifusion(' + i + ')">🔗 ' + agendaEsc(e.nombre) + '</button>'
+  ).join('');
+}
+
+function insertarEnlaceDifusion(i) {
+  const ta = document.getElementById('difusionTexto');
+  const enlace = WA_ENLACES_APP[i];
+  if (!enlace) return;
+  const pos = ta.selectionStart != null ? ta.selectionStart : ta.value.length;
+  ta.value = ta.value.slice(0, pos) + enlace.url + ' ' + ta.value.slice(pos);
+  ta.focus();
+}
+
+function mostrarPasoDifusion(paso) {
+  document.getElementById('difusionPaso1').style.display = (paso === 1) ? '' : 'none';
+  document.getElementById('difusionPaso2').style.display = (paso === 2) ? '' : 'none';
+}
+
+function renderDifusionLista() {
+  const q = (document.getElementById('difusionBuscar').value || '').trim().toLowerCase();
+  const cont = document.getElementById('difusionLista');
+  const lista = (window.clients || [])
+    .filter(c => !q || (c.nombre||'').toLowerCase().includes(q))
+    .sort((a,b) => (a.nombre||'').localeCompare(b.nombre||''));
+  if (!lista.length) {
+    cont.innerHTML = '<div style="font-size:12px;color:var(--gray-400);padding:8px;">Sin clientes.</div>';
+  } else {
+    cont.innerHTML = lista.map(c => {
+      const tieneTel = !!normalizarTelWa(c.tel);
+      const checked = difusionSeleccion.has(String(c.id)) ? 'checked' : '';
+      const aviso = tieneTel ? '' : ' <span style="color:#DC2626;font-size:10px;">(sin teléfono)</span>';
+      return '<label style="display:flex;align-items:center;gap:8px;padding:6px 4px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--gray-50);">' +
+        '<input type="checkbox" ' + checked + (tieneTel ? '' : ' disabled') + ' onchange="difusionToggle(\'' + c.id + '\', this.checked)" style="width:15px;height:15px;">' +
+        agendaEsc(c.nombre) + aviso +
+        '</label>';
+    }).join('');
+  }
+  actualizarContadorDifusion();
+}
+
+function difusionToggle(id, marcado) {
+  if (marcado) difusionSeleccion.add(String(id));
+  else difusionSeleccion.delete(String(id));
+  actualizarContadorDifusion();
+}
+
+function difusionMarcarTodos(marcar) {
+  const q = (document.getElementById('difusionBuscar').value || '').trim().toLowerCase();
+  const lista = (window.clients || []).filter(c => (!q || (c.nombre||'').toLowerCase().includes(q)) && normalizarTelWa(c.tel));
+  if (marcar) lista.forEach(c => difusionSeleccion.add(String(c.id)));
+  else lista.forEach(c => difusionSeleccion.delete(String(c.id)));
+  renderDifusionLista();
+}
+
+function actualizarContadorDifusion() {
+  const el = document.getElementById('difusionCount');
+  if (el) el.textContent = difusionSeleccion.size ? '(' + difusionSeleccion.size + ')' : '';
+}
+
+function difusionLeerGuardada() {
+  try {
+    const raw = localStorage.getItem(DIFUSION_LS_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) { return null; }
+}
+
+function difusionGuardar(data) {
+  try { localStorage.setItem(DIFUSION_LS_KEY, JSON.stringify(data)); } catch (e) {}
+}
+
+function generarColaDifusion() {
+  const mensaje = document.getElementById('difusionTexto').value.trim();
+  if (!mensaje) { alert('Escribe primero el mensaje.'); return; }
+  if (!difusionSeleccion.size) { alert('Selecciona al menos un cliente.'); return; }
+  const data = { mensaje, ids: Array.from(difusionSeleccion), enviados: {}, creado: new Date().toISOString() };
+  difusionGuardar(data);
+  mostrarPasoDifusion(2);
+  renderColaDifusion();
+}
+
+function renderColaDifusion() {
+  const data = difusionLeerGuardada();
+  const cont = document.getElementById('difusionColaLista');
+  if (!data || !data.ids || !data.ids.length) {
+    cont.innerHTML = '<div style="font-size:12px;color:var(--gray-400);padding:8px;">No hay ninguna difusión en curso.</div>';
+    return;
+  }
+  const clientesM = data.ids.map(id => (window.clients || []).find(c => String(c.id) === String(id))).filter(Boolean);
+  const pendientes = data.ids.length - Object.keys(data.enviados || {}).length;
+  cont.innerHTML =
+    '<div style="font-size:12px;font-weight:700;color:var(--gray-600);margin-bottom:10px;">' + pendientes + ' pendiente(s) de ' + data.ids.length + '</div>' +
+    clientesM.map(c => {
+      const enviado = data.enviados && data.enviados[c.id];
+      return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 6px;border-bottom:1px solid var(--gray-50);">' +
+        '<div style="font-size:13px;' + (enviado ? 'color:var(--gray-400);text-decoration:line-through;' : '') + '">' + agendaEsc(c.nombre) + '</div>' +
+        (enviado
+          ? '<span style="font-size:11px;color:#059669;font-weight:700;">✓ Enviado</span>'
+          : '<button class="btn btn-sm" style="background:#25D366;color:white;" onclick="enviarDifusionA(\'' + c.id + '\')">Enviar →</button>'
+        ) +
+        '</div>';
+    }).join('');
+}
+
+function enviarDifusionA(id) {
+  const data = difusionLeerGuardada();
+  if (!data) return;
+  const c = (window.clients || []).find(x => String(x.id) === String(id));
+  if (!c) return;
+  const tel = normalizarTelWa(c.tel);
+  const texto = data.mensaje.replace(/\{nombre\}/gi, c.nombre || '');
+  if (tel) {
+    window.open('https://wa.me/' + tel + '?text=' + encodeURIComponent(texto), '_blank');
+    registrarComunicacionCliente(id, resumenParaHistorial(texto));
+  }
+  data.enviados = data.enviados || {};
+  data.enviados[id] = true;
+  difusionGuardar(data);
+  renderColaDifusion();
+}
+
+function difusionVolverPaso1() {
+  const data = difusionLeerGuardada();
+  mostrarPasoDifusion(1);
+  document.getElementById('difusionTexto').value = (data && data.mensaje) || '';
+  difusionSeleccion = new Set((data && data.ids) || []);
+  renderDifusionChips();
+  renderDifusionLista();
+  renderPlantillasDifusionSelect();
+}
+
+function difusionFinalizar() {
+  localStorage.removeItem(DIFUSION_LS_KEY);
+  difusionSeleccion = new Set();
+  closeModal('difusionModalOverlay');
+}
+
+// ── Buscador global ────────────────────────────────────────────────────────────
+
+function abrirBuscador() {
+  document.getElementById('buscarModalOverlay').classList.add('open');
+  const inp = document.getElementById('buscarInput');
+  inp.value = '';
+  document.getElementById('buscarResultados').innerHTML = '<div style="font-size:12px;color:var(--gray-400);padding:8px 2px;">Escribe un nombre para buscar en clientes, tareas y prospectos.</div>';
+  setTimeout(() => inp.focus(), 50);
+}
+
+function filtrarBuscador() {
+  const q = document.getElementById('buscarInput').value.trim().toLowerCase();
+  const cont = document.getElementById('buscarResultados');
+  if (!q) {
+    cont.innerHTML = '<div style="font-size:12px;color:var(--gray-400);padding:8px 2px;">Escribe un nombre para buscar en clientes, tareas y prospectos.</div>';
+    return;
+  }
+  const clientesM = (window.clients || []).filter(c => (c.nombre||'').toLowerCase().includes(q) || (c.nif||'').toLowerCase().includes(q));
+  const tareasM = (window.tasks || []).filter(t => t.estado !== 'Completada' && ((t.nombre||'').toLowerCase().includes(q) || (t.cliente||'').toLowerCase().includes(q)));
+  const prospectosM = (window.prospectos || []).filter(p => (p.nombre||'').toLowerCase().includes(q));
+
+  if (!clientesM.length && !tareasM.length && !prospectosM.length) {
+    cont.innerHTML = '<div class="empty" style="padding:20px;"><div class="empty-text">Sin resultados para "' + agendaEsc(q) + '"</div></div>';
+    return;
+  }
+
+  let html = '';
+  if (clientesM.length) {
+    html += '<div style="font-size:10px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.4px;margin:10px 0 6px;">Clientes</div>';
+    html += clientesM.map(c => '<div class="cliente-card" style="padding:10px 14px;margin-bottom:6px;" onclick="irABuscadorCliente(\'' + c.id + '\')">'
+      + '<div class="cliente-avatar" style="width:34px;height:34px;font-size:12px;">' + initials(c.nombre) + '</div>'
+      + '<div class="cliente-info"><div class="cliente-nombre" style="font-size:13px;">' + agendaEsc(c.nombre) + '</div><div class="cliente-nif" style="font-size:11px;">' + (c.nif||'') + '</div></div>'
+      + '</div>').join('');
+  }
+  if (tareasM.length) {
+    html += '<div style="font-size:10px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.4px;margin:10px 0 6px;">Tareas</div>';
+    html += tareasM.map(t => '<div class="q-task" style="cursor:pointer;" onclick="irABuscadorTarea(\'' + t.id + '\')">'
+      + '<div class="q-task-name">' + agendaEsc(t.nombre) + '</div>'
+      + '<div class="q-task-meta"><span class="task-dot ' + qClass(t.cuadrante) + '"></span>' + (t.cliente ? '<span>' + agendaEsc(t.cliente) + '</span>' : '') + esperaBadgeHtml(t) + '</div>'
+      + '</div>').join('');
+  }
+  if (prospectosM.length) {
+    html += '<div style="font-size:10px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.4px;margin:10px 0 6px;">Prospectos / agenda</div>';
+    html += prospectosM.map(p => '<div class="q-task" style="cursor:pointer;" onclick="irABuscadorProspecto(\'' + p.id + '\')">'
+      + '<div class="q-task-name">' + agendaEsc(p.nombre) + '</div>'
+      + '<div class="q-task-meta">' + (p.tipo||'Prospecto') + (p.tel ? ' · ' + p.tel : '') + '</div>'
+      + '</div>').join('');
+  }
+  cont.innerHTML = html;
+}
+
+function irABuscadorCliente(id) {
+  closeModal('buscarModalOverlay');
+  goSec('clientes');
+  showClientesList();
+  showFicha(id);
+}
+
+function irABuscadorTarea(id) {
+  closeModal('buscarModalOverlay');
+  editTask(id);
+}
+
+function irABuscadorProspecto(id) {
+  closeModal('buscarModalOverlay');
+  goSec('prospectos');
+  openProspectoModal(id);
+}
 
 function renderObligacionesHtml(c) {
   const modelos = ['111','190','115','180','130','303','390','202','200','349','347'];
