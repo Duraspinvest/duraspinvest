@@ -2399,6 +2399,58 @@ function showFicha(id) {
   parts.push('<button class="btn btn-primary btn-sm" style="align-self:flex-end;" onclick="addNota(window._fichaClienteId)">Añadir</button>');
   parts.push('</div></div>');
 
+  // Trámites de alta
+  const tramites = c.tramites || {};
+  const tramiteGroups = [
+    {key:'doc', label:'Documentacion', items:[
+      {k:'doc_dni', label:'DNI/NIF del titular'},
+      {k:'doc_escrituras', label:'Escrituras de constitucion (si es sociedad)'},
+      {k:'doc_cert_elec', label:'Certificado electronico — tiene? Si no, avisar para tramitarlo'},
+      {k:'doc_declaraciones', label:'Declaraciones ejercicio anterior (o descargar con su certificado)'},
+    ]},
+    {key:'hacienda', label:'Hacienda', items:[
+      {k:'hac_censal', label:'Verificar situacion censal (alta en IAE, epigrafe)'},
+      {k:'hac_alta', label:'Alta en Hacienda si procede (036/037)'},
+      {k:'hac_obligaciones', label:'Confirmar obligaciones fiscales y periodicidad'},
+    ]},
+    {key:'ss', label:'Seguridad Social', items:[
+      {k:'ss_autonomo', label:'Alta autonomo (TA.0521) si procede'},
+      {k:'ss_ccc', label:'CCC si tiene o preve tener trabajadores'},
+      {k:'ss_nass', label:'Anotar NASS del titular en la ficha'},
+    ]},
+    {key:'despacho', label:'Despacho', items:[
+      {k:'des_delsol', label:'Dar de alta en Delsol o en la app'},
+      {k:'des_contrato', label:'Contrato de servicios firmado'},
+      {k:'des_portal', label:'Alta en portal cliente (cuando proceda)'},
+      {k:'des_planning', label:'Anadir al planning fiscal con sus modelos'},
+    ]},
+  ];
+  const totalItems = tramiteGroups.reduce((s,g) => s + g.items.length, 0);
+  const doneItems = tramiteGroups.reduce((s,g) => s + g.items.filter(i => tramites[i.k]).length, 0);
+  const pct = Math.round(doneItems/totalItems*100);
+  const pctColor = pct === 100 ? '#10B981' : pct >= 50 ? '#F59E0B' : '#EF4444';
+
+  parts.push('<div class="ficha-section">');
+  parts.push('<div class="ficha-section-header"><span class="ficha-section-title">Tramites de alta</span>');
+  parts.push('<span style="font-size:11px;font-weight:600;color:' + pctColor + ';padding:2px 8px;background:' + pctColor + '22;border-radius:20px;">' + doneItems + '/' + totalItems + ' completados</span>');
+  parts.push('</div>');
+  // Barra de progreso
+  parts.push('<div style="height:4px;background:#EEF2F7;border-radius:2px;margin:8px 0 14px;"><div style="height:4px;background:' + pctColor + ';border-radius:2px;width:' + pct + '%;transition:width 0.3s;"></div></div>');
+  
+  tramiteGroups.forEach(group => {
+    parts.push('<div style="margin-bottom:14px;">');
+    parts.push('<div style="font-size:11px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">' + group.label + '</div>');
+    group.items.forEach(item => {
+      const checked = tramites[item.k] ? true : false;
+      parts.push('<label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;cursor:pointer;padding:6px 8px;border-radius:6px;background:' + (checked?'#F0FDF4':'#F8FAFC') + ';">');
+      parts.push('<input type="checkbox" ' + (checked?'checked':'') + ' data-key="' + item.k + '" data-cid="' + c.id + '" onchange="toggleTramite(this)" style="margin-top:2px;accent-color:#10B981;flex-shrink:0;">');
+      parts.push('<span style="font-size:13px;color:' + (checked?'var(--gray-400)':'var(--gray-800)') + ';' + (checked?'text-decoration:line-through;':'') + '">' + item.label + '</span>');
+      parts.push('</label>');
+    });
+    parts.push('</div>');
+  });
+  parts.push('</div>');
+
   // Expedientes
   parts.push('<div class="ficha-section">');
   parts.push('<div class="ficha-section-header"><span class="ficha-section-title">Expedientes</span>');
@@ -3789,6 +3841,24 @@ function toggleTaskDetail(id) {
   const el = document.getElementById('detail_' + id);
   if(!el) return;
   el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+async function toggleTramite(checkbox) {
+  const key = checkbox.dataset.key;
+  const cid = checkbox.dataset.cid;
+  const checked = checkbox.checked;
+  const c = (window.clients||[]).find(x => String(x.id) === String(cid));
+  if(!c) return;
+  const tramites = Object.assign({}, c.tramites||{});
+  if(checked) {
+    tramites[key] = new Date().toISOString();
+  } else {
+    delete tramites[key];
+  }
+  await fbSet('clients', cid, Object.assign({}, c, { tramites }));
+  // Actualizar window.clients localmente para no esperar al listener
+  c.tramites = tramites;
+  showFicha(cid);
 }
 
 // ── Login ────────────────────────────────────────────────────────────────────
