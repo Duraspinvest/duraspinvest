@@ -3732,6 +3732,50 @@ function onTClienteChange() {
   if(hidden && sel) hidden.value = sel.value;
 }
 
+function toggleCompletadas() {
+  const lista = document.getElementById('completadasLista');
+  const btn = document.getElementById('btnCompletadas');
+  if(!lista || !btn) return;
+  if(lista.style.display === 'none') {
+    lista.style.display = 'block';
+    btn.textContent = '▼ Ocultar tareas completadas';
+    renderCompletadas();
+  } else {
+    lista.style.display = 'none';
+    btn.textContent = '▶ Ver tareas completadas';
+  }
+}
+
+function renderCompletadas() {
+  const lista = document.getElementById('completadasLista');
+  if(!lista) return;
+  const completadas = (window.tasks||[])
+    .filter(t => t.estado === 'Completada')
+    .sort((a,b) => (b.modificado||b.creado||'').localeCompare(a.modificado||a.creado||''));
+  if(!completadas.length) {
+    lista.innerHTML = '<div style="font-size:13px;color:var(--gray-400);padding:8px 0;">No hay tareas completadas.</div>';
+    return;
+  }
+  lista.innerHTML = completadas.map(t => {
+    const fechaHecha = t.modificado ? new Date(t.modificado).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
+    const fechaCreada = t.creado ? new Date(t.creado).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'}) : '';
+    const ctxLabels = {llamada:'📞',email:'📧',ordenador:'💻',presencial:'🏢',espera:'⏳',otro:'📌'};
+    const ctxIcon = ctxLabels[t.contexto] || '';
+    return '<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;background:white;border-radius:8px;margin-bottom:6px;box-shadow:var(--shadow);opacity:0.8;">' +
+      '<span style="color:var(--success);font-size:16px;flex-shrink:0;">✓</span>' +
+      '<div style="flex:1;min-width:0;">' +
+        '<div style="font-size:13px;color:var(--gray-600);text-decoration:line-through;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (ctxIcon?ctxIcon+' ':'') + t.nombre + '</div>' +
+        '<div style="font-size:11px;color:var(--gray-400);margin-top:2px;">' +
+          (t.cliente ? t.cliente + ' · ' : '') +
+          (fechaHecha ? 'Completada: ' + fechaHecha : fechaCreada ? 'Creada: ' + fechaCreada : '') +
+          (t.notas ? ' · ' + t.notas : '') +
+        '</div>' +
+      '</div>' +
+      '<button class="icon-btn" data-id="' + t.id + '" onclick="deleteTask(this.dataset.id)" title="Eliminar" style="flex-shrink:0;">×</button>' +
+    '</div>';
+  }).join('');
+}
+
 function toggleTaskDetail(id) {
   const el = document.getElementById('detail_' + id);
   if(!el) return;
