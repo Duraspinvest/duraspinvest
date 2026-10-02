@@ -112,7 +112,7 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
 .cal-event.q1{background:var(--q1-bg);color:var(--q1);font-weight:600;}
 .cal-event.q2{background:var(--q2-bg);color:var(--q2);}
 .cal-event.q3{background:var(--q3-bg);color:#D97706;}
- 
+
 /* CLIENTES */
 .clientes-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
 .clientes-title{font-size:18px;font-weight:600;color:var(--navy);}
@@ -444,6 +444,7 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
 </header>
 <nav>
   <button class="nav-btn active" onclick="showSection('dashboard',this)">⊞ Inicio</button>
+  <button class="nav-btn" onclick="showSection('inbox',this)" id="navInbox">📥 Inbox <span id="badgeInbox" style="display:none;background:#EF4444;color:white;border-radius:20px;font-size:10px;padding:1px 6px;font-weight:700;margin-left:2px;"></span></button>
   <button class="nav-btn" onclick="showSection('eisenhower',this)" id="navTareas">⊕ Tareas <span id="badgeTareas" style="display:none;background:#EF4444;color:white;border-radius:20px;font-size:10px;padding:1px 6px;font-weight:700;margin-left:2px;"></span></button>
   <button class="nav-btn" onclick="showSection('calendar',this)">▦ Calendario</button>
   <button class="nav-btn" onclick="showSection('clientes',this)">◉ Clientes</button>
@@ -2101,7 +2102,15 @@ function renderEisenhower() {
     el.innerHTML = list.map(t => {
       const days = daysUntil(t.fecha);
       const ds = t.fecha ? new Date(t.fecha + 'T12:00:00').toLocaleDateString('es-ES', {day:'2-digit',month:'short',year:'numeric'}) : '';
-      return `<div class="q-task"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;"><div class="q-task-name">${ctxIcon ? '<span style="margin-right:4px;">'+ctxIcon+'</span>' : ''}${t.nombre}</div><div style="display:flex;gap:2px;flex-shrink:0;"><button class="icon-btn" onclick="editTask('${t.id}')" title="Editar">✏</button><button class="icon-btn" onclick="completeTask('${t.id}')" title="Completar">✓</button><button class="icon-btn" onclick="deleteTask('${t.id}')" title="Eliminar">×</button></div></div><div class="q-task-meta"><span>${t.area||''}</span>${t.cliente ? `<span>· ${t.cliente}</span>` : ''} ${ds ? `<span class="q-task-date">· ${ds}</span>` : ''} ${days !== null && days <= 7 && days >= 0 ? `<span style="color:var(--q1);font-weight:600;">· ${days === 0 ? 'Hoy' : days === 1 ? 'Mañana' : days + 'd'}</span>` : ''}</div></div>`;
+      return `<div class="q-task"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;"><div class="q-task-name">${ctxIcon ? '<span style="margin-right:4px;">'+ctxIcon+'</span>' : ''}${t.nombre}</div><div style="display:flex;gap:2px;flex-shrink:0;"><button class="icon-btn" onclick="editTask('${t.id}')" title="Editar">✏</button><button class="icon-btn" onclick="completeTask('${t.id}')" title="Completar">✓</button><button class="icon-btn" onclick="deleteTask('${t.id}')" title="Eliminar">×</button></div></div><div class="q-task-meta"><span>${t.area||''}</span>${t.cliente ? `<span>· ${t.cliente}</span>` : ''} ${ds ? `<span class="q-task-date">· ${ds}</span>` : ''} ${days !== null && days <= 7 && days >= 0 ? `<span style="color:var(--q1);font-weight:600;">· ${days === 0 ? 'Hoy' : days === 1 ? 'Mañana' : days + 'd'}</span>` : ''}
+      </div>
+      <div id="detail_${t.id}" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--gray-100);font-size:12px;color:var(--gray-600);">
+        ${t.cliente ? `<div style="margin-bottom:4px;">👤 <b>Cliente:</b> ${t.cliente}</div>` : ''}
+        ${t.contexto ? `<div style="margin-bottom:4px;">${{llamada:'📞',email:'📧',ordenador:'💻',presencial:'🏢',espera:'⏳',otro:'📌'}[t.contexto]||'📌'} <b>Contexto:</b> ${t.contexto}</div>` : ''}
+        ${t.notas ? `<div style="margin-bottom:4px;">📝 <b>Notas:</b> ${t.notas}</div>` : ''}
+        ${t.fecha ? `<div style="margin-bottom:4px;">📅 <b>Fecha:</b> ${new Date(t.fecha+'T12:00:00').toLocaleDateString('es-ES',{day:'2-digit',month:'long',year:'numeric'})}</div>` : ''}
+      </div>
+    </div>`;
     }).join('');
   });
 }
@@ -3702,6 +3711,12 @@ function onTClienteChange() {
   const sel = document.getElementById('tClienteSelect');
   const hidden = document.getElementById('tCliente');
   if(hidden && sel) hidden.value = sel.value;
+}
+
+function toggleTaskDetail(id) {
+  const el = document.getElementById('detail_' + id);
+  if(!el) return;
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
 }
 
 // ── Login ────────────────────────────────────────────────────────────────────
