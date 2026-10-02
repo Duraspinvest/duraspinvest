@@ -205,6 +205,10 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
 .voz-item audio{flex:1;height:36px;}
 @keyframes pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.1);}}
 .grabando{animation:pulse 1s infinite;}
+
+.ctx-btn{padding:4px 12px;border-radius:20px;border:1.5px solid var(--gray-200);background:white;color:var(--gray-600);font-size:12px;cursor:pointer;font-family:inherit;transition:all 0.15s;}
+.ctx-btn:hover{border-color:var(--navy);color:var(--navy);}
+.ctx-btn.active{background:var(--navy);color:white;border-color:var(--navy);}
 </style>
 
 <!-- Firebase SDK -->
@@ -293,6 +297,13 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
       window.bandeja = snap.docs.map(d => ({...d.data(), id: d.id}))
         .sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
       if(typeof renderBandeja === 'function') renderBandeja();
+    });
+
+    // Inbox GTD
+    onSnapshot(collection(db, "inbox_gtd"), (snap) => {
+      window.inboxItems = snap.docs.map(d => ({...d.data(), id: d.id})).filter(i => !i.eliminado);
+      if(typeof renderInbox === 'function') renderInbox();
+      if(typeof actualizarBadgeInbox === 'function') actualizarBadgeInbox();
     });
   }
 
@@ -473,7 +484,113 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
 </div>
 
 <!-- EISENHOWER -->
+<!-- INBOX GTD -->
+<div id="inbox" class="section">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+    <div>
+      <div style="font-size:16px;font-weight:700;color:var(--navy);">📥 Bandeja de entrada</div>
+      <div style="font-size:12px;color:var(--gray-400);margin-top:2px;">Captura todo aquí. Procesa regularmente.</div>
+    </div>
+    <button class="btn btn-primary" onclick="abrirInboxNuevo()">+ Añadir</button>
+  </div>
+
+  <!-- Formulario rápido de captura -->
+  <div id="inboxCapturaForm" style="display:none;background:white;border-radius:12px;box-shadow:var(--shadow);padding:16px;margin-bottom:14px;">
+    <div class="form-group" style="margin-bottom:10px;">
+      <input type="text" class="form-input" id="inboxTexto" placeholder="¿Qué tienes en la cabeza? Escríbelo..." style="font-size:15px;">
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn btn-secondary btn-sm" onclick="cerrarInboxCaptura()">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="guardarInbox()">Guardar en inbox</button>
+    </div>
+  </div>
+
+  <!-- Lista inbox -->
+  <div id="inboxLista"></div>
+</div>
+
+<!-- MODAL PROCESAR INBOX -->
+<div class="modal-overlay" id="procesarModalOverlay" onclick="closeModalOutside(event,'procesarModalOverlay')">
+  <div class="modal" style="max-width:500px;">
+    <div class="modal-title">Procesar elemento</div>
+    <div id="procesarTextoPreview" style="background:var(--gray-50);padding:12px;border-radius:8px;font-size:14px;font-weight:500;color:var(--navy);margin-bottom:14px;"></div>
+    <div class="form-group">
+      <label class="form-label">¿Qué es esto?</label>
+      <select class="form-select" id="procesarTipo" onchange="onProcesarTipoChange()">
+        <option value="">Seleccionar...</option>
+        <option value="tarea">📌 Tarea / acción</option>
+        <option value="2min">⚡ Se hace en menos de 2 min → hacerla ya</option>
+        <option value="espera">⏳ Esperando respuesta de alguien</option>
+        <option value="algun_dia">💭 Algún día / quizás</option>
+        <option value="eliminar">🗑 No es relevante → eliminar</option>
+      </select>
+    </div>
+    <div id="procesarTareaFields" style="display:none;">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Cliente / Proyecto</label>
+          <select class="form-select" id="procesarCliente">
+            <option value="">Sin cliente (interno)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Contexto</label>
+          <select class="form-select" id="procesarContexto">
+            <option value="llamada">📞 Llamada</option>
+            <option value="email">📧 Email</option>
+            <option value="ordenador">💻 Ordenador</option>
+            <option value="presencial">🏢 Presencial</option>
+            <option value="espera">⏳ Esperando</option>
+            <option value="otro">📌 Otro</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Cuadrante Eisenhower</label>
+          <select class="form-select" id="procesarCuadrante">
+            <option value="Q1 Importante + urgente">🔴 Q1 — Importante + urgente</option>
+            <option value="Q2 Importante no urgente">🔵 Q2 — Importante, no urgente</option>
+            <option value="Q3 Urgente no importante">🟡 Q3 — Urgente, no importante</option>
+            <option value="Q4 Ni importante ni urgente">⚪ Q4 — Ni importante ni urgente</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Fecha límite</label>
+          <input type="date" class="form-input" id="procesarFecha">
+        </div>
+      </div>
+    </div>
+    <div id="procesarEsperaFields" style="display:none;">
+      <div class="form-group">
+        <label class="form-label">¿Esperando qué / de quién?</label>
+        <input type="text" class="form-input" id="procesarEsperaDetalle" placeholder="Ej: Respuesta de Yohaira sobre documentación">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('procesarModalOverlay')">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarProcesar()">Confirmar</button>
+    </div>
+  </div>
+</div>
+
 <div id="eisenhower" class="section">
+  <!-- Filtros GTD -->
+  <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center;">
+    <span style="font-size:11px;font-weight:600;color:var(--gray-600);text-transform:uppercase;letter-spacing:0.5px;">Ver por contexto:</span>
+    <button onclick="filtrarContexto('')" id="fCtxTodos" class="ctx-btn active">Todos</button>
+    <button onclick="filtrarContexto('llamada')" id="fCtxLlamada" class="ctx-btn">📞 Llamadas</button>
+    <button onclick="filtrarContexto('email')" id="fCtxEmail" class="ctx-btn">📧 Emails</button>
+    <button onclick="filtrarContexto('ordenador')" id="fCtxOrdenador" class="ctx-btn">💻 Ordenador</button>
+    <button onclick="filtrarContexto('espera')" id="fCtxEspera" class="ctx-btn">⏳ Esperando</button>
+    <button onclick="filtrarContexto('presencial')" id="fCtxPresencial" class="ctx-btn">🏢 Presencial</button>
+  </div>
+  <div style="display:flex;gap:8px;margin-bottom:14px;align-items:center;flex-wrap:wrap;">
+    <span style="font-size:11px;font-weight:600;color:var(--gray-600);text-transform:uppercase;letter-spacing:0.5px;">Cliente:</span>
+    <select id="filtroClienteTareas" onchange="renderEisenhower()" style="padding:4px 10px;border:1.5px solid var(--gray-200);border-radius:20px;font-size:12px;font-family:inherit;background:white;">
+      <option value="">Todos los clientes</option>
+    </select>
+  </div>
   <div class="matrix-grid">
     <div class="quadrant q1">
       <div class="quadrant-header"><span class="quadrant-title">🔴 Importante + urgente</span><span class="quadrant-count" id="countQ1">0</span></div>
@@ -867,7 +984,26 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
     <div class="modal-title">Nueva tarea</div>
     <input type="hidden" id="tId">
     <div class="form-group"><label class="form-label">Tarea</label><input type="text" class="form-input" id="tNombre" placeholder="Ej: Modelo 303 — IVA T1"></div>
-    <div class="form-group"><label class="form-label">Cliente</label><input type="text" class="form-input" id="tCliente" placeholder="Nombre del cliente"></div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Cliente / Proyecto</label>
+        <select class="form-select" id="tClienteSelect" onchange="onTClienteChange()">
+          <option value="">Sin cliente (interno)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Contexto</label>
+        <select class="form-select" id="tContexto">
+          <option value="llamada">📞 Llamada</option>
+          <option value="email">📧 Email</option>
+          <option value="ordenador">💻 Ordenador</option>
+          <option value="presencial">🏢 Presencial</option>
+          <option value="espera">⏳ Esperando</option>
+          <option value="otro">📌 Otro</option>
+        </select>
+      </div>
+    </div>
+    <input type="hidden" id="tCliente">
     <div class="form-row">
       <div class="form-group"><label class="form-label">Cuadrante</label>
         <select class="form-select" id="tCuadrante">
@@ -1212,9 +1348,10 @@ async function saveTask() {
   const task = {
     id: idExistente || String(Date.now()),
     nombre,
-    cliente: document.getElementById('tCliente').value.trim(),
+    cliente: document.getElementById('tClienteSelect') ? document.getElementById('tClienteSelect').value : document.getElementById('tCliente').value.trim(),
     cuadrante: document.getElementById('tCuadrante').value,
     area: document.getElementById('tArea').value,
+    contexto: document.getElementById('tContexto') ? document.getElementById('tContexto').value : 'otro',
     fecha: document.getElementById('tFecha').value,
     notas: document.getElementById('tNotas').value.trim(),
     estado: taskExistente ? taskExistente.estado : 'Pendiente',
@@ -1817,6 +1954,8 @@ function renderDashboard() {
   }
   ul.innerHTML = wd.map(t => {
     const days = daysUntil(t.fecha);
+      const ctxLabels = {llamada:'📞',email:'📧',ordenador:'💻',presencial:'🏢',espera:'⏳',otro:'📌'};
+      const ctxIcon = ctxLabels[t.contexto] || '';
     const dc = days <= 2 ? 'urgent' : days <= 7 ? 'soon' : 'ok';
     const dt = days < 0 ? `Venció hace ${Math.abs(days)}d` : days === 0 ? 'Hoy' : days === 1 ? 'Mañana' : `${days} días`;
     const ds = t.fecha ? new Date(t.fecha + 'T12:00:00').toLocaleDateString('es-ES', {day:'2-digit',month:'short'}) : '';
@@ -1902,6 +2041,17 @@ function updateBadges() {
   }
 }
 
+let _contextoFiltro = '';
+
+function filtrarContexto(ctx) {
+  _contextoFiltro = ctx;
+  document.querySelectorAll('.ctx-btn').forEach(b => b.classList.remove('active'));
+  const btnId = 'fCtx' + (ctx === '' ? 'Todos' : ctx.charAt(0).toUpperCase() + ctx.slice(1));
+  const btn = document.getElementById(btnId);
+  if(btn) btn.classList.add('active');
+  renderEisenhower();
+}
+
 function renderEisenhower() {
   const allTasks = window.tasks || [];
   [
@@ -1910,7 +2060,14 @@ function renderEisenhower() {
     ['Q3','Q3 Urgente no importante'],
     ['Q4','Q4 Ni importante ni urgente']
   ].forEach(([q, key]) => {
-    const list = allTasks.filter(t => t.cuadrante === key && t.estado !== 'Completada');
+    const _cliFiltro = (document.getElementById('filtroClienteTareas')||{value:''}).value;
+    const list = allTasks.filter(t => {
+      if(t.cuadrante !== key) return false;
+      if(t.estado === 'Completada') return false;
+      if(_contextoFiltro && t.contexto !== _contextoFiltro) return false;
+      if(_cliFiltro && t.cliente !== _cliFiltro) return false;
+      return true;
+    });
     const countEl = document.getElementById('count' + q);
     if (countEl) countEl.textContent = list.length;
     const el = document.getElementById('list' + q);
@@ -1922,7 +2079,7 @@ function renderEisenhower() {
     el.innerHTML = list.map(t => {
       const days = daysUntil(t.fecha);
       const ds = t.fecha ? new Date(t.fecha + 'T12:00:00').toLocaleDateString('es-ES', {day:'2-digit',month:'short',year:'numeric'}) : '';
-      return `<div class="q-task"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;"><div class="q-task-name">${t.nombre}</div><div style="display:flex;gap:2px;flex-shrink:0;"><button class="icon-btn" onclick="editTask('${t.id}')" title="Editar">✏</button><button class="icon-btn" onclick="completeTask('${t.id}')" title="Completar">✓</button><button class="icon-btn" onclick="deleteTask('${t.id}')" title="Eliminar">×</button></div></div><div class="q-task-meta"><span>${t.area||''}</span>${t.cliente ? `<span>· ${t.cliente}</span>` : ''} ${ds ? `<span class="q-task-date">· ${ds}</span>` : ''} ${days !== null && days <= 7 && days >= 0 ? `<span style="color:var(--q1);font-weight:600;">· ${days === 0 ? 'Hoy' : days === 1 ? 'Mañana' : days + 'd'}</span>` : ''}</div></div>`;
+      return `<div class="q-task"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;"><div class="q-task-name">${ctxIcon ? '<span style="margin-right:4px;">'+ctxIcon+'</span>' : ''}${t.nombre}</div><div style="display:flex;gap:2px;flex-shrink:0;"><button class="icon-btn" onclick="editTask('${t.id}')" title="Editar">✏</button><button class="icon-btn" onclick="completeTask('${t.id}')" title="Completar">✓</button><button class="icon-btn" onclick="deleteTask('${t.id}')" title="Eliminar">×</button></div></div><div class="q-task-meta"><span>${t.area||''}</span>${t.cliente ? `<span>· ${t.cliente}</span>` : ''} ${ds ? `<span class="q-task-date">· ${ds}</span>` : ''} ${days !== null && days <= 7 && days >= 0 ? `<span style="color:var(--q1);font-weight:600;">· ${days === 0 ? 'Hoy' : days === 1 ? 'Mañana' : days + 'd'}</span>` : ''}</div></div>`;
     }).join('');
   });
 }
@@ -3356,6 +3513,173 @@ function exportarBackup() {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(a.href);
+}
+
+// ── GTD Inbox ────────────────────────────────────────────────────────────────
+
+window.inboxItems = [];
+
+function abrirInboxNuevo() {
+  const form = document.getElementById('inboxCapturaForm');
+  if(form) { form.style.display = 'block'; }
+  const inp = document.getElementById('inboxTexto');
+  if(inp) { inp.value = ''; inp.focus(); }
+}
+
+function cerrarInboxCaptura() {
+  const form = document.getElementById('inboxCapturaForm');
+  if(form) form.style.display = 'none';
+}
+
+async function guardarInbox() {
+  const texto = (document.getElementById('inboxTexto').value || '').trim();
+  if(!texto) return;
+  const item = { id: String(Date.now()), texto, creado: new Date().toISOString(), procesado: false };
+  await fbSet('inbox_gtd', item.id, item);
+  cerrarInboxCaptura();
+  actualizarBadgeInbox();
+}
+
+function renderInbox() {
+  const lista = document.getElementById('inboxLista');
+  if(!lista) return;
+  const items = (window.inboxItems || []).filter(i => !i.procesado).sort((a,b) => b.creado.localeCompare(a.creado));
+  actualizarBadgeInbox();
+  if(!items.length) {
+    lista.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--gray-400);"><div style="font-size:32px;margin-bottom:8px;">✅</div><div style="font-size:14px;">Bandeja vacía. ¡Bien hecho!</div></div>';
+    return;
+  }
+  lista.innerHTML = items.map(item => {
+    const fecha = new Date(item.creado).toLocaleDateString('es-ES',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+    return '<div style="background:white;border-radius:10px;box-shadow:var(--shadow);padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px;">' +
+      '<div style="flex:1;">' +
+        '<div style="font-size:14px;color:var(--navy);font-weight:500;">' + item.texto + '</div>' +
+        '<div style="font-size:11px;color:var(--gray-400);margin-top:3px;">' + fecha + '</div>' +
+      '</div>' +
+      '<div style="display:flex;gap:6px;">' +
+        '<button class="btn btn-sm btn-primary" data-id="' + item.id + '" onclick="abrirProcesar(this.dataset.id)">Procesar</button>' +
+        '<button class="btn btn-sm btn-secondary" data-id="' + item.id + '" onclick="eliminarInbox(this.dataset.id)">✕</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function actualizarBadgeInbox() {
+  const count = (window.inboxItems || []).filter(i => !i.procesado).length;
+  const badge = document.getElementById('badgeInbox');
+  if(badge) { badge.style.display = count > 0 ? 'inline' : 'none'; badge.textContent = count; }
+}
+
+async function eliminarInbox(id) {
+  await fbSet('inbox_gtd', id, { id, procesado: true, eliminado: true, texto: '', creado: new Date().toISOString() });
+}
+
+window._procesarId = null;
+
+function abrirProcesar(id) {
+  const item = (window.inboxItems || []).find(i => i.id === id);
+  if(!item) return;
+  window._procesarId = id;
+  const preview = document.getElementById('procesarTextoPreview');
+  if(preview) preview.textContent = item.texto;
+  document.getElementById('procesarTipo').value = '';
+  document.getElementById('procesarTareaFields').style.display = 'none';
+  document.getElementById('procesarEsperaFields').style.display = 'none';
+  // Poblar selector de clientes
+  const sel = document.getElementById('procesarCliente');
+  if(sel) {
+    sel.innerHTML = '<option value="">Sin cliente (interno)</option>';
+    (window.clients || []).sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||'')).forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.nombre; opt.textContent = c.nombre;
+      sel.appendChild(opt);
+    });
+  }
+  document.getElementById('procesarModalOverlay').classList.add('open');
+}
+
+function onProcesarTipoChange() {
+  const tipo = document.getElementById('procesarTipo').value;
+  document.getElementById('procesarTareaFields').style.display = tipo === 'tarea' ? 'block' : 'none';
+  document.getElementById('procesarEsperaFields').style.display = tipo === 'espera' ? 'block' : 'none';
+}
+
+async function confirmarProcesar() {
+  const tipo = document.getElementById('procesarTipo').value;
+  if(!tipo) { alert('Selecciona qué tipo de elemento es.'); return; }
+  const id = window._procesarId;
+  const item = (window.inboxItems || []).find(i => i.id === id);
+  if(!item) return;
+
+  if(tipo === 'eliminar' || tipo === '2min') {
+    // Marcar como procesado directamente
+    await fbSet('inbox_gtd', id, Object.assign({}, item, { procesado: true, tipoProcesado: tipo }));
+  } else if(tipo === 'tarea') {
+    // Crear tarea en el sistema
+    const cliente = document.getElementById('procesarCliente').value;
+    const contexto = document.getElementById('procesarContexto').value;
+    const cuadrante = document.getElementById('procesarCuadrante').value;
+    const fecha = document.getElementById('procesarFecha').value;
+    const tarea = {
+      id: String(Date.now()),
+      nombre: item.texto,
+      cliente: cliente,
+      contexto: contexto,
+      cuadrante: cuadrante,
+      area: 'Fiscal',
+      fecha: fecha,
+      notas: '',
+      estado: 'Pendiente',
+      creado: new Date().toISOString(),
+      modificado: new Date().toISOString(),
+      origenInbox: id
+    };
+    await fbSet('tasks', tarea.id, tarea);
+    await fbSet('inbox_gtd', id, Object.assign({}, item, { procesado: true, tipoProcesado: 'tarea', tareaId: tarea.id }));
+  } else if(tipo === 'espera') {
+    const detalle = document.getElementById('procesarEsperaDetalle').value.trim();
+    const tarea = {
+      id: String(Date.now()),
+      nombre: item.texto + (detalle ? ' — ' + detalle : ''),
+      cliente: '',
+      contexto: 'espera',
+      cuadrante: 'Q2 Importante no urgente',
+      area: 'Interno',
+      fecha: '',
+      notas: detalle,
+      estado: 'Pendiente',
+      creado: new Date().toISOString(),
+      modificado: new Date().toISOString(),
+      origenInbox: id
+    };
+    await fbSet('tasks', tarea.id, tarea);
+    await fbSet('inbox_gtd', id, Object.assign({}, item, { procesado: true, tipoProcesado: 'espera' }));
+  } else if(tipo === 'algun_dia') {
+    const tarea = {
+      id: String(Date.now()),
+      nombre: item.texto,
+      cliente: '',
+      contexto: 'otro',
+      cuadrante: 'Q4 Ni importante ni urgente',
+      area: 'Interno',
+      fecha: '',
+      notas: 'Algún día / quizás',
+      estado: 'Pendiente',
+      creado: new Date().toISOString(),
+      modificado: new Date().toISOString(),
+      origenInbox: id
+    };
+    await fbSet('tasks', tarea.id, tarea);
+    await fbSet('inbox_gtd', id, Object.assign({}, item, { procesado: true, tipoProcesado: 'algun_dia' }));
+  }
+  closeModal('procesarModalOverlay');
+  renderInbox();
+}
+
+function onTClienteChange() {
+  const sel = document.getElementById('tClienteSelect');
+  const hidden = document.getElementById('tCliente');
+  if(hidden && sel) hidden.value = sel.value;
 }
 
 // ── Login ────────────────────────────────────────────────────────────────────
