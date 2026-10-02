@@ -260,6 +260,26 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
     unsubClients = onSnapshot(collection(db, "clients"), (snap) => {
       window.clients = snap.docs.map(d => ({...d.data(), id: d.id}));
       if(typeof renderClientesList === 'function') renderClientesList();
+      // Poblar filtro de clientes en tareas
+      const selCT = document.getElementById('filtroClienteTareas');
+      if(selCT) {
+        const val = selCT.value;
+        selCT.innerHTML = '<option value="">Todos los clientes</option>';
+        (window.clients||[]).filter(c=>(c.categoria||'despacho')!=='auxiliar')
+          .sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||''))
+          .forEach(c=>{ const o=document.createElement('option'); o.value=c.nombre; o.textContent=c.nombre; selCT.appendChild(o); });
+        selCT.value = val;
+      }
+      // Poblar tClienteSelect en modal de tarea
+      const selTS = document.getElementById('tClienteSelect');
+      if(selTS) {
+        const val2 = selTS.value;
+        selTS.innerHTML = '<option value="">Sin cliente (interno)</option>';
+        (window.clients||[]).filter(c=>(c.categoria||'despacho')!=='auxiliar')
+          .sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||''))
+          .forEach(c=>{ const o=document.createElement('option'); o.value=c.nombre; o.textContent=c.nombre; selTS.appendChild(o); });
+        selTS.value = val2;
+      }
       if(typeof renderRegistro === 'function' && document.getElementById('registro') && document.getElementById('registro').classList.contains('active')) renderRegistro();
       if(typeof renderCuadroMando === 'function' && document.getElementById('dashboard') && document.getElementById('dashboard').classList.contains('active')) renderCuadroMando();
     });
@@ -2064,7 +2084,9 @@ function renderEisenhower() {
     const list = allTasks.filter(t => {
       if(t.cuadrante !== key) return false;
       if(t.estado === 'Completada') return false;
-      if(_contextoFiltro && t.contexto !== _contextoFiltro) return false;
+      // Solo filtrar por contexto si la tarea tiene contexto asignado
+      if(_contextoFiltro && t.contexto && t.contexto !== _contextoFiltro) return false;
+      if(_contextoFiltro && !t.contexto) return false; // sin contexto no aparece en filtros específicos
       if(_cliFiltro && t.cliente !== _cliFiltro) return false;
       return true;
     });
