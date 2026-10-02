@@ -2108,7 +2108,9 @@ function renderEisenhower() {
         ${t.cliente ? `<div style="margin-bottom:4px;">👤 <b>Cliente:</b> ${t.cliente}</div>` : ''}
         ${t.contexto ? `<div style="margin-bottom:4px;">${{llamada:'📞',email:'📧',ordenador:'💻',presencial:'🏢',espera:'⏳',otro:'📌'}[t.contexto]||'📌'} <b>Contexto:</b> ${t.contexto}</div>` : ''}
         ${t.notas ? `<div style="margin-bottom:4px;">📝 <b>Notas:</b> ${t.notas}</div>` : ''}
-        ${t.fecha ? `<div style="margin-bottom:4px;">📅 <b>Fecha:</b> ${new Date(t.fecha+'T12:00:00').toLocaleDateString('es-ES',{day:'2-digit',month:'long',year:'numeric'})}</div>` : ''}
+        ${t.fecha ? `<div style="margin-bottom:4px;">📅 <b>Fecha límite:</b> ${new Date(t.fecha+'T12:00:00').toLocaleDateString('es-ES',{day:'2-digit',month:'long',year:'numeric'})}</div>` : ''}
+        ${t.creado ? `<div style="margin-bottom:4px;color:var(--gray-400);">🕐 Creada: ${new Date(t.creado).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>` : ''}
+        ${t.modificado && t.modificado !== t.creado ? `<div style="margin-bottom:4px;color:var(--gray-400);">✏️ Modificada: ${new Date(t.modificado).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>` : ''}
       </div>
     </div>`;
     }).join('');
@@ -3642,9 +3644,26 @@ async function confirmarProcesar() {
   const item = (window.inboxItems || []).find(i => i.id === id);
   if(!item) return;
 
-  if(tipo === 'eliminar' || tipo === '2min') {
-    // Marcar como procesado directamente
+  if(tipo === 'eliminar') {
     await fbSet('inbox_gtd', id, Object.assign({}, item, { procesado: true, tipoProcesado: tipo }));
+  } else if(tipo === '2min') {
+    // Crear tarea completada para dejar registro
+    const tarea2min = {
+      id: String(Date.now()),
+      nombre: item.texto,
+      cliente: '',
+      contexto: 'otro',
+      cuadrante: 'Q4 Ni importante ni urgente',
+      area: 'Interno',
+      fecha: '',
+      notas: 'Hecha en el momento (menos de 2 min)',
+      estado: 'Completada',
+      creado: new Date().toISOString(),
+      modificado: new Date().toISOString(),
+      origenInbox: id
+    };
+    await fbSet('tasks', tarea2min.id, tarea2min);
+    await fbSet('inbox_gtd', id, Object.assign({}, item, { procesado: true, tipoProcesado: '2min', tareaId: tarea2min.id }));
   } else if(tipo === 'tarea') {
     // Crear tarea en el sistema
     const cliente = document.getElementById('procesarCliente').value;
