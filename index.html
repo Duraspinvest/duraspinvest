@@ -634,6 +634,15 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
       <button class="add-task-btn" onclick="openTaskModal('Q4 Ni importante ni urgente')">+ Añadir tarea</button>
     </div>
   </div>
+
+  <!-- Tareas completadas -->
+  <div style="margin-top:20px;padding-top:4px;">
+    <button onclick="toggleCompletadas()" id="btnCompletadas" style="background:none;border:none;color:var(--gray-400);font-size:12px;cursor:pointer;padding:4px 0;font-family:inherit;">
+      &#9654; Ver tareas completadas
+    </button>
+    <div id="completadasLista" style="display:none;margin-top:10px;"></div>
+  </div>
+
 </div>
 
 <!-- CALENDAR -->
