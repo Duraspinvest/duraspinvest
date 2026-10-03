@@ -674,7 +674,40 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
     <button onclick="toggleCompletadas()" id="btnCompletadas" style="background:none;border:none;color:var(--gray-400);font-size:12px;cursor:pointer;padding:4px 0;font-family:inherit;">
       &#9654; Ver tareas completadas
     </button>
-    <div id="completadasLista" style="display:none;margin-top:10px;"></div>
+    <div id="completadasLista" style="display:none;margin-top:10px;">
+      <!-- Filtros -->
+      <div style="background:white;border-radius:10px;box-shadow:var(--shadow);padding:14px;margin-bottom:10px;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
+          <div style="flex:1;min-width:160px;">
+            <label style="font-size:11px;font-weight:600;color:var(--gray-600);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px;">Cliente</label>
+            <select id="filtCompCliente" onchange="renderCompletadas()" style="width:100%;padding:7px 10px;border:1.5px solid var(--gray-200);border-radius:7px;font-size:13px;font-family:inherit;">
+              <option value="">Todos los clientes</option>
+            </select>
+          </div>
+          <div style="min-width:100px;">
+            <label style="font-size:11px;font-weight:600;color:var(--gray-600);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px;">Año</label>
+            <select id="filtCompAnio" onchange="renderCompletadas()" style="padding:7px 10px;border:1.5px solid var(--gray-200);border-radius:7px;font-size:13px;font-family:inherit;">
+              <option value="">Todos</option>
+            </select>
+          </div>
+          <div style="min-width:160px;">
+            <label style="font-size:11px;font-weight:600;color:var(--gray-600);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px;">Periodo</label>
+            <select id="filtCompPeriodo" onchange="renderCompletadas()" style="padding:7px 10px;border:1.5px solid var(--gray-200);border-radius:7px;font-size:13px;font-family:inherit;">
+              <option value="">Todo el año</option>
+              <option value="T1">1er trimestre (Ene-Mar)</option>
+              <option value="T2">2º trimestre (Abr-Jun)</option>
+              <option value="T3">3er trimestre (Jul-Sep)</option>
+              <option value="T4">4º trimestre (Oct-Dic)</option>
+              <option value="S1">1er semestre (Ene-Jun)</option>
+              <option value="S2">2º semestre (Jul-Dic)</option>
+            </select>
+          </div>
+          <button onclick="exportarCompletadasExcel()" style="padding:7px 14px;background:var(--navy);color:white;border:none;border-radius:7px;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;white-space:nowrap;">&#x1F4E5; Exportar Excel</button>
+        </div>
+        <div id="completadasCount" style="font-size:11px;color:var(--gray-400);margin-top:8px;"></div>
+      </div>
+      <div id="completadasItems"></div>
+    </div>
   </div>
 
 </div>
@@ -4175,23 +4208,75 @@ function toggleCompletadas() {
   }
 }
 
+function poblarFiltrosCompletadas() {
+  const todas = (window.tasks||[]).filter(t => t.estado === 'Completada');
+  // Clientes
+  const selCli = document.getElementById('filtCompCliente');
+  if(selCli) {
+    const val = selCli.value;
+    const clientes = [...new Set(todas.map(t => t.cliente).filter(Boolean))].sort();
+    selCli.innerHTML = '<option value="">Todos los clientes</option>';
+    clientes.forEach(c => { const o=document.createElement('option'); o.value=c; o.textContent=c; selCli.appendChild(o); });
+    selCli.value = val;
+  }
+  // Años
+  const selAnio = document.getElementById('filtCompAnio');
+  if(selAnio) {
+    const val = selAnio.value;
+    const años = [...new Set(todas.map(t => {
+      const f = t.modificado || t.creado;
+      return f ? new Date(f).getFullYear() : null;
+    }).filter(Boolean))].sort((a,b) => b-a);
+    selAnio.innerHTML = '<option value="">Todos</option>';
+    años.forEach(a => { const o=document.createElement('option'); o.value=a; o.textContent=a; selAnio.appendChild(o); });
+    selAnio.value = val;
+  }
+}
+
+function filtrarPorPeriodo(fecha, anio, periodo) {
+  if(!fecha) return false;
+  const d = new Date(fecha);
+  if(anio && d.getFullYear() !== parseInt(anio)) return false;
+  if(!periodo) return true;
+  const m = d.getMonth() + 1;
+  if(periodo === 'T1') return m >= 1 && m <= 3;
+  if(periodo === 'T2') return m >= 4 && m <= 6;
+  if(periodo === 'T3') return m >= 7 && m <= 9;
+  if(periodo === 'T4') return m >= 10 && m <= 12;
+  if(periodo === 'S1') return m >= 1 && m <= 6;
+  if(periodo === 'S2') return m >= 7 && m <= 12;
+  return true;
+}
+
 function renderCompletadas() {
-  const lista = document.getElementById('completadasLista');
+  poblarFiltrosCompletadas();
+  const lista = document.getElementById('completadasItems');
+  const count = document.getElementById('completadasCount');
   if(!lista) return;
+  const filtCli = (document.getElementById('filtCompCliente')||{value:''}).value;
+  const filtAnio = (document.getElementById('filtCompAnio')||{value:''}).value;
+  const filtPer = (document.getElementById('filtCompPeriodo')||{value:''}).value;
+  const ctxLabels = {llamada:'📞',email:'📧',ordenador:'💻',presencial:'🏢',espera:'⏳',otro:'📌'};
   const completadas = (window.tasks||[])
-    .filter(t => t.estado === 'Completada')
+    .filter(t => {
+      if(t.estado !== 'Completada') return false;
+      if(filtCli && t.cliente !== filtCli) return false;
+      const fecha = t.modificado || t.creado;
+      if(!filtrarPorPeriodo(fecha, filtAnio, filtPer)) return false;
+      return true;
+    })
     .sort((a,b) => (b.modificado||b.creado||'').localeCompare(a.modificado||a.creado||''));
+  if(count) count.textContent = completadas.length + ' tarea' + (completadas.length !== 1 ? 's' : '') + ' completada' + (completadas.length !== 1 ? 's' : '');
   if(!completadas.length) {
-    lista.innerHTML = '<div style="font-size:13px;color:var(--gray-400);padding:8px 0;">No hay tareas completadas.</div>';
+    lista.innerHTML = '<div style="font-size:13px;color:var(--gray-400);padding:8px 0;text-align:center;">No hay tareas con esos filtros.</div>';
     return;
   }
   lista.innerHTML = completadas.map(t => {
     const fechaHecha = t.modificado ? new Date(t.modificado).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
     const fechaCreada = t.creado ? new Date(t.creado).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'}) : '';
-    const ctxLabels = {llamada:'📞',email:'📧',ordenador:'💻',presencial:'🏢',espera:'⏳',otro:'📌'};
     const ctxIcon = ctxLabels[t.contexto] || '';
     return '<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;background:white;border-radius:8px;margin-bottom:6px;box-shadow:var(--shadow);opacity:0.8;">' +
-      '<span style="color:var(--success);font-size:16px;flex-shrink:0;">✓</span>' +
+      '<span style="color:var(--success);font-size:16px;flex-shrink:0;">&#x2713;</span>' +
       '<div style="flex:1;min-width:0;">' +
         '<div style="font-size:13px;color:var(--gray-600);text-decoration:line-through;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (ctxIcon?ctxIcon+' ':'') + t.nombre + '</div>' +
         '<div style="font-size:11px;color:var(--gray-400);margin-top:2px;">' +
@@ -4200,9 +4285,47 @@ function renderCompletadas() {
           (t.notas ? ' · ' + t.notas : '') +
         '</div>' +
       '</div>' +
-      '<button class="icon-btn" data-id="' + t.id + '" onclick="deleteTask(this.dataset.id)" title="Eliminar" style="flex-shrink:0;">×</button>' +
+      '<button class="icon-btn" data-id="' + t.id + '" onclick="deleteTask(this.dataset.id)" title="Eliminar" style="flex-shrink:0;">&#x00D7;</button>' +
     '</div>';
   }).join('');
+}
+
+function exportarCompletadasExcel() {
+  const filtCli = (document.getElementById('filtCompCliente')||{value:''}).value;
+  const filtAnio = (document.getElementById('filtCompAnio')||{value:''}).value;
+  const filtPer = (document.getElementById('filtCompPeriodo')||{value:''}).value;
+  const ctxLabels = {llamada:'Llamada',email:'Email',ordenador:'Ordenador',presencial:'Presencial',espera:'Esperando',otro:'Otro'};
+  const completadas = (window.tasks||[])
+    .filter(t => {
+      if(t.estado !== 'Completada') return false;
+      if(filtCli && t.cliente !== filtCli) return false;
+      const fecha = t.modificado || t.creado;
+      if(!filtrarPorPeriodo(fecha, filtAnio, filtPer)) return false;
+      return true;
+    })
+    .sort((a,b) => (b.modificado||b.creado||'').localeCompare(a.modificado||a.creado||''));
+  if(!completadas.length) { alert('No hay tareas con esos filtros para exportar.'); return; }
+
+  // Crear CSV
+  const headers = ['Tarea','Cliente','Contexto','Cuadrante','Fecha creacion','Fecha completada','Notas'];
+  const rows = completadas.map(t => [
+    '"' + (t.nombre||'').replace(/"/g,'""') + '"',
+    '"' + (t.cliente||'').replace(/"/g,'""') + '"',
+    '"' + (ctxLabels[t.contexto]||t.contexto||'') + '"',
+    '"' + (t.cuadrante||'').replace(/"/g,'""') + '"',
+    '"' + (t.creado ? new Date(t.creado).toLocaleDateString('es-ES') : '') + '"',
+    '"' + (t.modificado ? new Date(t.modificado).toLocaleDateString('es-ES') : '') + '"',
+    '"' + (t.notas||'').replace(/"/g,'""') + '"',
+  ].join(','));
+  const csv = [headers.join(',')].concat(rows).join('\n');;
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  const nombre = 'tareas_completadas' + (filtCli?'_'+filtCli:'') + (filtAnio?'_'+filtAnio:'') + (filtPer?'_'+filtPer:'') + '.csv';
+  a.download = nombre;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 }
 
 function toggleTaskDetail(id) {
