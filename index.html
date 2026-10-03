@@ -37,7 +37,7 @@ header{background:var(--navy);padding:0 24px;height:60px;display:flex;align-item
 .logo-name{color:white;font-size:15px;font-weight:600;letter-spacing:0.5px;}
 .logo-sub{color:var(--gray-400);font-size:10px;letter-spacing:1px;text-transform:uppercase;margin-top:1px;}
 .header-date{color:var(--gray-400);font-size:12px;}
-nav{background:var(--navy-mid);display:flex;overflow-x:auto;scrollbar-width:none;}
+nav{background:var(--navy-mid);display:flex;overflow-x:auto;scrollbar-width:none;position:sticky;top:60px;z-index:95;box-shadow:0 2px 6px rgba(0,0,0,0.15);}
 nav::-webkit-scrollbar{display:none;}
 .nav-btn{padding:12px 20px;color:var(--gray-400);font-size:13px;font-weight:500;border:none;background:none;cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;transition:all 0.2s;display:flex;align-items:center;gap:6px;}
 .nav-btn:hover{color:white;}
@@ -788,6 +788,7 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
         <option value="proceso">🟡 En proceso</option>
         <option value="presentado">🟢 Presentado</option>
       </select>
+      <button class="btn btn-secondary" onclick="exportarPlanningExcel()" title="Exportar a Excel">&#x1F4E5; Excel</button>
     </div>
   </div>
 
@@ -1274,6 +1275,15 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
         </select>
       </div>
     </div>
+    <!-- Cuentas bancarias -->
+    <div style="border-top:1px solid var(--gray-100);padding-top:14px;margin-top:4px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <label class="form-label" style="margin:0;">🏦 Cuentas bancarias</label>
+        <button type="button" onclick="addCuentaBancaria()" style="font-size:11px;padding:3px 10px;border-radius:6px;border:1.5px solid var(--navy);background:white;color:var(--navy);cursor:pointer;font-family:inherit;">+ Añadir</button>
+      </div>
+      <div id="cuentasBancariasList"></div>
+    </div>
+
     <div class="modal-actions" style="justify-content:space-between;">
       <button class="btn btn-secondary" id="cBtnRegistro" onclick="openRegistroDesdeFicha()" style="display:none;">🗂 Registro / contabilización</button>
       <div style="display:flex;gap:8px;">
@@ -1448,6 +1458,8 @@ function openClienteModal(id) {
     });
     document.getElementById('cTel').value = c.tel || '';
     document.getElementById('cEmail').value = c.email || '';
+    window._cuentasBancarias = JSON.parse(JSON.stringify(c.cuentasBancarias||[]));
+    renderCuentasBancarias();
     const elEp=document.getElementById('cEpigrafe'); if(elEp) elEp.value=c.epigrafe||'';
     const elAc=document.getElementById('cActividad'); if(elAc) elAc.value=c.actividad||'';
     const elNA=document.getElementById('cNASS'); if(elNA) elNA.value=c.nass||'';
@@ -1568,6 +1580,8 @@ async function saveCliente() {
     nass: (document.getElementById('cNASS')||{value:''}).value.trim(),
     ccc: (document.getElementById('cCCC')||{value:''}).value.trim(),
     certFecha: (document.getElementById('cCertFecha')||{value:''}).value,
+    certTitular: (document.getElementById('cCertTitular')||{value:''}).value.trim(),
+    cuentasBancarias: window._cuentasBancarias || [],
     certTitular: (document.getElementById('cCertTitular')||{value:''}).value.trim(),
   };
   if(existing) {
@@ -4386,6 +4400,90 @@ async function guardarTareaSeguimiento() {
   };
   await fbSet('tasks', tarea.id, tarea);
   closeModal('tareaSegModalOverlay');
+}
+
+// ── Cuentas bancarias cliente ─────────────────────────────────────────────────
+
+function renderCuentasBancarias() {
+  const lista = document.getElementById('cuentasBancariasList');
+  if(!lista) return;
+  const cuentas = window._cuentasBancarias || [];
+  if(!cuentas.length) {
+    lista.innerHTML = '<div style="font-size:12px;color:var(--gray-400);padding:4px 0;">Sin cuentas bancarias.</div>';
+    return;
+  }
+  lista.innerHTML = cuentas.map((cb, i) => 
+    '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--gray-100);">' +
+      '<div style="flex:1;min-width:0;">' +
+        '<div style="font-size:12px;font-weight:500;color:var(--navy);">' + (cb.entidad||'Sin entidad') + '</div>' +
+        '<div style="font-size:11px;color:var(--gray-400);font-family:monospace;">' + (cb.iban||'') + '</div>' +
+        (cb.titular ? '<div style="font-size:11px;color:var(--gray-400);">' + cb.titular + '</div>' : '') +
+      '</div>' +
+      '<button onclick="eliminarCuentaBancaria(' + i + ')" style="background:none;border:none;color:var(--gray-400);cursor:pointer;font-size:15px;flex-shrink:0;">&#x00D7;</button>' +
+    '</div>'
+  ).join('');
+}
+
+function addCuentaBancaria() {
+  const entidad = prompt('Entidad bancaria (ej: CaixaBank, BBVA):');
+  if(entidad === null) return;
+  const iban = prompt('IBAN (ej: ES12 1234 5678 9012 3456 7890):');
+  if(iban === null) return;
+  const titular = prompt('Titular (opcional, dejar vacío si es el mismo cliente):') || '';
+  if(!window._cuentasBancarias) window._cuentasBancarias = [];
+  window._cuentasBancarias.push({ entidad: entidad.trim(), iban: iban.trim().toUpperCase(), titular: titular.trim() });
+  renderCuentasBancarias();
+}
+
+function eliminarCuentaBancaria(idx) {
+  if(!window._cuentasBancarias) return;
+  window._cuentasBancarias.splice(idx, 1);
+  renderCuentasBancarias();
+}
+
+function exportarPlanningExcel() {
+  const anio = (document.getElementById('planningAnio')||{value:'2026'}).value || '2026';
+  const allClients = (window.clients||[])
+    .filter(c => c.nombre && (c.categoria||'despacho') !== 'auxiliar')
+    .sort((a,b) => (a.nombre||'').localeCompare(b.nombre||'','es'));
+
+  // Construir columnas igual que en renderPlanning
+  const cols = [];
+  if(typeof MODELOS !== 'undefined') {
+    MODELOS.forEach(grupo => {
+      grupo.modelos.forEach(m => {
+        m.periodos.forEach(p => {
+          cols.push({ grupo: grupo.grupo, modelo: m.id, label: m.label, periodo: p });
+        });
+      });
+    });
+  }
+
+  const estadoLabel = {pendiente:'Pendiente', proceso:'En proceso', presentado:'Presentado', no_obligado:'No obligado', '':'—'};
+
+  // Cabecera
+  const headers = ['Cliente', 'Tipo'].concat(cols.map(c => c.label + ' ' + c.periodo));
+  const rows = allClients.map(c => {
+    const tipo = (c.tipo||'Autónomo');
+    const celdas = cols.map(col => {
+      const key = typeof planningKey === 'function' ? planningKey(c.id, col.modelo, col.periodo, anio) : c.id+'_'+col.modelo+'_'+col.periodo+'_'+anio;
+      const celda = (window.planningData||{})[key] || {};
+      const est = estadoLabel[celda.estado||''] || '—';
+      const imp = celda.sa ? 'S/A' : (celda.importe ? celda.importe + ' EUR' : '');
+      return est + (imp ? ' ('+imp+')' : '');
+    });
+    return ['"'+(c.nombre||'').replace(/"/g,'""')+'"', '"'+tipo+'"'].concat(celdas.map(v => '"'+v+'"'));
+  });
+
+    const csvLines = [headers.map(function(h){return '"'+h+'"';}).join(',')].concat(rows.map(function(r){return r.join(',');}));
+  const csv = csvLines.join('\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'planning_fiscal_' + anio + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 }
 
 // ── Login ────────────────────────────────────────────────────────────────────
