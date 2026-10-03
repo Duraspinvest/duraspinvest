@@ -414,6 +414,17 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
 </div>
 
 <div id="appContent" style="display:none;flex-direction:column;min-height:100vh;">
+
+<!-- BANNER REVISIÓN SEMANAL -->
+<div id="bannerRevision" style="display:none;background:linear-gradient(135deg,#0A2540,#1B4F8A);color:white;padding:12px 20px;align-items:center;gap:12px;position:sticky;top:54px;z-index:90;box-shadow:0 2px 8px rgba(0,0,0,0.2);">
+  <div style="font-size:24px;">&#x1F4CB;</div>
+  <div style="flex:1;">
+    <div style="font-size:13px;font-weight:600;">Buenos dias! Es sabado — dia de revision semanal</div>
+    <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:2px;">Vacia el inbox, revisa tus tareas y planifica la semana.</div>
+  </div>
+  <button onclick="irARevision()" style="background:#D4A017;color:#0A2540;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;">Hacer revision</button>
+  <button onclick="cerrarBannerRevision()" style="background:rgba(255,255,255,0.1);border:none;color:white;border-radius:6px;padding:7px 10px;cursor:pointer;font-size:14px;">&#x2715;</button>
+</div>
 <header>
   <div class="logo">
     <div class="logo-icon">
@@ -964,7 +975,23 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
 
   <!-- REVISIÓN SEMANAL -->
   <div class="card">
-    <div style="font-size:14px;font-weight:600;color:var(--navy);margin-bottom:14px;">&#x1F4CA; Revisión semanal</div>
+    <div id="revisionSemanalCard" style="background:white;border-radius:12px;box-shadow:var(--shadow);padding:18px;margin-bottom:14px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+      <div>
+        <div style="font-size:14px;font-weight:600;color:var(--navy);">&#x1F4CB; Revision semanal GTD</div>
+        <div style="font-size:11px;color:var(--gray-400);margin-top:2px;">Cada sabado · <span id="revUltima"></span></div>
+      </div>
+      <div id="revRachaBadge" style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:#FFF7ED;color:#C2410C;"></div>
+    </div>
+    <div id="revChecklistGTD"></div>
+    <div style="margin-top:12px;display:flex;gap:8px;justify-content:space-between;align-items:center;flex-wrap:wrap;">
+      <button onclick="resetRevisionGTD()" style="padding:6px 12px;border-radius:7px;border:1.5px solid var(--gray-200);background:white;color:var(--gray-600);font-size:12px;cursor:pointer;font-family:inherit;">Resetear</button>
+      <button onclick="completarRevisionGTD()" id="btnCompletarRevision" style="display:none;padding:8px 16px;border-radius:8px;background:var(--navy);color:white;border:none;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;">&#x2713; Marcar revision completa</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div style="font-size:14px;font-weight:600;color:var(--navy);margin-bottom:14px;">&#x1F4CA; Analisis semanal</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
       <div style="background:var(--gray-50);border-radius:8px;padding:12px;text-align:center;">
         <div style="font-size:28px;font-weight:700;color:var(--navy);" id="ranasSemanales">0/7</div>
@@ -3415,6 +3442,105 @@ const CHECKLIST_MANANA = [
 function getDisciplinaData(){return JSON.parse(localStorage.getItem('duraspinvest_disciplina')||'{}');}
 function saveDisciplinaData(d){localStorage.setItem('duraspinvest_disciplina',JSON.stringify(d));}
 function todayKey(){return new Date().toISOString().slice(0,10);}
+
+const GTD_REVISION_PASOS = [
+  {k:'rev_inbox', label:'Vaciar el inbox — procesar todo lo pendiente'},
+  {k:'rev_tareas', label:'Revisar tareas por cuadrante — eliminar las que ya no aplican'},
+  {k:'rev_espera', label:'Revisar tareas en espera — hacer seguimiento si procede'},
+  {k:'rev_prospectos', label:'Revisar prospectos — algun seguimiento pendiente?'},
+  {k:'rev_planificar', label:'Planificar la semana — cuales son las 3 cosas mas importantes?'},
+];
+
+function semanaKey() {
+  const d = new Date();
+  const jan1 = new Date(d.getFullYear(), 0, 1);
+  const week = Math.ceil(((d - jan1) / 86400000 + jan1.getDay() + 1) / 7);
+  return d.getFullYear() + '_W' + String(week).padStart(2,'0');
+}
+
+function renderRevisionGTD() {
+  const data = getDisciplinaData();
+  const semana = semanaKey();
+  const revActual = (data.revisionGTD && data.revisionGTD[semana]) ? data.revisionGTD[semana] : {};
+  const el = document.getElementById('revChecklistGTD');
+  if(el) {
+    el.innerHTML = GTD_REVISION_PASOS.map(function(paso) {
+      const checked = revActual[paso.k] || false;
+      return '<label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer;padding:8px;border-radius:7px;background:' + (checked ? '#F0FDF4' : 'var(--gray-50)') + ';">' +
+        '<input type="checkbox" ' + (checked ? 'checked' : '') + ' data-key="' + paso.k + '" onchange="toggleRevisionPaso(this)" style="margin-top:2px;accent-color:#10B981;">' +
+        '<span style="font-size:13px;color:' + (checked ? 'var(--gray-400)' : 'var(--gray-800)') + ';' + (checked ? 'text-decoration:line-through;' : '') + '">' + paso.label + '</span>' +
+        '</label>';
+    }).join('');
+  }
+  const badge = document.getElementById('revRachaBadge');
+  if(badge) {
+    const racha = data.rachaRevision || 0;
+    badge.innerHTML = racha > 0 ? '&#x1F525; ' + racha + ' semanas seguidas' : '';
+  }
+  const elUlt = document.getElementById('revUltima');
+  if(elUlt) {
+    const ult = data.ultimaRevisionGTD;
+    elUlt.textContent = ult ? 'Ultima: ' + new Date(ult).toLocaleDateString('es-ES',{weekday:'long',day:'2-digit',month:'short'}) : 'Sin completar aun';
+  }
+  const pasosDone = GTD_REVISION_PASOS.filter(function(p) { return revActual[p.k]; }).length;
+  const btnComp = document.getElementById('btnCompletarRevision');
+  if(btnComp) btnComp.style.display = pasosDone === GTD_REVISION_PASOS.length ? 'inline-block' : 'none';
+}
+
+function toggleRevisionPaso(checkbox) {
+  const data = getDisciplinaData();
+  const semana = semanaKey();
+  if(!data.revisionGTD) data.revisionGTD = {};
+  if(!data.revisionGTD[semana]) data.revisionGTD[semana] = {};
+  data.revisionGTD[semana][checkbox.dataset.key] = checkbox.checked;
+  saveDisciplinaData(data);
+  renderRevisionGTD();
+}
+
+function completarRevisionGTD() {
+  const data = getDisciplinaData();
+  data.ultimaRevisionGTD = new Date().toISOString();
+  data.rachaRevision = (data.rachaRevision || 0) + 1;
+  saveDisciplinaData(data);
+  localStorage.setItem('revisionBannerSemana', semanaKey());
+  cerrarBannerRevision();
+  renderRevisionGTD();
+}
+
+function resetRevisionGTD() {
+  if(!confirm('Resetear el checklist de revision?')) return;
+  const data = getDisciplinaData();
+  const semana = semanaKey();
+  if(data.revisionGTD) delete data.revisionGTD[semana];
+  saveDisciplinaData(data);
+  renderRevisionGTD();
+}
+
+function irARevision() {
+  cerrarBannerRevision();
+  const btn = document.querySelector('.nav-btn[onclick*="disciplina"]');
+  if(btn) btn.click();
+  setTimeout(function() {
+    const card = document.getElementById('revisionSemanalCard');
+    if(card) card.scrollIntoView({behavior:'smooth', block:'start'});
+  }, 400);
+}
+
+function cerrarBannerRevision() {
+  const b = document.getElementById('bannerRevision');
+  if(b) b.style.display = 'none';
+  localStorage.setItem('revisionBannerSemana', semanaKey());
+}
+
+function checkBannerRevision() {
+  const hoy = new Date();
+  const esSabado = hoy.getDay() === 6;
+  const semanaActual = semanaKey();
+  const yaVisto = localStorage.getItem('revisionBannerSemana') === semanaActual;
+  const banner = document.getElementById('bannerRevision');
+  if(!banner) return;
+  banner.style.display = (esSabado && !yaVisto) ? 'flex' : 'none';
+}
 
 function renderDisciplina(){
   const data=getDisciplinaData(),hoy=todayKey();
