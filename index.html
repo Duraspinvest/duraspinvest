@@ -523,7 +523,30 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
       <div style="font-size:16px;font-weight:700;color:var(--navy);">📥 Bandeja de entrada</div>
       <div style="font-size:12px;color:var(--gray-400);margin-top:2px;">Captura todo aquí. Procesa regularmente.</div>
     </div>
-    <button class="btn btn-primary" onclick="abrirInboxNuevo()">+ Añadir</button>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-primary" onclick="abrirInboxNuevo()">+ Añadir</button>
+      <button class="btn btn-secondary" id="btnVozInbox" onclick="toggleVozInbox()" title="Grabar nota de voz">&#x1F3A4; Voz</button>
+    </div>
+  </div>
+
+  <!-- Grabación de voz -->
+  <div id="inboxVozPanel" style="display:none;background:white;border-radius:12px;box-shadow:var(--shadow);padding:16px;margin-bottom:14px;">
+    <div style="text-align:center;margin-bottom:12px;">
+      <div id="vozEstado" style="font-size:13px;color:var(--gray-400);">Pulsa el botón para grabar</div>
+      <div id="vozTiempo" style="font-size:24px;font-weight:700;color:var(--navy);margin-top:4px;">0:00</div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:center;margin-bottom:12px;">
+      <button id="btnGrabar" onclick="iniciarGrabacion()" style="width:60px;height:60px;border-radius:50%;background:#EF4444;border:none;color:white;font-size:24px;cursor:pointer;">&#x23FA;</button>
+      <button id="btnParar" onclick="pararGrabacion()" style="display:none;width:60px;height:60px;border-radius:50%;background:var(--navy);border:none;color:white;font-size:24px;cursor:pointer;">&#x23F9;</button>
+    </div>
+    <div id="vozPreview" style="display:none;margin-bottom:10px;">
+      <audio id="vozAudio" controls style="width:100%;"></audio>
+      <input type="text" class="form-input" id="vozDescripcion" placeholder="Descripcion de la nota (opcional)" style="margin-top:8px;">
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn btn-secondary btn-sm" onclick="cancelarVozInbox()">Cancelar</button>
+      <button class="btn btn-primary btn-sm" id="btnEnviarVoz" style="display:none;" onclick="guardarVozInbox()">Guardar en inbox</button>
+    </div>
   </div>
 
   <!-- Formulario rápido de captura -->
@@ -3783,6 +3806,128 @@ function cerrarInboxCaptura() {
   if(form) form.style.display = 'none';
   const inp = document.getElementById('inboxTexto');
   if(inp) { inp.value = ''; inp.dataset.editId = ''; }
+}
+
+// ── Voz en Inbox ─────────────────────────────────────────────────────────────
+let _mediaRecorder = null;
+let _vozChunks = [];
+let _vozBlob = null;
+let _vozTimer = null;
+let _vozSegundos = 0;
+
+function toggleVozInbox() {
+  const panel = document.getElementById('inboxVozPanel');
+  const form = document.getElementById('inboxCapturaForm');
+  if(!panel) return;
+  if(panel.style.display === 'none') {
+    panel.style.display = 'block';
+    if(form) form.style.display = 'none';
+  } else {
+    cancelarVozInbox();
+  }
+}
+
+async function iniciarGrabacion() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({audio: true});
+    _vozChunks = [];
+    _mediaRecorder = new MediaRecorder(stream);
+    _mediaRecorder.ondataavailable = e => { if(e.data.size > 0) _vozChunks.push(e.data); };
+    _mediaRecorder.onstop = () => {
+      _vozBlob = new Blob(_vozChunks, {type: 'audio/webm'});
+      const url = URL.createObjectURL(_vozBlob);
+      const audio = document.getElementById('vozAudio');
+      if(audio) audio.src = url;
+      document.getElementById('vozPreview').style.display = 'block';
+      document.getElementById('btnEnviarVoz').style.display = 'inline-block';
+      stream.getTracks().forEach(t => t.stop());
+    };
+    _mediaRecorder.start();
+    _vozSegundos = 0;
+    document.getElementById('btnGrabar').style.display = 'none';
+    document.getElementById('btnParar').style.display = 'inline-block';
+    document.getElementById('vozEstado').textContent = 'Grabando...';
+    document.getElementById('vozEstado').style.color = '#EF4444';
+    _vozTimer = setInterval(() => {
+      _vozSegundos++;
+      const m = Math.floor(_vozSegundos/60);
+      const s = _vozSegundos % 60;
+      document.getElementById('vozTiempo').textContent = m + ':' + String(s).padStart(2,'0');
+    }, 1000);
+  } catch(e) {
+    alert('No se puede acceder al microfono. Verifica los permisos del navegador.');
+  }
+}
+
+function pararGrabacion() {
+  if(_mediaRecorder && _mediaRecorder.state !== 'inactive') _mediaRecorder.stop();
+  clearInterval(_vozTimer);
+  document.getElementById('btnGrabar').style.display = 'inline-block';
+  document.getElementById('btnParar').style.display = 'none';
+  document.getElementById('vozEstado').textContent = 'Grabacion completada';
+  document.getElementById('vozEstado').style.color = '#10B981';
+}
+
+async function guardarVozInbox() {
+  if(!_vozBlob) return;
+  const desc = (document.getElementById('vozDescripcion').value || '').trim();
+  // Convertir a base64
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    const base64 = e.target.result;
+    const item = {
+      id: String(Date.now()),
+      texto: desc || 'Nota de voz ' + new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}),
+      audio: base64,
+      tipo: 'voz',
+      creado: new Date().toISOString(),
+      procesado: false
+    };
+    await fbSet('inbox_gtd', item.id, item);
+    cancelarVozInbox();
+  };
+  reader.readAsDataURL(_vozBlob);
+}
+
+function cancelarVozInbox() {
+  if(_mediaRecorder && _mediaRecorder.state !== 'inactive') _mediaRecorder.stop();
+  clearInterval(_vozTimer);
+  _vozBlob = null;
+  _vozChunks = [];
+  _vozSegundos = 0;
+  const panel = document.getElementById('inboxVozPanel');
+  if(panel) panel.style.display = 'none';
+  const audio = document.getElementById('vozAudio');
+  if(audio) audio.src = '';
+  const preview = document.getElementById('vozPreview');
+  if(preview) preview.style.display = 'none';
+  const btnEnv = document.getElementById('btnEnviarVoz');
+  if(btnEnv) btnEnv.style.display = 'none';
+  document.getElementById('btnGrabar').style.display = 'inline-block';
+  document.getElementById('btnParar').style.display = 'none';
+  document.getElementById('vozEstado').textContent = 'Pulsa el boton para grabar';
+  document.getElementById('vozEstado').style.color = 'var(--gray-400)';
+  document.getElementById('vozTiempo').textContent = '0:00';
+  const desc = document.getElementById('vozDescripcion');
+  if(desc) desc.value = '';
+}
+
+// Mostrar audio en items del inbox que sean de voz
+function renderInboxItem(item) {
+  const fecha = new Date(item.creado).toLocaleDateString('es-ES',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+  const esVoz = item.tipo === 'voz';
+  return '<div style="background:white;border-radius:10px;box-shadow:var(--shadow);padding:14px 16px;margin-bottom:8px;display:flex;align-items:flex-start;gap:12px;">' +
+    '<div style="flex:1;min-width:0;">' +
+      '<div style="font-size:14px;color:var(--navy);font-weight:500;">' + (esVoz ? '&#x1F3A4; ' : '') + item.texto + '</div>' +
+      (esVoz && item.audio ? '<audio src="' + item.audio + '" controls style="width:100%;margin-top:6px;"></audio>' : '') +
+      '<div style="font-size:11px;color:var(--gray-400);margin-top:3px;">' + fecha + '</div>' +
+    '</div>' +
+    '<div style="display:flex;gap:6px;flex-shrink:0;">' +
+      '<button class="btn btn-sm btn-secondary" data-id="' + item.id + '" onclick="editarInbox(this.dataset.id)" title="Editar">&#x270F;</button>' +
+      '<button class="btn btn-sm btn-primary" data-id="' + item.id + '" onclick="abrirProcesar(this.dataset.id)">Procesar</button>' +
+      '<button class="btn btn-sm btn-secondary" data-id="' + item.id + '" onclick="eliminarInbox(this.dataset.id)">&#x2715;</button>' +
+    '</div>' +
+  '</div>';
 }
 
 function editarInbox(id) {
