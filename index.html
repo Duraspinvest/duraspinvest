@@ -1324,8 +1324,15 @@ function openClienteModal(id) {
     });
     document.getElementById('cTel').value = c.tel || '';
     document.getElementById('cEmail').value = c.email || '';
+    const elEp=document.getElementById('cEpigrafe'); if(elEp) elEp.value=c.epigrafe||'';
+    const elAc=document.getElementById('cActividad'); if(elAc) elAc.value=c.actividad||'';
+    const elNA=document.getElementById('cNASS'); if(elNA) elNA.value=c.nass||'';
+    const elCC=document.getElementById('cCCC'); if(elCC) elCC.value=c.ccc||'';
+    const elCF=document.getElementById('cCertFecha'); if(elCF) elCF.value=c.certFecha||'';
+    const elCT=document.getElementById('cCertTitular'); if(elCT) elCT.value=c.certTitular||'';
     const elRet=document.getElementById('cRetPct'); if(elRet) elRet.value=c.retPct||'';
     const el347=document.getElementById('c347'); if(el347) el347.value=c.m347defecto||'0';
+
   } else {
     ['cNombre','cNif','cTel','cEmail'].forEach(f => document.getElementById(f).value = '');
     document.getElementById('cTipo').value = 'Sociedad';
@@ -1431,8 +1438,22 @@ async function saveCliente() {
     obligaciones: ['111','190','115','180','130','303','390','202','200','349','347'].filter(m => {
       const el = document.getElementById('oblig_'+m);
       return el && el.checked;
-    })
+    }),
+    epigrafe: (document.getElementById('cEpigrafe')||{value:''}).value.trim(),
+    actividad: (document.getElementById('cActividad')||{value:''}).value.trim(),
+    nass: (document.getElementById('cNASS')||{value:''}).value.trim(),
+    ccc: (document.getElementById('cCCC')||{value:''}).value.trim(),
+    certFecha: (document.getElementById('cCertFecha')||{value:''}).value,
+    certTitular: (document.getElementById('cCertTitular')||{value:''}).value.trim(),
   };
+  if(existing) {
+    c.notas = existing.notas || [];
+    c.docs = existing.docs || [];
+    c.registro = existing.registro || {};
+    c.tramites = existing.tramites || {};
+    c.expedientes = existing.expedientes || [];
+    c.polizas = existing.polizas || [];
+  }
   await fbSet('clients', c.id, c);
   closeModal('clienteModalOverlay');
 }
@@ -2058,6 +2079,16 @@ function updateBadges() {
     const days = daysUntil(p.fecha);
     if (days !== null && days <= 0) {
       alertas.push(`<div style="font-size:13px;color:#92400E;margin-bottom:4px;">📞 <strong>${p.nombre}</strong> — seguimiento pendiente${days < 0 ? ' desde hace ' + Math.abs(days) + ' día(s)' : ' HOY'}</div>`);
+    }
+  });
+
+  // Certificados electrónicos próximos a vencer
+  (window.clients||[]).filter(c => c.certFecha && (c.categoria||'despacho') !== 'auxiliar').forEach(c => {
+    const days = daysUntil(c.certFecha);
+    if(days !== null && days <= 45) {
+      const color = days <= 0 ? '#7F1D1D' : '#92400E';
+      const label = days <= 0 ? 'VENCIDO hace ' + Math.abs(days) + ' días' : days === 0 ? 'vence HOY' : 'vence en ' + days + ' días';
+      alertas.push('<div style="font-size:13px;color:' + color + ';margin-bottom:4px;">🔐 <strong>' + c.nombre + '</strong> — Certificado electrónico ' + label + (c.certTitular ? ' (' + c.certTitular + ')' : '') + '</div>');
     }
   });
 
@@ -3623,13 +3654,35 @@ function abrirInboxNuevo() {
 function cerrarInboxCaptura() {
   const form = document.getElementById('inboxCapturaForm');
   if(form) form.style.display = 'none';
+  const inp = document.getElementById('inboxTexto');
+  if(inp) { inp.value = ''; inp.dataset.editId = ''; }
+}
+
+function editarInbox(id) {
+  const item = (window.inboxItems||[]).find(i => i.id === id);
+  if(!item) return;
+  // Abrir el formulario de captura con el texto actual
+  const form = document.getElementById('inboxCapturaForm');
+  const inp = document.getElementById('inboxTexto');
+  if(form) form.style.display = 'block';
+  if(inp) { inp.value = item.texto; inp.focus(); inp.dataset.editId = id; }
 }
 
 async function guardarInbox() {
-  const texto = (document.getElementById('inboxTexto').value || '').trim();
+  const inp = document.getElementById('inboxTexto');
+  const texto = (inp.value || '').trim();
   if(!texto) return;
-  const item = { id: String(Date.now()), texto, creado: new Date().toISOString(), procesado: false };
-  await fbSet('inbox_gtd', item.id, item);
+  const editId = inp.dataset.editId;
+  if(editId) {
+    // Editar existente
+    const existing = (window.inboxItems||[]).find(i => i.id === editId);
+    if(existing) await fbSet('inbox_gtd', editId, Object.assign({}, existing, { texto }));
+    inp.dataset.editId = '';
+  } else {
+    // Nuevo
+    const item = { id: String(Date.now()), texto, creado: new Date().toISOString(), procesado: false };
+    await fbSet('inbox_gtd', item.id, item);
+  }
   cerrarInboxCaptura();
   actualizarBadgeInbox();
 }
@@ -3651,6 +3704,7 @@ function renderInbox() {
         '<div style="font-size:11px;color:var(--gray-400);margin-top:3px;">' + fecha + '</div>' +
       '</div>' +
       '<div style="display:flex;gap:6px;">' +
+        '<button class="btn btn-sm btn-secondary" data-id="' + item.id + '" onclick="editarInbox(this.dataset.id)" title="Editar">✏</button>' +
         '<button class="btn btn-sm btn-primary" data-id="' + item.id + '" onclick="abrirProcesar(this.dataset.id)">Procesar</button>' +
         '<button class="btn btn-sm btn-secondary" data-id="' + item.id + '" onclick="eliminarInbox(this.dataset.id)">✕</button>' +
       '</div>' +
