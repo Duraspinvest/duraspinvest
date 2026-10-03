@@ -1058,6 +1058,47 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
 
 </main>
 
+<!-- MODAL TAREA SEGUIMIENTO PROSPECTO -->
+<div class="modal-overlay" id="tareaSegModalOverlay" onclick="closeModalOutside(event,'tareaSegModalOverlay')">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-title">Tarea de seguimiento</div>
+    <div id="tareaSegProspecto" style="background:var(--gray-50);padding:10px 12px;border-radius:8px;font-size:13px;font-weight:500;color:var(--navy);margin-bottom:14px;"></div>
+    <div class="form-group">
+      <label class="form-label">Descripcion de la tarea</label>
+      <input type="text" class="form-input" id="tareaSegTexto" placeholder="Ej: Llamar para seguimiento propuesta seguro">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Contexto</label>
+        <select class="form-select" id="tareaSegContexto">
+          <option value="llamada">&#x1F4DE; Llamada</option>
+          <option value="email">&#x1F4E7; Email</option>
+          <option value="presencial">&#x1F3E2; Presencial</option>
+          <option value="espera">&#x23F3; Esperando</option>
+          <option value="ordenador">&#x1F4BB; Ordenador</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Cuadrante</label>
+        <select class="form-select" id="tareaSegCuadrante">
+          <option value="Q2 Importante no urgente">&#x1F535; Q2 — Importante, no urgente</option>
+          <option value="Q1 Importante + urgente">&#x1F534; Q1 — Importante + urgente</option>
+          <option value="Q3 Urgente no importante">&#x1F7E1; Q3 — Urgente, no importante</option>
+          <option value="Q4 Ni importante ni urgente">&#x26AA; Q4 — Ni importante ni urgente</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Fecha limite (opcional)</label>
+      <input type="date" class="form-input" id="tareaSegFecha">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('tareaSegModalOverlay')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarTareaSeguimiento()">Crear tarea</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL TAREA -->
 <div class="modal-overlay" id="taskModalOverlay" onclick="closeModalOutside(event,'taskModalOverlay')">
   <div class="modal">
@@ -2919,7 +2960,8 @@ function renderProspectos() {
         + (p.tel ? '<div style="font-size:11px;color:var(--gray-400);margin-top:2px;">📞 '+p.tel+'</div>' : '')
         + (p.notas ? '<div style="font-size:11px;color:var(--gray-600);margin-top:4px;">'+String(p.notas).replace(/</g,'&lt;').slice(0,70)+(p.notas.length>70?'…':'')+'</div>' : '')
         + '<select class="form-select" style="width:100%;font-size:11px;padding:4px 6px;margin-top:6px;" data-pid="'+p.id+'" onchange="moveEtapa(this.dataset.pid, this.value)">'+optSel+'</select>'
-        + (et.k==='ganado' ? '<button class="btn btn-primary" style="width:100%;font-size:11px;padding:5px;margin-top:5px;" data-pid="'+p.id+'" onclick="convertirEnCliente(this.dataset.pid)">→ Convertir en cliente</button>' : '')
+        + '<button style="width:100%;font-size:11px;padding:5px;margin-top:4px;border-radius:6px;border:1.5px solid var(--gray-200);background:white;color:var(--gray-600);cursor:pointer;font-family:inherit;" data-pid="'+p.id+'" data-nombre="'+p.nombre+'" onclick="crearTareaSeguimiento(this.dataset.pid, this.dataset.nombre)">&#x1F4CC; Crear tarea de seguimiento</button>'
+        + (et.k==='ganado' ? '<button class="btn btn-primary" style="width:100%;font-size:11px;padding:5px;margin-top:4px;" data-pid="'+p.id+'" onclick="convertirEnCliente(this.dataset.pid)">→ Convertir en cliente</button>' : '')
         + '</div>';
     });
     html += '</div>';
@@ -4185,6 +4227,42 @@ async function toggleTramite(checkbox) {
   // Actualizar window.clients localmente para no esperar al listener
   c.tramites = tramites;
   showFicha(cid);
+}
+
+function crearTareaSeguimiento(pid, nombre) {
+  window._tareaSegPid = pid;
+  window._tareaSegNombre = nombre;
+  const el = document.getElementById('tareaSegProspecto');
+  if(el) el.textContent = 'Prospecto: ' + nombre;
+  const inp = document.getElementById('tareaSegTexto');
+  if(inp) { inp.value = 'Seguimiento con ' + nombre; inp.select(); }
+  // Fecha por defecto: 3 días
+  const fecha = new Date();
+  fecha.setDate(fecha.getDate() + 3);
+  const elF = document.getElementById('tareaSegFecha');
+  if(elF) elF.value = fecha.toISOString().slice(0,10);
+  document.getElementById('tareaSegModalOverlay').classList.add('open');
+}
+
+async function guardarTareaSeguimiento() {
+  const texto = (document.getElementById('tareaSegTexto').value || '').trim();
+  if(!texto) { document.getElementById('tareaSegTexto').focus(); return; }
+  const tarea = {
+    id: String(Date.now()),
+    nombre: texto,
+    cliente: window._tareaSegNombre || '',
+    contexto: document.getElementById('tareaSegContexto').value,
+    cuadrante: document.getElementById('tareaSegCuadrante').value,
+    area: 'Comercial',
+    fecha: document.getElementById('tareaSegFecha').value,
+    notas: 'Seguimiento prospecto',
+    estado: 'Pendiente',
+    creado: new Date().toISOString(),
+    modificado: new Date().toISOString(),
+    origenProspecto: window._tareaSegPid || ''
+  };
+  await fbSet('tasks', tarea.id, tarea);
+  closeModal('tareaSegModalOverlay');
 }
 
 // ── Login ────────────────────────────────────────────────────────────────────
