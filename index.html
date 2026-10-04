@@ -4549,21 +4549,25 @@ async function analizarPdfExpediente(input, ei, cid) {
           // Buscar la clave del planning
           // Normalizar periodo según modelo
           const modelo202 = ['202','222'];
-          const modeloAnual = ['200','390','190','347'];
+          const modeloAnual = ['390','190','347'];
+          const modelo200 = ['200'];
           const periodoMapGeneral = {'T1':'1T','T2':'2T','T3':'3T','T4':'4T','1T':'1T','2T':'2T','3T':'3T','4T':'4T','ANUAL':'Anual','A':'Anual','Anual':'Anual','Julio':'Anual','julio':'Anual','Jul':'Anual','Anual ':'Anual'};
           const periodoMap202 = {
-            // 202: 1P=Abril, 2P=Octubre, 3P=Diciembre
-            'T1':'1P','1T':'1P','Abril':'1P','abril':'1P','1P':'1P',
-            'T2':'2P','2T':'2P','Octubre':'2P','octubre':'2P','2P':'2P',
-            'T3':'3P','3T':'3P','Diciembre':'3P','diciembre':'3P','3P':'3P',
+            // 202: Abril=1P, Octubre=2P, Diciembre=3P — en planning se llaman así
+            'T1':'Abril','1T':'Abril','Abril':'Abril','abril':'Abril','1P':'Abril',
+            'T2':'Octubre','2T':'Octubre','Octubre':'Octubre','octubre':'Octubre','2P':'Octubre',
+            'T3':'Diciembre','3T':'Diciembre','Diciembre':'Diciembre','diciembre':'Diciembre','3P':'Diciembre',
           };
           const esModelo202 = modelo202.includes(String(d.modelo));
           const esModeloAnual = modeloAnual.includes(String(d.modelo));
+          const esModelo200 = modelo200.includes(String(d.modelo));
           const periodoNorm = esModelo202
             ? (periodoMap202[d.periodo] || d.periodo)
-            : esModeloAnual
-              ? 'Anual'
-              : (periodoMapGeneral[d.periodo] || d.periodo);
+            : esModelo200
+              ? 'Julio'
+              : esModeloAnual
+                ? 'Anual'
+                : (periodoMapGeneral[d.periodo] || d.periodo);
           const anioNorm = String(d.anio).trim();
           const key = planningKey ? planningKey(cid, d.modelo, periodoNorm, anioNorm) : cid+'_'+d.modelo+'_'+periodoNorm+'_'+anioNorm;
           const importe = d.importe ? String(Math.abs(d.importe)) : '';
