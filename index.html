@@ -788,6 +788,13 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
         <option value="proceso">🟡 En proceso</option>
         <option value="presentado">🟢 Presentado</option>
       </select>
+      <select id="planningExportTrimestre" class="form-select" style="width:auto;">
+        <option value="">Todo el año</option>
+        <option value="T1">1T (Ene-Mar)</option>
+        <option value="T2">2T (Abr-Jun)</option>
+        <option value="T3">3T (Jul-Sep)</option>
+        <option value="T4">4T (Oct-Dic)</option>
+      </select>
       <button class="btn btn-secondary" onclick="exportarPlanningExcel()" title="Exportar a Excel">&#x1F4E5; Excel</button>
     </div>
   </div>
@@ -2673,6 +2680,10 @@ function showFicha(id) {
       parts.push('<div style="display:flex;gap:6px;flex-direction:column;">');
       parts.push('<input type="text" class="nota-input" id="expDocNombre_' + ei + '" placeholder="Nombre del documento" style="width:100%;">');
       parts.push('<input type="text" class="nota-input" id="expDocUrl_' + ei + '" placeholder="Enlace de OneDrive" style="width:100%;">');
+      parts.push('<div style="display:flex;gap:6px;align-items:center;">');
+      parts.push('<input type="file" id="expDocPdf_' + ei + '" accept="application/pdf,image/*" style="display:none;" data-ei="' + ei + '" data-cid="' + c.id + '" onchange="analizarPdfExpediente(this,this.dataset.ei,this.dataset.cid)">');
+            parts.push('<button class="btn btn-sm" style="background:#EFF6FF;color:#1B4F8A;font-size:11px;border:1.5px solid #BFDBFE;" data-eid="' + ei + '" onclick="var inp=document.getElementById(&quot;expDocPdf_&quot;+this.dataset.eid);if(inp)inp.click()">&#x1F4CE; Subir PDF e importar planning</button>');      parts.push('<span id="expDocIaStatus_' + ei + '" style="font-size:11px;color:var(--gray-400);"></span>');
+      parts.push('</div>');
       parts.push('<div style="display:flex;justify-content:flex-end;"><button class="btn btn-primary btn-sm" data-ei="' + ei + '" onclick="addDocAExpediente(window._fichaClienteId,this.dataset.ei)">Añadir</button></div>');
       parts.push('</div></div>');
       // ---- Subcarpetas del expediente ----
@@ -4448,12 +4459,21 @@ function exportarPlanningExcel() {
     .sort((a,b) => (a.nombre||'').localeCompare(b.nombre||'','es'));
 
   // Construir columnas igual que en renderPlanning
+  const trimestre = (document.getElementById('planningExportTrimestre')||{value:''}).value;
+  const periodosTrimestre = {
+    T1: ['T1','Ene','Feb','Mar','1T'],
+    T2: ['T2','Abr','May','Jun','2T'],
+    T3: ['T3','Jul','Ago','Sep','3T'],
+    T4: ['T4','Oct','Nov','Dic','4T'],
+  };
   const cols = [];
   if(typeof MODELOS !== 'undefined') {
     MODELOS.forEach(grupo => {
       grupo.modelos.forEach(m => {
         m.periodos.forEach(p => {
-          cols.push({ grupo: grupo.grupo, modelo: m.id, label: m.label, periodo: p });
+          if(!trimestre || (periodosTrimestre[trimestre]||[]).some(t => p.includes(t))) {
+            cols.push({ grupo: grupo.grupo, modelo: m.id, label: m.label, periodo: p });
+          }
         });
       });
     });
@@ -4480,10 +4500,77 @@ function exportarPlanningExcel() {
   const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'planning_fiscal_' + anio + '.csv';
+  a.download = 'planning_fiscal_' + anio + (trimestre?'_'+trimestre:'') + '.csv';
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
+}
+
+async function analizarPdfExpediente(input, ei, cid) {
+  const file = input.files[0];
+  if(!file) return;
+  const status = document.getElementById('expDocIaStatus_' + ei);
+  if(status) status.textContent = 'Leyendo PDF...';
+
+  try {
+    // Convertir a base64
+    const base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = e => resolve(e.target.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+    if(status) status.textContent = 'Analizando con IA...';
+
+    const resp = await fetch("https://leerdocumento-gyc3opqqlq-ew.a.run.app", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ datos: base64, tipo: file.type, modo: "impuesto" })
+    });
+    const result = await resp.json();
+
+    if(result.ok && result.datos) {
+      const d = result.datos;
+      // Rellenar nombre del documento
+      const inpNombre = document.getElementById('expDocNombre_' + ei);
+      if(inpNombre && !inpNombre.value) {
+        const nombreAuto = (d.modelo||'') + (d.periodo?' '+d.periodo:'') + (d.anio?' '+d.anio:'');
+        if(nombreAuto.trim()) inpNombre.value = 'Modelo ' + nombreAuto.trim();
+      }
+
+      if(status) status.textContent = '';
+
+      // Actualizar planning automáticamente
+      if(d.modelo && d.periodo && d.anio) {
+        const c = (window.clients||[]).find(x => String(x.id) === String(cid));
+        if(c) {
+          // Buscar la clave del planning
+          const key = planningKey ? planningKey(cid, d.modelo, d.periodo, d.anio) : cid+'_'+d.modelo+'_'+d.periodo+'_'+d.anio;
+          const importe = d.importe ? String(Math.abs(d.importe)) : '';
+          const estado = d.resultado === 'A_COMPENSAR' ? 'presentado' : 'presentado';
+          const sa = d.resultado === 'A_COMPENSAR' || (d.importe && d.importe <= 0);
+
+          // Confirmar antes de actualizar
+          const msg = 'Se ha detectado:\n• Modelo: ' + d.modelo + '\n• Periodo: ' + d.periodo + ' ' + d.anio + '\n• Importe: ' + (d.importe||0) + ' EUR\n• Resultado: ' + (d.resultado||'') + '\n\n¿Actualizar el planning?';
+          if(confirm(msg)) {
+            const planData = { clienteId: cid, modelo: d.modelo, periodo: d.periodo, anio: d.anio, estado: 'presentado', importe, sa, comentario: '', updated: new Date().toISOString() };
+            await fbSet('planning', key, planData);
+            window.planningData[key] = planData;
+            alert('Planning actualizado correctamente.');
+          }
+        }
+      } else {
+        alert('No se pudo detectar el modelo/periodo automáticamente. Revisa el documento.');
+      }
+    } else {
+      if(status) status.textContent = 'No se pudo analizar.';
+    }
+  } catch(err) {
+    console.error('Error analizando PDF:', err);
+    if(status) status.textContent = 'Error al analizar.';
+  }
+  input.value = '';
 }
 
 // ── Login ────────────────────────────────────────────────────────────────────
