@@ -4547,9 +4547,23 @@ async function analizarPdfExpediente(input, ei, cid) {
         const c = (window.clients||[]).find(x => String(x.id) === String(cid));
         if(c) {
           // Buscar la clave del planning
-          // Normalizar periodo - la IA puede devolver T1/T2/T3/T4 o 1T/2T/3T/4T
-          const periodoMap = {'T1':'1T','T2':'2T','T3':'3T','T4':'4T','1T':'1T','2T':'2T','3T':'3T','4T':'4T','ANUAL':'Anual','A':'Anual','Anual':'Anual','Abril':'Abril','Octubre':'Octubre','Diciembre':'Diciembre','Julio':'Julio','Febrero':'Febrero'};
-          const periodoNorm = periodoMap[d.periodo] || d.periodo;
+          // Normalizar periodo según modelo
+          const modelo202 = ['202','222'];
+          const modeloAnual = ['200','390','190','347'];
+          const periodoMapGeneral = {'T1':'1T','T2':'2T','T3':'3T','T4':'4T','1T':'1T','2T':'2T','3T':'3T','4T':'4T','ANUAL':'Anual','A':'Anual','Anual':'Anual','Julio':'Anual','julio':'Anual','Jul':'Anual','Anual ':'Anual'};
+          const periodoMap202 = {
+            // 202: 1P=Abril, 2P=Octubre, 3P=Diciembre
+            'T1':'1P','1T':'1P','Abril':'1P','abril':'1P','1P':'1P',
+            'T2':'2P','2T':'2P','Octubre':'2P','octubre':'2P','2P':'2P',
+            'T3':'3P','3T':'3P','Diciembre':'3P','diciembre':'3P','3P':'3P',
+          };
+          const esModelo202 = modelo202.includes(String(d.modelo));
+          const esModeloAnual = modeloAnual.includes(String(d.modelo));
+          const periodoNorm = esModelo202
+            ? (periodoMap202[d.periodo] || d.periodo)
+            : esModeloAnual
+              ? 'Anual'
+              : (periodoMapGeneral[d.periodo] || d.periodo);
           const anioNorm = String(d.anio).trim();
           const key = planningKey ? planningKey(cid, d.modelo, periodoNorm, anioNorm) : cid+'_'+d.modelo+'_'+periodoNorm+'_'+anioNorm;
           const importe = d.importe ? String(Math.abs(d.importe)) : '';
@@ -4557,7 +4571,7 @@ async function analizarPdfExpediente(input, ei, cid) {
           const sa = d.resultado === 'A_COMPENSAR' || (d.importe && d.importe <= 0);
 
           // Confirmar antes de actualizar
-          const msg = 'Se ha detectado:\n• Modelo: ' + d.modelo + '\n• Periodo: ' + d.periodo + ' ' + d.anio + '\n• Importe: ' + (d.importe||0) + ' EUR\n• Resultado: ' + (d.resultado||'') + '\n\n¿Actualizar el planning?';
+          const msg = 'Se ha detectado:\n• Modelo: ' + d.modelo + '\n• Periodo detectado: ' + d.periodo + ' → normalizado: ' + periodoNorm + '\n• Año: ' + anioNorm + '\n• Importe: ' + (d.importe||0) + ' EUR\n• Resultado: ' + (d.resultado||'') + '\n\n¿Actualizar el planning?';
           if(confirm(msg)) {
             const planData = { clienteId: cid, modelo: d.modelo, periodo: periodoNorm, anio: anioNorm, estado: 'presentado', importe, sa, comentario: '', updated: new Date().toISOString() };
             await fbSet('planning', key, planData);
