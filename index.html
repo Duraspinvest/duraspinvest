@@ -2667,7 +2667,8 @@ function showFicha(id) {
         parts.push('<div class="doc-info"><div class="doc-nombre">' + d.nombre + '</div></div>');
         parts.push('<div style="display:flex;gap:4px;align-items:center;">');
         if (d.url) {
-          parts.push('<a href="' + d.url + '" target="_blank" class="btn btn-sm" style="background:var(--q2-bg);color:var(--q2);text-decoration:none;font-size:11px;">Abrir</a>');
+          const urlSegura = d.url && (d.url.startsWith('http')||d.url.startsWith('//')) ? d.url : (d.url ? 'https://'+d.url : '#');
+          parts.push('<a href="' + urlSegura + '" target="_blank" rel="noopener" class="btn btn-sm" style="background:var(--q2-bg);color:var(--q2);text-decoration:none;font-size:11px;">Abrir</a>');
           parts.push('<a href="https://wa.me/?text=' + encodeURIComponent(d.nombre + ': ' + d.url) + '" target="_blank" class="btn btn-sm" style="background:#F0FDF4;color:#25D366;text-decoration:none;font-size:11px;">WA</a>');
           parts.push('<a href="mailto:?subject=' + encodeURIComponent(d.nombre) + '&body=' + encodeURIComponent(d.url) + '" class="btn btn-sm" style="background:#F0FDF4;color:#059669;text-decoration:none;font-size:11px;">Email</a>');
         }
@@ -4546,7 +4547,11 @@ async function analizarPdfExpediente(input, ei, cid) {
         const c = (window.clients||[]).find(x => String(x.id) === String(cid));
         if(c) {
           // Buscar la clave del planning
-          const key = planningKey ? planningKey(cid, d.modelo, d.periodo, d.anio) : cid+'_'+d.modelo+'_'+d.periodo+'_'+d.anio;
+          // Normalizar periodo - la IA puede devolver T1/T2/T3/T4 o 1T/2T/3T/4T
+          const periodoMap = {'T1':'1T','T2':'2T','T3':'3T','T4':'4T','1T':'1T','2T':'2T','3T':'3T','4T':'4T','ANUAL':'Anual','A':'Anual','Anual':'Anual','Abril':'Abril','Octubre':'Octubre','Diciembre':'Diciembre','Julio':'Julio','Febrero':'Febrero'};
+          const periodoNorm = periodoMap[d.periodo] || d.periodo;
+          const anioNorm = String(d.anio).trim();
+          const key = planningKey ? planningKey(cid, d.modelo, periodoNorm, anioNorm) : cid+'_'+d.modelo+'_'+periodoNorm+'_'+anioNorm;
           const importe = d.importe ? String(Math.abs(d.importe)) : '';
           const estado = d.resultado === 'A_COMPENSAR' ? 'presentado' : 'presentado';
           const sa = d.resultado === 'A_COMPENSAR' || (d.importe && d.importe <= 0);
@@ -4554,7 +4559,7 @@ async function analizarPdfExpediente(input, ei, cid) {
           // Confirmar antes de actualizar
           const msg = 'Se ha detectado:\n• Modelo: ' + d.modelo + '\n• Periodo: ' + d.periodo + ' ' + d.anio + '\n• Importe: ' + (d.importe||0) + ' EUR\n• Resultado: ' + (d.resultado||'') + '\n\n¿Actualizar el planning?';
           if(confirm(msg)) {
-            const planData = { clienteId: cid, modelo: d.modelo, periodo: d.periodo, anio: d.anio, estado: 'presentado', importe, sa, comentario: '', updated: new Date().toISOString() };
+            const planData = { clienteId: cid, modelo: d.modelo, periodo: periodoNorm, anio: anioNorm, estado: 'presentado', importe, sa, comentario: '', updated: new Date().toISOString() };
             await fbSet('planning', key, planData);
             window.planningData[key] = planData;
             alert('Planning actualizado correctamente.');
