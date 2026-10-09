@@ -216,6 +216,7 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
   import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { getMessaging, getToken, isSupported as fcmSupported } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js";
 
 
   const firebaseConfig = {
@@ -244,6 +245,11 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
 
   // Notificaciones nativas del navegador
   window.duraspinvestNotifReady = true;
+  // Avisos push (llegan con la app cerrada): token FCM del dispositivo
+  window.fcmObtenerToken = async (swReg) => {
+    if (!(await fcmSupported())) throw new Error('Este navegador no admite avisos push.');
+    return getToken(getMessaging(app), { vapidKey: window.VAPID_KEY, serviceWorkerRegistration: swReg });
+  };
 
   // Listeners activos - se activan tras login
   let unsubTasks, unsubClients, unsubProspectos, unsubPlanning, unsubTes, unsubTesRec, unsubBandeja;
@@ -360,6 +366,9 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
 
       // Subir a Firestore lo que se haya compartido desde WhatsApp mientras no había sesión abierta
       if(typeof procesarPendientesCompartidos === 'function') procesarPendientesCompartidos();
+
+      // Avisos push: renovar el registro del dispositivo y atender el botón "Silenciar hoy" del aviso
+      if(typeof iniciarAvisosPush === 'function') iniciarAvisosPush();
     } else {
       desactivarListeners();
       document.getElementById('loginScreen').style.display = 'flex';
@@ -442,7 +451,7 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
   <div style="display:flex;align-items:center;gap:12px;">
     <div class="header-date" id="headerDate"></div>
     <span id="userEmail" style="color:#5A7FA8;font-size:11px;display:none;"></span>
-    <button id="btnNotif" onclick="activarNotificaciones()" style="background:rgba(255,255,255,0.1);color:#8A9BB0;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;" title="Activar notificaciones">🔔</button>
+    <button id="btnNotif" onclick="menuAvisos()" style="background:rgba(255,255,255,0.1);color:#8A9BB0;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;" title="Activar notificaciones">🔔</button>
     <button id="btnHuella" onclick="gestionarHuella()" style="background:rgba(255,255,255,0.1);color:#8A9BB0;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;" title="Huella dactilar">👆</button>
     <span style="display:inline-flex;gap:5px;background:rgba(0,0,0,0.22);border-radius:8px;padding:3px;">
       <a style="text-decoration:none;background:#D4A017;color:#1B2A4A;font-size:12px;font-weight:600;padding:5px 11px;border-radius:6px;">Despacho</a>
@@ -4621,6 +4630,64 @@ function doLogin() {
 
 function doLogout() { window.fsSignOut(window.auth); }
 
+// ===== Avisos push de tareas (Cloud Function "avisosTareas", cada hora de 10:00 a 21:00) =====
+// Clave pública VAPID: Firebase > Configuración del proyecto > Cloud Messaging > Certificados web push
+window.VAPID_KEY = 'BPPHhtPm5fpqPT33raRVmt5CdhxTlZsFqCLCx2WDTzjEppIIjbC7-sLrulGtOrzq4dafq6yLZMSKtzVc3KSDico';
+function hoyISO(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+async function registrarDispositivoPush(silencioso) {
+  try {
+    if (!('serviceWorker' in navigator) || !window.fcmObtenerToken) throw new Error('Este navegador no admite avisos push.');
+    if (!window.VAPID_KEY || window.VAPID_KEY.indexOf('PEGAR') === 0) throw new Error('Falta la clave VAPID en la app.');
+    const reg = await navigator.serviceWorker.register('share-sw.js');
+    await navigator.serviceWorker.ready;
+    const token = await window.fcmObtenerToken(reg);
+    if (!token) throw new Error('No se obtuvo el token del dispositivo.');
+    const id = token.slice(-40).replace(/[^A-Za-z0-9_-]/g, '_');
+    await window.fsSetDoc(window.fsDoc(window.db, 'push_tokens', id), {
+      token, email: (window.auth.currentUser || {}).email || '', dispositivo: navigator.userAgent.slice(0, 180),
+      actualizado: new Date().toISOString()
+    });
+    localStorage.setItem('duraspinvest_push', 'true');
+    return true;
+  } catch (e) {
+    console.error('Push:', e);
+    if (!silencioso) alert('No se pudieron activar los avisos en el móvil: ' + (e.message || e));
+    return false;
+  }
+}
+async function silenciarAvisosHoy() {
+  await window.fsSetDoc(window.fsDoc(window.db, 'avisos_config', 'tareas'), { silenciadoFecha: hoyISO(), modificado: new Date().toISOString() }, { merge: true });
+}
+async function reanudarAvisosHoy() {
+  await window.fsSetDoc(window.fsDoc(window.db, 'avisos_config', 'tareas'), { silenciadoFecha: '', modificado: new Date().toISOString() }, { merge: true });
+}
+async function iniciarAvisosPush() {
+  const params = new URLSearchParams(location.search);
+  if (params.get('avisos') === 'silenciar') {
+    await silenciarAvisosHoy();
+    history.replaceState(null, '', location.pathname);
+    alert('🔕 Avisos de tareas silenciados hasta mañana.');
+  }
+  if (params.get('seccion') === 'tareas' && typeof showSection === 'function') {
+    try { showSection('dashboard'); } catch(e) {}
+    history.replaceState(null, '', location.pathname);
+  }
+  if (localStorage.getItem('duraspinvest_notif') === 'true' && Notification.permission === 'granted') {
+    registrarDispositivoPush(true); // renueva el token por si ha caducado
+  }
+}
+async function menuAvisos() {
+  // Primer uso: activar. Si ya están activos: silenciar hoy / reanudar / probar
+  if (!(localStorage.getItem('duraspinvest_notif') === 'true' && Notification.permission === 'granted' && localStorage.getItem('duraspinvest_push') === 'true')) {
+    return activarNotificaciones();
+  }
+  if (confirm('🔕 ¿Silenciar los avisos de tareas por hoy?\n\n(Aceptar = silenciar hasta mañana · Cancelar = más opciones)')) {
+    await silenciarAvisosHoy(); alert('Avisos silenciados hasta mañana.'); return;
+  }
+  if (confirm('🔔 ¿Reanudar los avisos de hoy?')) { await reanudarAvisosHoy(); alert('Avisos reanudados.'); return; }
+  if (confirm('¿Volver a registrar este dispositivo para avisos?')) { if (await registrarDispositivoPush(false)) alert('Dispositivo registrado.'); }
+}
+
 async function activarNotificaciones() {
   if (!('Notification' in window)) {
     alert('Tu dispositivo no soporta notificaciones.');
@@ -4630,7 +4697,9 @@ async function activarNotificaciones() {
     const permission = await Notification.requestPermission();
     if (permission === 'granted') {
       localStorage.setItem('duraspinvest_notif', 'true');
+      const okPush = await registrarDispositivoPush(false);
       checkNotifStatus();
+      if (okPush) alert('✅ Avisos activados en este dispositivo.\n\nRecibirás un aviso cada hora (10:00–21:00) mientras tengas tareas de hoy o vencidas sin completar.\nPara pararlos: completa las tareas o pulsa «Silenciar hoy» en el aviso.');
       // Mostrar notificación de prueba
       new Notification('Duraspinvest', {
         body: '✅ Notificaciones activadas correctamente.',
@@ -4693,8 +4762,9 @@ function comprobarAlertas() {
   const allTasks = window.tasks || [];
   const allProspectos = window.prospectos || [];
 
-  // Tareas que vencen hoy o mañana
-  allTasks.filter(t => t.estado !== 'Completada' && t.fecha).forEach(t => {
+  // Tareas que vencen hoy o mañana (si los avisos push están activos, las de hoy y vencidas las manda el servidor)
+  const pushActivo = localStorage.getItem('duraspinvest_push') === 'true';
+  allTasks.filter(t => t.estado !== 'Completada' && t.fecha && !(pushActivo && daysUntil(t.fecha) <= 0)).forEach(t => {
     const days = daysUntil(t.fecha);
     if (days === 0) {
       enviarNotificacion('⚠ Vence HOY', t.nombre + (t.cliente ? ' · ' + t.cliente : ''));

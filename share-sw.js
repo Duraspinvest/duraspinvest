@@ -77,3 +77,39 @@ self.addEventListener('fetch', (event) => {
   }
   // Cualquier otra petición se deja pasar sin intervenir (no hay caché offline aquí).
 });
+
+// ===== Avisos push de tareas (enviados por la Cloud Function "avisosTareas") =====
+self.addEventListener('push', (event) => {
+  let p = {};
+  try { p = event.data ? event.data.json() : {}; } catch (e) { p = { data: { body: event.data && event.data.text() } }; }
+  const d = p.data || {};
+  const n = p.notification || {};
+  const titulo = d.title || n.title || 'Duraspinvest';
+  const opciones = {
+    body: d.body || n.body || '',
+    icon: '/duraspinvest/icon-192.png',
+    badge: '/duraspinvest/icon-192.png',
+    tag: d.tag || 'duraspinvest-tareas',
+    renotify: true,
+    requireInteraction: true,
+    data: { url: d.url || '/duraspinvest/' },
+    actions: [
+      { action: 'abrir', title: 'Ver tareas' },
+      { action: 'silenciar', title: '🔕 Silenciar hoy' }
+    ]
+  };
+  event.waitUntil(self.registration.showNotification(titulo, opciones));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const base = '/duraspinvest/';
+  const url = event.action === 'silenciar' ? base + '?avisos=silenciar' : base + '?seccion=tareas';
+  event.waitUntil((async () => {
+    const lista = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const c of lista) {
+      if (c.url.indexOf(base) !== -1 && 'navigate' in c) { await c.focus(); return c.navigate(url); }
+    }
+    return clients.openWindow(url);
+  })());
+});
