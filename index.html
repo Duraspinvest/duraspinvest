@@ -345,6 +345,25 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
 
   onAuthStateChanged(auth, (user) => {
     if (user) {
+      // Con la huella activada, la sesión abierta se bloquea hasta verificar la huella (no se guarda la contraseña)
+      if (localStorage.getItem('duraspinvest_biometric') === 'true' && sessionStorage.getItem('durespin_unlocked') !== '1') {
+        window._pendingUser = user;
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('appContent').style.display = 'none';
+        document.getElementById('lockScreen').style.display = 'flex';
+        return;
+      }
+      window._entrarApp(user);
+    } else {
+      document.getElementById('lockScreen').style.display = 'none';
+      desactivarListeners();
+      document.getElementById('loginScreen').style.display = 'flex';
+      document.getElementById('appContent').style.display = 'none';
+    }
+  });
+  window._entrarApp = (user) => {
+    {
+      document.getElementById('lockScreen').style.display = 'none';
       // Inicializar arrays vacíos antes de que lleguen los datos
       window.tasks = [];
       window.clients = [];
@@ -369,16 +388,23 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
 
       // Avisos push: renovar el registro del dispositivo y atender el botón "Silenciar hoy" del aviso
       if(typeof iniciarAvisosPush === 'function') iniciarAvisosPush();
-    } else {
-      desactivarListeners();
-      document.getElementById('loginScreen').style.display = 'flex';
-      document.getElementById('appContent').style.display = 'none';
     }
-  });
+  };
 </script>
 
 </head>
 <body>
+
+<!-- PANTALLA DE BLOQUEO (huella) -->
+<div id="lockScreen" style="display:none;position:fixed;inset:0;background:#0A2540;z-index:1001;align-items:center;justify-content:center;flex-direction:column;gap:20px;padding:24px;">
+  <div style="color:white;font-size:22px;font-weight:600;letter-spacing:0.5px;">Durespin</div>
+  <div style="color:#8A9BB0;font-size:13px;text-align:center;">Sesión bloqueada</div>
+  <button onclick="loginConHuella()" style="width:100%;max-width:300px;padding:14px;background:#EFF6FF;color:#1B4F8A;border:1.5px solid #BFDBFE;border-radius:10px;font-size:15px;font-weight:500;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;">
+    <span style="font-size:20px;">👆</span> Desbloquear con huella
+  </button>
+  <div id="lockError" style="color:#FCA5A5;font-size:13px;display:none;text-align:center;"></div>
+  <a href="#" onclick="usarContrasena();return false;" style="color:#8A9BB0;font-size:13px;">Entrar con email y contraseña</a>
+</div>
 
 <!-- PANTALLA DE LOGIN -->
 <div id="loginScreen" style="display:none;position:fixed;inset:0;background:#0A2540;z-index:1000;align-items:center;justify-content:center;flex-direction:column;gap:24px;">
@@ -3463,9 +3489,17 @@ const BIOMETRIC_KEY = 'duraspinvest_biometric';
 const BIOMETRIC_CRED = 'duraspinvest_credential_id';
 
 function checkBiometricAvailable() {
-  if (window.PublicKeyCredential && localStorage.getItem(BIOMETRIC_KEY) === 'true') {
-    document.getElementById('biometricSection').style.display = 'block';
-  }
+  // Seguridad: borrar la contraseña que guardaban versiones anteriores de la app
+  try { localStorage.removeItem('duraspinvest_saved_pass'); } catch(e) {}
+  const em = localStorage.getItem('duraspinvest_saved_email');
+  const ie = document.getElementById('loginEmail');
+  if (em && ie && !ie.value) ie.value = em;
+}
+
+function usarContrasena() {
+  sessionStorage.removeItem('durespin_unlocked');
+  window._pendingUser = null;
+  window.fsSignOut(window.auth);
 }
 
 function updateHuellaBtn() {
@@ -3513,7 +3547,7 @@ async function activarHuella() {
     localStorage.setItem(BIOMETRIC_KEY, 'true');
     
     document.getElementById('biometricSetupSection').style.display = 'none';
-    alert('✅ Huella dactilar activada. La próxima vez podrás entrar con tu huella.');
+    alert('✅ Huella activada. Mientras no cierres sesión, al abrir la app solo te pedirá la huella.');
   } catch(e) {
     console.error('Error activando biometría:', e);
     alert('No se pudo activar la huella. Asegúrate de tener huella configurada en tu dispositivo.');
@@ -3541,21 +3575,15 @@ async function loginConHuella() {
       }
     });
     
-    // Huella verificada — recuperar credenciales guardadas y hacer login
-    const savedEmail = localStorage.getItem('duraspinvest_saved_email');
-    const savedPass = localStorage.getItem('duraspinvest_saved_pass');
-    
-    if (savedEmail && savedPass) {
-      window.fsSignIn(window.auth, savedEmail, savedPass).catch(() => {
-        alert('Error al iniciar sesión. Por favor usa email y contraseña.');
-      });
-    } else {
-      alert('No hay sesión guardada. Inicia sesión con email y contraseña primero.');
-    }
+    // Huella verificada: desbloquear la sesión que ya está abierta (la contraseña no se guarda en el dispositivo)
+    sessionStorage.setItem('durespin_unlocked', '1');
+    const u = window._pendingUser || (window.auth && window.auth.currentUser);
+    if (u) { window._pendingUser = null; window._entrarApp(u); }
+    else usarContrasena();
   } catch(e) {
     console.error('Error biometría:', e);
-    document.getElementById('loginError').style.display = 'block';
-    document.getElementById('loginError').textContent = 'Huella no reconocida. Usa email y contraseña.';
+    const le = document.getElementById('lockError');
+    if (le) { le.style.display = 'block'; le.textContent = 'Huella no reconocida. Vuelve a intentarlo o entra con email y contraseña.'; }
   }
 }
 
@@ -4612,23 +4640,25 @@ function doLogin() {
   const password = document.getElementById('loginPassword').value;
   document.getElementById('loginError').style.display = 'none';
   if (!email || !password) return;
+  sessionStorage.setItem('durespin_unlocked', '1');   // acaba de poner la contraseña: no pedir la huella
   window.fsSignIn(window.auth, email, password)
     .then(() => {
-      // Guardar credenciales para biometría (encriptadas en localStorage)
+      // Solo se recuerda el email (la contraseña nunca se guarda en el dispositivo)
       localStorage.setItem('duraspinvest_saved_email', email);
-      localStorage.setItem('duraspinvest_saved_pass', password);
+      sessionStorage.setItem('durespin_unlocked', '1');
       // Mostrar opción de activar huella si no está activada
       if (window.PublicKeyCredential && localStorage.getItem(BIOMETRIC_KEY) !== 'true') {
         document.getElementById('biometricSetupSection').style.display = 'block';
       }
     })
     .catch(() => {
+      sessionStorage.removeItem('durespin_unlocked');
       document.getElementById('loginError').style.display = 'block';
       document.getElementById('loginError').textContent = 'Email o contraseña incorrectos';
     });
 }
 
-function doLogout() { window.fsSignOut(window.auth); }
+function doLogout() { sessionStorage.removeItem('durespin_unlocked'); window.fsSignOut(window.auth); }
 
 // ===== Avisos push de tareas (Cloud Function "avisosTareas", cada hora de 10:00 a 21:00) =====
 // Clave pública VAPID: Firebase > Configuración del proyecto > Cloud Messaging > Certificados web push
