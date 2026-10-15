@@ -84,7 +84,7 @@ self.addEventListener('push', (event) => {
   try { p = event.data ? event.data.json() : {}; } catch (e) { p = { data: { body: event.data && event.data.text() } }; }
   const d = p.data || {};
   const n = p.notification || {};
-  const titulo = d.title || n.title || 'Duraspinvest';
+  const titulo = d.title || n.title || 'Durespin';
   const opciones = {
     body: d.body || n.body || '',
     icon: '/duraspinvest/icon-192.png',

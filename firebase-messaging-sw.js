@@ -15,7 +15,7 @@ const messaging = firebase.messaging();
 // Mostrar notificación cuando la app está en segundo plano
 messaging.onBackgroundMessage(function(payload) {
   const { title, body } = payload.notification || {};
-  self.registration.showNotification(title || 'Duraspinvest', {
+  self.registration.showNotification(title || 'Durespin', {
     body: body || '',
     icon: '/duraspinvest/icon-192.png',
     badge: '/duraspinvest/icon-192.png',
