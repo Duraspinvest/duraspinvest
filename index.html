@@ -405,6 +405,12 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
     <div style="font-size:17px;font-weight:600;color:#0A2540;margin-bottom:6px;">Copia de seguridad</div>
     <div style="font-size:13px;color:#4A5A6B;line-height:1.55;margin-bottom:16px;">Descarga <strong>todos los datos de todas las apps</strong> (Despacho, Fiscal, Contabilidad, Laboral, Grupo y Portal) en dos archivos: uno para <strong>restaurar</strong> (.json) y otro para <strong>consultar</strong> en Excel. Guárdalos fuera de Google: disco externo u otra nube.</div>
     <button onclick="bkDescargar()" style="width:100%;padding:12px;background:#0A2540;color:white;border:none;border-radius:9px;font-size:14px;font-weight:500;cursor:pointer;margin-bottom:8px;">&#8681; Descargar copia completa</button>
+    <div style="border:1px solid #E5E7EB;border-radius:9px;padding:10px 12px;margin-bottom:8px;">
+      <div style="font-size:13px;font-weight:600;color:#0A2540;">Copia automática en una carpeta</div>
+      <div style="font-size:12px;color:#4A5A6B;margin:3px 0 8px;">Elige una carpeta de tu ordenador (mejor una de OneDrive o Dropbox). Cada semana se guarda sola la copia, con una copia de las apps para abrirlas en modo emergencia. Se conservan las 12 últimas.</div>
+      <div id="bkCarpetaTxt" style="font-size:12px;color:#4A5A6B;margin-bottom:6px;"></div>
+      <button onclick="bkElegirCarpeta()" style="padding:7px 12px;background:#EFF6FF;color:#1B4F8A;border:1px solid #BFDBFE;border-radius:7px;font-size:12px;cursor:pointer;">Elegir carpeta…</button>
+    </div>
     <button onclick="document.getElementById('bkModal').style.display='none';bkElegirRestaurar()" style="width:100%;padding:11px;background:#F3F4F6;color:#4A5A6B;border:none;border-radius:9px;font-size:13px;cursor:pointer;">&#8679; Restaurar desde una copia…</button>
     <input type="file" id="bkFile" accept=".json" style="display:none;" onchange="bkRestaurar(this)">
     <div style="font-size:11px;color:#8A9BB0;margin-top:12px;">Los documentos del portal (fotos y PDF) no van en la copia: siguen guardados en Firebase.</div>
@@ -3946,12 +3952,10 @@ function _bkAviso(t,ok){let b=document.getElementById("bkAviso");if(!b){b=docume
   b.style.background=ok===false?"#FEF2F2":"#0A2540";b.style.color=ok===false?"#991B1B":"white";b.innerHTML=t;b.style.display="block";if(ok!==null)setTimeout(()=>{b.style.display="none";},ok===false?9000:5000);}
 function exportarBackup(){
   const m=document.getElementById("bkModal");
-  if(m){m.style.display="flex";return;}
+  if(m){m.style.display="flex";bkPintaCarpeta();return;}
 }
-async function bkDescargar(){
-  if(!window.fsGetDocs){alert("La base de datos aún no está lista. Espera unos segundos.");return;}
-  document.getElementById("bkModal").style.display="none";
-  _bkAviso("Preparando la copia completa… no cierres la app.",null);
+// Genera la copia: devuelve el JSON, el Excel legible y el resumen (no descarga nada)
+async function bkGenerar(){
   const datos={},resumen={};let total=0;const fallos=[];
   for(const c of BK_COLS){
     try{const s=await window.fsGetDocs(window.fsCollection(window.db,c));const o={};s.forEach(d=>{o[d.id]=_bkSer(d.data());});
@@ -3960,27 +3964,84 @@ async function bkDescargar(){
   }
   const hoy=new Date().toISOString().slice(0,10);
   const copia={tipo:"copia-durespin",version:2,fecha:new Date().toISOString(),total,resumen,datos};
-  _bkDescarga(new Blob([JSON.stringify(copia)],{type:"application/json"}),"durespin_copia_"+hoy+".json");
-  // Excel legible: una hoja por colección + líneas de asientos y facturas con nombre de cliente
+  const json=new Blob([JSON.stringify(copia)],{type:"application/json"});
+  let xlsx=null;
   try{
     const wb=XLSX.utils.book_new();
     const cli={};Object.entries(datos.clients||{}).forEach(([id,d])=>cli[id]=d.nombre||"");
     const plano=v=>v==null?"":(typeof v==="object"?(v.__ts?v.__ts.slice(0,19).replace("T"," "):JSON.stringify(v)):v);
     const hoja=(nombre,filas)=>{if(!filas.length)return;const ws=XLSX.utils.json_to_sheet(filas);XLSX.utils.book_append_sheet(wb,ws,nombre.slice(0,31));};
-    const ind=[["Colección","Documentos"],...Object.entries(resumen)];
-    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([["Copia de seguridad Durespin",copia.fecha.slice(0,16).replace("T"," ")],[],...ind]),"Índice");
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([["Copia de seguridad Durespin",copia.fecha.slice(0,16).replace("T"," ")],[],["Colección","Documentos"],...Object.entries(resumen)]),"Índice");
     if(datos.iva_facturas)hoja("Facturas IVA",Object.entries(datos.iva_facturas).map(([id,f])=>({cliente:cli[f.clienteDespachoId]||f.clienteDespachoNombre||"",tipo:f.tipo==="IVR"?"Emitida":"Recibida",fecha:f.fecha||"",fecha_registro:f.fechaReg||"",numero:f.numero||"",nombre:f.nombre||"",nif:f.nif||"",base1:f.base1||0,pct1:f.pct1||"",iva1:f.iva1||0,base2:f.base2||0,pct2:f.pct2||"",iva2:f.iva2||0,exento:f.exento||0,ret_pct:f.retPct||"",retencion:f.retImporte||0,total:f.total||0,operacion:f.op||"int",deducible:f.deducible||"",cuenta:f.cuenta||"",contrapartida:f.contrapartida||"",id})));
     if(datos.conta_asientos){const L=[];Object.entries(datos.conta_asientos).forEach(([id,a])=>(a.lineas||[]).forEach(l=>L.push({cliente:cli[a.cid]||"",fecha:a.fecha,concepto:a.concepto||"",origen:a.origen||"",cuenta:l.c,debe:l.d||0,haber:l.h||0,asiento_id:id})));hoja("Asientos (líneas)",L);}
     Object.entries(datos).forEach(([c,o])=>{if(c==="iva_facturas")return;
       hoja(c,Object.entries(o).map(([id,d])=>{const r={id};Object.entries(d).forEach(([k,v])=>{if(k==="thumbnail")return;let x=plano(v);if(typeof x==="string"&&x.length>30000)x=x.slice(0,30000)+"…";r[k]=x;});if(d.clienteDespachoId||d.cid)r._cliente=cli[d.clienteDespachoId||d.cid]||"";return r;}));});
-    XLSX.writeFile(wb,"durespin_copia_legible_"+hoy+".xlsx");
+    xlsx=new Blob([XLSX.write(wb,{type:"array",bookType:"xlsx"})],{type:"application/octet-stream"});
   }catch(e){console.error(e);}
-  let fechaOk=true;
-  try{await window.fsSetDoc(window.fsDoc(window.db,"sistema","backup"),{ultima:new Date().toISOString(),total,resumen});}catch(e){console.error(e);fechaOk=false;}
+  return {json,xlsx,hoy,total,resumen,fallos,nJson:"durespin_copia_"+hoy+".json",nXlsx:"durespin_copia_legible_"+hoy+".xlsx"};
+}
+async function bkMarcar(C){
+  let ok=true;
+  try{await window.fsSetDoc(window.fsDoc(window.db,"sistema","backup"),{ultima:new Date().toISOString(),total:C.total,resumen:C.resumen});}catch(e){console.error(e);ok=false;}
   const btn=document.getElementById("btnBackup");
-  if(btn&&fechaOk){btn.style.background="rgba(16,185,129,0.15)";btn.style.color="#10B981";btn.style.borderColor="rgba(16,185,129,0.3)";btn.title="Última copia: hoy";}
-  if(!fechaOk)fallos.push("(no se ha podido guardar la fecha de la copia: permisos de Firebase en «sistema»)");
-  _bkAviso("✓ Copia descargada: "+total+" registros de "+Object.keys(resumen).length+" apartados. Guarda los 2 archivos fuera de Google (disco externo u otra nube)."+(fallos.length?"<br>No se han podido leer: "+fallos.join(", "):""),fallos.length?false:true);
+  if(btn&&ok){btn.style.background="rgba(16,185,129,0.15)";btn.style.color="#10B981";btn.style.borderColor="rgba(16,185,129,0.3)";btn.title="Última copia: hoy";}
+  if(!ok)C.fallos.push("(no se ha podido guardar la fecha de la copia: permisos de Firebase en «sistema»)");
+}
+async function bkDescargar(){
+  if(!window.fsGetDocs){alert("La base de datos aún no está lista. Espera unos segundos.");return;}
+  document.getElementById("bkModal").style.display="none";
+  _bkAviso("Preparando la copia completa… no cierres la app.",null);
+  const C=await bkGenerar();
+  _bkDescarga(C.json,C.nJson); if(C.xlsx)_bkDescarga(C.xlsx,C.nXlsx);
+  await bkMarcar(C);
+  _bkAviso("✓ Copia descargada: "+C.total+" registros de "+Object.keys(C.resumen).length+" apartados. Guarda los 2 archivos fuera de Google (disco externo u otra nube)."+(C.fallos.length?"<br>Avisos: "+C.fallos.join(", "):""),C.fallos.length?false:true);
+}
+
+// ===== Copia automática en una carpeta del ordenador (Chrome / Edge de escritorio) =====
+// La carpeta se elige una vez (mejor una sincronizada con OneDrive o Dropbox: así la copia queda fuera de Google).
+// Al entrar, si la última copia tiene más de 7 días, se guarda sola (o con un clic si el navegador pide permiso).
+// Además guarda una copia de las apps (HTML) para poder abrirlas sin GitHub en modo emergencia.
+const BK_IDB="durespin_bk";
+function _bkIdb(op,val){return new Promise((res,rej)=>{const r=indexedDB.open(BK_IDB,1);r.onupgradeneeded=()=>r.result.createObjectStore("kv");
+  r.onsuccess=()=>{const tx=r.result.transaction("kv",op==="get"?"readonly":"readwrite"),st=tx.objectStore("kv");
+    const q=op==="get"?st.get("carpeta"):op==="del"?st.delete("carpeta"):st.put(val,"carpeta");q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error);};r.onerror=()=>rej(r.error);});}
+async function bkElegirCarpeta(){
+  if(!window.showDirectoryPicker){alert("Esta opción solo funciona en Chrome o Edge del ordenador. En el móvil usa «Descargar copia completa».");return;}
+  try{const h=await window.showDirectoryPicker({id:"durespin-copias",mode:"readwrite"});await _bkIdb("put",h);bkPintaCarpeta();
+    if(confirm("Carpeta elegida: «"+h.name+"».\n\n¿Guardar ahora la primera copia en ella?"))await bkGuardarEnCarpeta(true);}
+  catch(e){if(e.name!=="AbortError")alert("No se ha podido elegir la carpeta: "+e.message);}
+}
+async function bkPintaCarpeta(){
+  const el=document.getElementById("bkCarpetaTxt");if(!el)return;
+  let h=null;try{h=await _bkIdb("get");}catch(e){}
+  el.innerHTML=h?"Carpeta: <strong>"+h.name+"</strong> · <a href='#' onclick='bkGuardarEnCarpeta(true);return false;'>guardar ahora</a> · <a href='#' onclick='_bkIdb(\"del\").then(bkPintaCarpeta);return false;'>quitar</a>":"Sin carpeta elegida.";
+}
+async function bkGuardarEnCarpeta(manual){
+  let h=null;try{h=await _bkIdb("get");}catch(e){}
+  if(!h){if(manual)bkElegirCarpeta();return false;}
+  let p=await h.queryPermission({mode:"readwrite"});
+  if(p!=="granted"){
+    if(!manual){_bkAviso("&#128190; Toca guardar la copia semanal en tu carpeta «"+h.name+"». <a href='#' onclick='bkGuardarEnCarpeta(true);return false;' style='color:#FFD700;margin-left:6px;'>Guardar ahora</a>",null);return false;}
+    p=await h.requestPermission({mode:"readwrite"});if(p!=="granted"){_bkAviso("Sin permiso para escribir en la carpeta.",false);return false;}
+  }
+  document.getElementById("bkModal").style.display="none";
+  _bkAviso("Guardando la copia en «"+h.name+"»… no cierres la app.",null);
+  try{
+    const C=await bkGenerar();
+    const escribe=async(dir,nombre,blob)=>{const f=await dir.getFileHandle(nombre,{create:true});const w=await f.createWritable();await w.write(blob);await w.close();};
+    await escribe(h,C.nJson,C.json); if(C.xlsx)await escribe(h,C.nXlsx,C.xlsx);
+    // Copia de las apps para poder abrirlas sin GitHub (modo emergencia)
+    try{const ap=await h.getDirectoryHandle("apps",{create:true});
+      for(const [n,u] of [["Durespin_Fiscal_IVA.html","/duraspinvest-iva/index.html"],["Durespin_Despacho.html","/duraspinvest/index.html"],["Durespin_Laboral.html","/duraspinvest-nominas/index.html"]]){
+        const r=await fetch(u,{cache:"no-store"});if(r.ok)await escribe(ap,n,await r.blob());}}catch(e){console.warn("apps",e);}
+    // Conservar solo las 12 últimas copias
+    const js=[];for await(const [n,e] of h.entries()){if(e.kind==="file"&&/^durespin_copia_(legible_)?\d{4}-\d{2}-\d{2}\.(json|xlsx)$/.test(n))js.push(n);}
+    const fechas=[...new Set(js.map(n=>n.match(/\d{4}-\d{2}-\d{2}/)[0]))].sort().reverse();
+    for(const n of js){if(fechas.indexOf(n.match(/\d{4}-\d{2}-\d{2}/)[0])>=12)await h.removeEntry(n).catch(()=>{});}
+    await bkMarcar(C);
+    _bkAviso("✓ Copia guardada en «"+h.name+"»: "+C.total+" registros."+(C.fallos.length?"<br>Avisos: "+C.fallos.join(", "):""),C.fallos.length?false:true);
+    return true;
+  }catch(e){console.error(e);_bkAviso("No se ha podido guardar en la carpeta: "+e.message,false);return false;}
 }
 function bkElegirRestaurar(){document.getElementById("bkFile").click();}
 async function bkRestaurar(input){
@@ -4016,6 +4077,9 @@ async function bkComprobarAviso(){
     const dias=ult?Math.floor((Date.now()-new Date(ult))/864e5):null;
     const btn=document.getElementById("btnBackup");
     if(dias===null||dias>7){
+      let h=null;try{h=await _bkIdb("get");}catch(e){}
+      if(h&&await bkGuardarEnCarpeta(false))return;
+      if(h)return; // ya se ha mostrado el aviso de "Guardar ahora" en la carpeta
       if(btn){btn.style.background="rgba(239,68,68,0.18)";btn.style.color="#FCA5A5";btn.style.borderColor="rgba(239,68,68,0.4)";btn.title=dias===null?"No hay ninguna copia completa":"Última copia hace "+dias+" días";}
       _bkAviso("&#128190; "+(dias===null?"Todavía no has hecho ninguna copia completa de los datos.":"Hace "+dias+" días de la última copia de seguridad.")+" <a href='#' onclick='exportarBackup();return false;' style='color:#FFD700;margin-left:6px;'>Hacer copia ahora</a>",null);
     }else if(btn){btn.title="Última copia: hace "+dias+" día"+(dias===1?"":"s");}
