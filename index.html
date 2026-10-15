@@ -3975,7 +3975,11 @@ async function bkDescargar(){
       hoja(c,Object.entries(o).map(([id,d])=>{const r={id};Object.entries(d).forEach(([k,v])=>{if(k==="thumbnail")return;let x=plano(v);if(typeof x==="string"&&x.length>30000)x=x.slice(0,30000)+"…";r[k]=x;});if(d.clienteDespachoId||d.cid)r._cliente=cli[d.clienteDespachoId||d.cid]||"";return r;}));});
     XLSX.writeFile(wb,"durespin_copia_legible_"+hoy+".xlsx");
   }catch(e){console.error(e);}
-  try{await window.fsSetDoc(window.fsDoc(window.db,"sistema","backup"),{ultima:new Date().toISOString(),total,resumen});}catch(e){console.error(e);}
+  let fechaOk=true;
+  try{await window.fsSetDoc(window.fsDoc(window.db,"sistema","backup"),{ultima:new Date().toISOString(),total,resumen});}catch(e){console.error(e);fechaOk=false;}
+  const btn=document.getElementById("btnBackup");
+  if(btn&&fechaOk){btn.style.background="rgba(16,185,129,0.15)";btn.style.color="#10B981";btn.style.borderColor="rgba(16,185,129,0.3)";btn.title="Última copia: hoy";}
+  if(!fechaOk)fallos.push("(no se ha podido guardar la fecha de la copia: permisos de Firebase en «sistema»)");
   _bkAviso("✓ Copia descargada: "+total+" registros de "+Object.keys(resumen).length+" apartados. Guarda los 2 archivos fuera de Google (disco externo u otra nube)."+(fallos.length?"<br>No se han podido leer: "+fallos.join(", "):""),fallos.length?false:true);
 }
 function bkElegirRestaurar(){document.getElementById("bkFile").click();}
