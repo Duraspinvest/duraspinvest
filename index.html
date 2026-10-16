@@ -214,7 +214,7 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
 <!-- Firebase SDK -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, EmailAuthProvider, reauthenticateWithCredential, updatePassword, verifyBeforeUpdateEmail } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
   import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, getDocs, getDoc, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
   import { getMessaging, getToken, isSupported as fcmSupported } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js";
 
@@ -236,6 +236,7 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
   window.db = db;
   window.auth = auth;
   window.fsSignIn = signInWithEmailAndPassword;
+  window.fsAuthX = { EmailAuthProvider, reauthenticateWithCredential, updatePassword, verifyBeforeUpdateEmail };
   window.fsSignOut = signOut;
   window.fsDoc = doc;
   window.fsSetDoc = setDoc;
@@ -399,6 +400,28 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
 </head>
 <body>
 
+<!-- CUENTA DE ACCESO -->
+<div id="ctaModal" style="display:none;position:fixed;inset:0;background:rgba(10,37,64,0.55);z-index:2000;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:white;border-radius:14px;max-width:440px;width:100%;padding:22px;box-shadow:0 10px 40px rgba(0,0,0,.3);">
+    <div style="font-size:17px;font-weight:600;color:#0A2540;margin-bottom:4px;">Cuenta de acceso</div>
+    <div style="font-size:12px;color:#6B7A8D;margin-bottom:14px;">Es la misma para Despacho, Fiscal y Laboral. Entras ahora como <b id="ctaActual"></b>.</div>
+    <label style="font-size:12px;font-weight:600;color:#4A5A6B;">Contraseña actual (obligatoria para cualquier cambio)</label>
+    <input id="ctaPwd" type="password" autocomplete="current-password" style="width:100%;padding:9px;border:1px solid #D1D9E0;border-radius:8px;margin:4px 0 14px;font-size:14px;box-sizing:border-box;">
+    <div style="border-top:1px solid #EEF1F5;padding-top:12px;margin-bottom:12px;">
+      <label style="font-size:12px;font-weight:600;color:#4A5A6B;">Nuevo correo de acceso</label>
+      <input id="ctaEmail" type="email" autocomplete="email" placeholder="emilio@durespin.com" style="width:100%;padding:9px;border:1px solid #D1D9E0;border-radius:8px;margin:4px 0 8px;font-size:14px;box-sizing:border-box;">
+      <button onclick="ctaCambiarEmail()" style="width:100%;padding:10px;background:#0A2540;color:white;border:none;border-radius:9px;font-size:13px;cursor:pointer;">Cambiar correo</button>
+    </div>
+    <div style="border-top:1px solid #EEF1F5;padding-top:12px;">
+      <label style="font-size:12px;font-weight:600;color:#4A5A6B;">Nueva contraseña (mínimo 12 caracteres)</label>
+      <input id="ctaNew1" type="password" autocomplete="new-password" style="width:100%;padding:9px;border:1px solid #D1D9E0;border-radius:8px;margin:4px 0 6px;font-size:14px;box-sizing:border-box;">
+      <input id="ctaNew2" type="password" autocomplete="new-password" placeholder="Repítela" style="width:100%;padding:9px;border:1px solid #D1D9E0;border-radius:8px;margin:0 0 8px;font-size:14px;box-sizing:border-box;">
+      <button onclick="ctaCambiarPwd()" style="width:100%;padding:10px;background:#0A2540;color:white;border:none;border-radius:9px;font-size:13px;cursor:pointer;">Cambiar contraseña</button>
+    </div>
+    <div id="ctaMsg" style="font-size:13px;margin-top:12px;line-height:1.45;"></div>
+  </div>
+</div>
+
 <!-- COPIA DE SEGURIDAD -->
 <div id="bkModal" style="display:none;position:fixed;inset:0;background:rgba(10,37,64,0.55);z-index:2000;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)this.style.display='none'">
   <div style="background:white;border-radius:14px;max-width:440px;width:100%;padding:22px;box-shadow:0 10px 40px rgba(0,0,0,.3);">
@@ -507,6 +530,7 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
       <a href="https://duraspinvest.github.io/duraspinvest-nominas/" style="text-decoration:none;color:#cdd7e8;font-size:12px;font-weight:600;padding:5px 11px;border-radius:6px;">Laboral</a>
     </span>
     <button id="btnBackup" onclick="exportarBackup()" style="background:rgba(16,185,129,0.15);color:#10B981;border:1px solid rgba(16,185,129,0.3);border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;" title="Copia de seguridad">&#128190; Backup</button>
+    <button onclick="ctaAbrir()" style="background:rgba(255,255,255,0.1);color:#cdd7e8;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;" title="Cambiar correo o contraseña de acceso">&#128100; Cuenta</button>
     <button onclick="doLogout()" style="background:rgba(255,255,255,0.1);color:#8A9BB0;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;">Salir</button>
   </div>
 </header>
@@ -3923,6 +3947,40 @@ function renderStats(data,hoy){
   const elRH=document.getElementById('rachaHoy');if(elRH)elRH.innerHTML=rachaN>0?'&#x1F525; Racha: '+rachaN+' dias':'';
 }
 
+
+// ===== Cuenta de acceso: cambiar correo y contraseña (Firebase Auth) =====
+function ctaAbrir(){const u=window.auth&&window.auth.currentUser;document.getElementById("ctaActual").textContent=u?u.email:"";
+  ["ctaPwd","ctaEmail","ctaNew1","ctaNew2"].forEach(id=>document.getElementById(id).value="");document.getElementById("ctaMsg").innerHTML="";
+  document.getElementById("ctaModal").style.display="flex";}
+function ctaMsg(t,ok){document.getElementById("ctaMsg").innerHTML="<div style='padding:10px;border-radius:8px;background:"+(ok?"#ECFDF5;color:#065F46":"#FEF2F2;color:#991B1B")+";'>"+t+"</div>";}
+function ctaErr(e){const c=(e&&e.code)||"";
+  return c.includes("wrong-password")||c.includes("invalid-credential")?"La contraseña actual no es correcta.":
+    c.includes("email-already-in-use")?"Ese correo ya lo usa otra cuenta.":
+    c.includes("invalid-email")?"El correo no es válido.":
+    c.includes("too-many-requests")?"Demasiados intentos. Espera unos minutos.":
+    c.includes("operation-not-allowed")?"Firebase no permite este cambio: revisa en la consola que el proveedor Correo/contraseña esté activo.":
+    "No se pudo hacer el cambio ("+(c||(e&&e.message)||"error")+").";}
+async function ctaReauth(){const u=window.auth.currentUser,p=document.getElementById("ctaPwd").value;
+  if(!p)throw {code:"falta"};const X=window.fsAuthX;await X.reauthenticateWithCredential(u,X.EmailAuthProvider.credential(u.email,p));return u;}
+async function ctaCambiarEmail(){
+  const n=(document.getElementById("ctaEmail").value||"").trim().toLowerCase();
+  if(!document.getElementById("ctaPwd").value)return ctaMsg("Escribe tu contraseña actual.");
+  if(!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/.test(n))return ctaMsg("Escribe un correo válido.");
+  try{const u=await ctaReauth();
+    if(n===u.email)return ctaMsg("Ese ya es tu correo de acceso.");
+    await window.fsAuthX.verifyBeforeUpdateEmail(u,n);
+    ctaMsg("Te he enviado un enlace a <b>"+n+"</b>. Ábrelo para confirmar: hasta entonces sigues entrando con el correo actual. Después, sal de las apps y vuelve a entrar con el nuevo correo (la contraseña no cambia).",true);
+  }catch(e){ctaMsg(e.code==="falta"?"Escribe tu contraseña actual.":ctaErr(e));}}
+async function ctaCambiarPwd(){
+  const a=document.getElementById("ctaNew1").value,b=document.getElementById("ctaNew2").value;
+  if(!document.getElementById("ctaPwd").value)return ctaMsg("Escribe tu contraseña actual.");
+  if(a.length<12)return ctaMsg("La nueva contraseña debe tener al menos 12 caracteres.");
+  if(a!==b)return ctaMsg("Las dos contraseñas nuevas no coinciden.");
+  try{const u=await ctaReauth();await window.fsAuthX.updatePassword(u,a);
+    ["ctaPwd","ctaNew1","ctaNew2"].forEach(id=>document.getElementById(id).value="");
+    ctaMsg("Contraseña cambiada. Úsala la próxima vez que entres en Despacho, Fiscal o Laboral (también en el móvil). Actualízala en tu gestor de contraseñas.",true);
+  }catch(e){ctaMsg(e.code==="falta"?"Escribe tu contraseña actual.":ctaErr(e));}}
+window.ctaAbrir=ctaAbrir;window.ctaCambiarEmail=ctaCambiarEmail;window.ctaCambiarPwd=ctaCambiarPwd;
 
 // ===== Copia de seguridad COMPLETA de todas las apps (misma base de datos Firebase) =====
 // Descarga: 1) JSON con todas las colecciones (sirve para restaurar) y 2) Excel legible.
