@@ -223,7 +223,7 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
     apiKey: "AIzaSyCVK3yF15Udps1l046kv6M1TASIwVEPcVs",
     authDomain: "duraspinvest.firebaseapp.com",
     projectId: "duraspinvest",
-    storageBucket: "duraspinvest.firebasestorage.app",
+    storageBucket: "duraspinvest-docs-eu",
     messagingSenderId: "280764832749",
     appId: "1:280764832749:web:a1fa6c44cf59518541a5e4",
     measurementId: "G-4X4VSG1M2L"
@@ -426,7 +426,7 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
 <div id="bkModal" style="display:none;position:fixed;inset:0;background:rgba(10,37,64,0.55);z-index:2000;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)this.style.display='none'">
   <div style="background:white;border-radius:14px;max-width:440px;width:100%;padding:22px;box-shadow:0 10px 40px rgba(0,0,0,.3);">
     <div style="font-size:17px;font-weight:600;color:#0A2540;margin-bottom:6px;">Copia de seguridad</div>
-    <div style="font-size:13px;color:#4A5A6B;line-height:1.55;margin-bottom:16px;">Descarga <strong>todos los datos de todas las apps</strong> (Despacho, Fiscal, Contabilidad, Laboral, Grupo y Portal) en dos archivos: uno para <strong>restaurar</strong> (.json) y otro para <strong>consultar</strong> en Excel. Guárdalos fuera de Google: disco externo u otra nube.</div>
+    <div style="font-size:13px;color:#4A5A6B;line-height:1.55;margin-bottom:16px;">Descarga <strong>todo</strong>: los datos de todas las apps (Despacho, Fiscal, Contabilidad, Laboral, Grupo y Portal) y <strong>todos los documentos</strong> (portal, convenios…), en <strong>un ZIP cifrado</strong>. Se abre con <strong>7-Zip</strong> y tu <strong>clave de copias</strong>. Guárdalo fuera de Google: disco externo u otra nube.</div>
     <button onclick="bkDescargar()" style="width:100%;padding:12px;background:#0A2540;color:white;border:none;border-radius:9px;font-size:14px;font-weight:500;cursor:pointer;margin-bottom:8px;">&#8681; Descargar copia completa</button>
     <div style="border:1px solid #E5E7EB;border-radius:9px;padding:10px 12px;margin-bottom:8px;">
       <div style="font-size:13px;font-weight:600;color:#0A2540;">Copia automática en una carpeta</div>
@@ -436,7 +436,7 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
     </div>
     <button onclick="document.getElementById('bkModal').style.display='none';bkElegirRestaurar()" style="width:100%;padding:11px;background:#F3F4F6;color:#4A5A6B;border:none;border-radius:9px;font-size:13px;cursor:pointer;">&#8679; Restaurar desde una copia…</button>
     <input type="file" id="bkFile" accept=".json" style="display:none;" onchange="bkRestaurar(this)">
-    <div style="font-size:11px;color:#8A9BB0;margin-top:12px;">Los documentos del portal (fotos y PDF) no van en la copia: siguen guardados en Firebase.</div>
+    <div style="font-size:11px;color:#8A9BB0;margin-top:12px;line-height:1.5;">Para restaurar, descomprime antes el ZIP con 7-Zip y elige el archivo <b>.json</b> de dentro. Si la copia cifrada no está disponible, se hace la copia antigua (sin documentos y sin cifrar) y te avisa.</div>
   </div>
 </div>
 
@@ -537,6 +537,7 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
 <nav>
   <button class="nav-btn active" onclick="showSection('dashboard',this)">⊞ Inicio</button>
   <button class="nav-btn" onclick="showSection('inbox',this)" id="navInbox">📥 Inbox <span id="badgeInbox" style="display:none;background:#EF4444;color:white;border-radius:20px;font-size:10px;padding:1px 6px;font-weight:700;margin-left:2px;"></span></button>
+  <button class="nav-btn" onclick="showSection('portal',this)" id="navPortal">💬 Portal <span id="badgePortal" style="display:none;background:#EF4444;color:white;border-radius:20px;font-size:10px;padding:1px 6px;font-weight:700;margin-left:2px;"></span></button>
   <button class="nav-btn" onclick="showSection('eisenhower',this)" id="navTareas">⊕ Tareas <span id="badgeTareas" style="display:none;background:#EF4444;color:white;border-radius:20px;font-size:10px;padding:1px 6px;font-weight:700;margin-left:2px;"></span></button>
   <button class="nav-btn" onclick="showSection('calendar',this)">▦ Calendario</button>
   <button class="nav-btn" onclick="showSection('clientes',this)">◉ Clientes</button>
@@ -547,6 +548,51 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
   <button class="nav-btn" onclick="showSection('disciplina',this)">🐸 Disciplina</button>
 </nav>
 <main>
+
+<!-- ===== PORTAL DEL CLIENTE (mensajes, documentos, usuarios) ===== -->
+<style>
+#portal .pt-wrap{display:grid;grid-template-columns:280px 1fr;gap:14px;align-items:start;}
+#portal .pt-cli{background:white;border-radius:var(--radius);box-shadow:var(--shadow);padding:10px;max-height:calc(100vh - 170px);overflow:auto;position:sticky;top:120px;}
+#portal .pt-cli-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13px;color:var(--gray-800);}
+#portal .pt-cli-item:hover{background:#F1F5F9;}
+#portal .pt-cli-item.sel{background:#EEF2FF;font-weight:600;color:var(--navy);}
+#portal .pt-dot{min-width:18px;height:18px;border-radius:9px;background:#EF4444;color:white;font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;padding:0 5px;}
+#portal .pt-est{font-size:10px;padding:1px 7px;border-radius:10px;white-space:nowrap;}
+#portal .pt-est.pendiente{background:#FEF3C7;color:#92400E;} #portal .pt-est.curso{background:#DBEAFE;color:#1E40AF;} #portal .pt-est.resuelto{background:#D1FAE5;color:#065F46;}
+#portal .pt-panel{background:white;border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;min-height:420px;}
+#portal .pt-tabs{display:flex;gap:4px;border-bottom:1px solid #E5E7EB;margin:10px 0 14px;flex-wrap:wrap;}
+#portal .pt-tab{padding:8px 14px;border:none;background:none;cursor:pointer;font-size:13px;color:var(--gray-600);border-bottom:2px solid transparent;}
+#portal .pt-tab.sel{color:var(--navy);font-weight:600;border-bottom-color:var(--navy);}
+#portal .pt-msgs{display:flex;flex-direction:column;gap:8px;max-height:52vh;overflow:auto;padding:4px 2px 8px;}
+#portal .pt-b{max-width:78%;padding:9px 12px;border-radius:12px;font-size:13px;line-height:1.45;white-space:pre-wrap;word-wrap:break-word;}
+#portal .pt-b.cli{align-self:flex-start;background:#F1F5F9;color:var(--gray-800);border-bottom-left-radius:4px;}
+#portal .pt-b.desp{align-self:flex-end;background:var(--navy);color:white;border-bottom-right-radius:4px;}
+#portal .pt-b .pt-meta{font-size:10px;opacity:.7;margin-top:4px;}
+#portal .pt-adj{display:inline-flex;align-items:center;gap:4px;margin:4px 4px 0 0;padding:4px 8px;border-radius:7px;font-size:12px;cursor:pointer;background:rgba(255,255,255,.18);border:1px solid rgba(0,0,0,.08);color:inherit;}
+#portal .pt-b.cli .pt-adj{background:white;}
+#portal textarea.pt-in{width:100%;min-height:64px;padding:10px;border:1.5px solid #D6DEE8;border-radius:9px;font:inherit;font-size:14px;resize:vertical;box-sizing:border-box;}
+#portal .pt-btn{padding:8px 14px;border-radius:8px;border:none;cursor:pointer;font-size:13px;}
+#portal .pt-btn.pri{background:var(--navy);color:white;} #portal .pt-btn.sec{background:#F1F5F9;color:var(--gray-600);} #portal .pt-btn.dan{background:#FEF2F2;color:#B91C1C;}
+#portal .pt-row{display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid #F1F5F9;font-size:13px;flex-wrap:wrap;}
+#portal .pt-lbl{font-size:11px;font-weight:600;color:#4A5A6B;text-transform:uppercase;letter-spacing:.4px;display:block;margin:10px 0 4px;}
+#portal .pt-fi{padding:8px 10px;border:1.5px solid #D6DEE8;border-radius:8px;font:inherit;font-size:13px;box-sizing:border-box;}
+#portal .pt-aviso{background:#FFFBEB;border:1px solid #FDE68A;color:#92400E;border-radius:9px;padding:9px 12px;font-size:12px;margin-bottom:12px;}
+@media(max-width:800px){#portal .pt-wrap{grid-template-columns:1fr;}#portal .pt-cli{position:static;max-height:260px;}}
+</style>
+<div id="portal" class="section">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+    <div style="font-size:18px;font-weight:600;color:var(--navy);">Portal del cliente</div>
+    <div id="ptResumen" style="font-size:12px;color:var(--gray-600);"></div>
+  </div>
+  <div class="pt-wrap">
+    <div class="pt-cli">
+      <input id="ptBuscar" class="pt-fi" placeholder="Buscar cliente…" style="width:100%;margin-bottom:8px;" oninput="ptPintaClientes()">
+      <label style="font-size:12px;color:var(--gray-600);display:flex;gap:6px;align-items:center;margin:0 4px 6px;"><input type="checkbox" id="ptSoloPend" onchange="ptPintaClientes()"> Solo pendientes</label>
+      <div id="ptClientes"></div>
+    </div>
+    <div class="pt-panel" id="ptPanel"><div style="color:var(--gray-400);font-size:13px;padding:40px 10px;text-align:center;">Elige un cliente de la lista.</div></div>
+  </div>
+</div>
 
 <!-- DASHBOARD -->
 <div id="dashboard" class="section active">
@@ -1496,6 +1542,7 @@ function showSection(id, btn) {
   else if (id === 'prospectos') renderProspectos();
   else if (id === 'registro') renderRegistro();
   else if (id === 'tesoreria') { initTesMes(); renderTesoreria(); }
+  else if (id === 'portal') { if (typeof ptRefrescar === 'function') ptRefrescar(); }
 }
 
 function onFab() {
@@ -4045,6 +4092,19 @@ async function bkGenerar(){
   }catch(e){console.error(e);}
   return {json,xlsx,hoy,total,resumen,fallos,nJson:"durespin_copia_"+hoy+".json",nXlsx:"durespin_copia_legible_"+hoy+".xlsx"};
 }
+// Copia completa CIFRADA hecha en el servidor (función copiaCompleta): datos + Excel + todos los documentos en un ZIP AES-256
+const BK_URL_CIFRADA="https://copiacompleta-gyc3opqqlq-ew.a.run.app";
+async function bkGenerarCifrada(){
+  const u=window.auth&&window.auth.currentUser; if(!u)throw new Error("sin sesión");
+  const tok=await u.getIdToken();
+  const r=await fetch(BK_URL_CIFRADA,{method:"POST",headers:{Authorization:"Bearer "+tok}});
+  if(!r.ok){let m="HTTP "+r.status;try{const j=await r.json();if(j.error)m=j.error;}catch(e){}throw new Error(m);}
+  const zip=await r.blob();
+  if(zip.size<200)throw new Error("copia vacía");
+  let resumen={};try{resumen=JSON.parse(decodeURIComponent(r.headers.get("X-Copia-Resumen")||"%7B%7D"));}catch(e){}
+  const hoy=new Date().toISOString().slice(0,10);
+  return {zip,hoy,total:+(r.headers.get("X-Copia-Total")||0),ficheros:+(r.headers.get("X-Copia-Ficheros")||0),resumen,fallos:[],nZip:"durespin_copia_cifrada_"+hoy+".zip"};
+}
 async function bkMarcar(C){
   let ok=true;
   try{await window.fsSetDoc(window.fsDoc(window.db,"sistema","backup"),{ultima:new Date().toISOString(),total:C.total,resumen:C.resumen});}catch(e){console.error(e);ok=false;}
@@ -4056,10 +4116,16 @@ async function bkDescargar(){
   if(!window.fsGetDocs){alert("La base de datos aún no está lista. Espera unos segundos.");return;}
   document.getElementById("bkModal").style.display="none";
   _bkAviso("Preparando la copia completa… no cierres la app.",null);
+  try{
+    const C=await bkGenerarCifrada();
+    _bkDescarga(C.zip,C.nZip); await bkMarcar(C);
+    _bkAviso("✓ Copia cifrada descargada: "+C.total+" registros y "+C.ficheros+" documentos. Guárdala fuera de Google (disco externo u otra nube)."+(C.fallos.length?"<br>Avisos: "+C.fallos.join(", "):""),C.fallos.length?false:true);
+    return;
+  }catch(e){console.warn("copia cifrada:",e);var errCif=e.message;}
   const C=await bkGenerar();
   _bkDescarga(C.json,C.nJson); if(C.xlsx)_bkDescarga(C.xlsx,C.nXlsx);
   await bkMarcar(C);
-  _bkAviso("✓ Copia descargada: "+C.total+" registros de "+Object.keys(C.resumen).length+" apartados. Guarda los 2 archivos fuera de Google (disco externo u otra nube)."+(C.fallos.length?"<br>Avisos: "+C.fallos.join(", "):""),C.fallos.length?false:true);
+  _bkAviso("⚠ No se ha podido hacer la copia cifrada ("+errCif+"). Se ha descargado la copia antigua: "+C.total+" registros, <b>sin documentos y sin cifrar</b>. Guárdala en un sitio seguro."+(C.fallos.length?"<br>Avisos: "+C.fallos.join(", "):""),false);
 }
 
 // ===== Copia automática en una carpeta del ordenador (Chrome / Edge de escritorio) =====
@@ -4092,19 +4158,21 @@ async function bkGuardarEnCarpeta(manual){
   document.getElementById("bkModal").style.display="none";
   _bkAviso("Guardando la copia en «"+h.name+"»… no cierres la app.",null);
   try{
-    const C=await bkGenerar();
     const escribe=async(dir,nombre,blob)=>{const f=await dir.getFileHandle(nombre,{create:true});const w=await f.createWritable();await w.write(blob);await w.close();};
-    await escribe(h,C.nJson,C.json); if(C.xlsx)await escribe(h,C.nXlsx,C.xlsx);
+    let C,errCif="";
+    try{C=await bkGenerarCifrada();await escribe(h,C.nZip,C.zip);}
+    catch(e){console.warn("copia cifrada:",e);errCif=e.message;C=await bkGenerar();await escribe(h,C.nJson,C.json); if(C.xlsx)await escribe(h,C.nXlsx,C.xlsx);
+      C.fallos.push("copia cifrada no disponible ("+errCif+"): guardada la antigua, sin documentos y sin cifrar");}
     // Copia de las apps para poder abrirlas sin GitHub (modo emergencia)
     try{const ap=await h.getDirectoryHandle("apps",{create:true});
       for(const [n,u] of [["Durespin_Fiscal_IVA.html","/duraspinvest-iva/index.html"],["Durespin_Despacho.html","/duraspinvest/index.html"],["Durespin_Laboral.html","/duraspinvest-nominas/index.html"]]){
         const r=await fetch(u,{cache:"no-store"});if(r.ok)await escribe(ap,n,await r.blob());}}catch(e){console.warn("apps",e);}
     // Conservar solo las 12 últimas copias
-    const js=[];for await(const [n,e] of h.entries()){if(e.kind==="file"&&/^durespin_copia_(legible_)?\d{4}-\d{2}-\d{2}\.(json|xlsx)$/.test(n))js.push(n);}
+    const js=[];for await(const [n,e] of h.entries()){if(e.kind==="file"&&/^durespin_copia_(legible_|cifrada_)?\d{4}-\d{2}-\d{2}\.(json|xlsx|zip)$/.test(n))js.push(n);}
     const fechas=[...new Set(js.map(n=>n.match(/\d{4}-\d{2}-\d{2}/)[0]))].sort().reverse();
     for(const n of js){if(fechas.indexOf(n.match(/\d{4}-\d{2}-\d{2}/)[0])>=12)await h.removeEntry(n).catch(()=>{});}
     await bkMarcar(C);
-    _bkAviso("✓ Copia guardada en «"+h.name+"»: "+C.total+" registros."+(C.fallos.length?"<br>Avisos: "+C.fallos.join(", "):""),C.fallos.length?false:true);
+    _bkAviso("✓ Copia guardada en «"+h.name+"»: "+C.total+" registros"+(C.zip?" y "+C.ficheros+" documentos (cifrada)":"")+"."+(C.fallos.length?"<br>Avisos: "+C.fallos.join(", "):""),C.fallos.length?false:true);
     return true;
   }catch(e){console.error(e);_bkAviso("No se ha podido guardar en la carpeta: "+e.message,false);return false;}
 }
@@ -5060,6 +5128,353 @@ if ('serviceWorker' in navigator) {
 }
 document.getElementById('loginEmail').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('loginPassword').focus(); });
 document.getElementById('loginPassword').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+</script>
+<script type="module">
+// ===== PORTAL DEL CLIENTE · lado del despacho (mensajes, documentos, usuarios, ajustes) =====
+import { getApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getStorage, ref, uploadBytes, getBlob, deleteObject } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
+
+const app = getApp(), db = getFirestore(app), auth = getAuth(app), st = getStorage(app);
+const URL_USUARIOS = "https://portalusuario-gyc3opqqlq-ew.a.run.app";
+const PDFLIB_URL = "https://cdn.jsdelivr.net/npm/@cantoo/pdf-lib@2.11.1/dist/pdf-lib.min.js";
+const CATS = { impuestos: "Impuestos", nominas: "Nóminas y seguros sociales", contratos: "Contratos", otros: "Otros" };
+const P = { msgs: [], usuarios: [], entregas: [], hilos: {}, pcli: {}, cfg: {}, sel: null, tab: "mensajes", cola: [], audio: null };
+window._PT = P;
+const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+const js = (v) => esc(JSON.stringify(String(v == null ? "" : v)));   // texto seguro dentro de onclick="…"
+const fFecha = (iso) => { if (!iso) return ""; const d = new Date(iso); return d.toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "2-digit" }) + " " + d.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }); };
+const fBytes = (b) => b < 1024 * 1024 ? Math.max(1, Math.round(b / 1024)) + " KB" : (b / 1048576).toFixed(1).replace(".", ",") + " MB";
+const clientes = () => (window.clients || []).filter((c) => (c.categoria || "despacho") !== "auxiliar");
+const cliNombre = (id) => (clientes().find((c) => c.id === id) || {}).nombre || P.pcli[id]?.nombre || id;
+const aviso = (t, ok) => (typeof _bkAviso === "function" ? _bkAviso(t, ok) : alert(t.replace(/<[^>]+>/g, "")));
+
+// ---------- Datos en tiempo real ----------
+let subs = [];
+onAuthStateChanged(auth, (u) => {
+  subs.forEach((f) => f()); subs = [];
+  if (!u) return;
+  const L = (c, fn) => subs.push(onSnapshot(collection(db, c), (s) => { fn(s); ptRefrescar(); }, (e) => console.warn("portal", c, e.message)));
+  L("portal_mensajes", (s) => { P.msgs = s.docs.map((d) => ({ ...d.data(), id: d.id })).sort((a, b) => String(a.fecha).localeCompare(String(b.fecha))); });
+  L("portal_usuarios", (s) => { P.usuarios = s.docs.map((d) => ({ ...d.data(), uid: d.id })); });
+  L("portal_entregas", (s) => { P.entregas = s.docs.map((d) => ({ ...d.data(), id: d.id })).sort((a, b) => String(b.subido).localeCompare(String(a.subido))); });
+  L("portal_hilos", (s) => { P.hilos = {}; s.docs.forEach((d) => (P.hilos[d.id] = d.data())); });
+  L("portal_clientes", (s) => { P.pcli = {}; s.docs.forEach((d) => (P.pcli[d.id] = d.data())); });
+  subs.push(onSnapshot(doc(db, "avisos_config", "portal"), (d) => { P.cfg = d.data() || {}; ptRefrescar(); }, () => {}));
+});
+
+function noLeidos(cid) { return P.msgs.filter((m) => m.de === "cliente" && !m.leidoDespacho && (!cid || m.clienteId === cid)).length; }
+function estado(cid) { return (P.hilos[cid] || {}).estado || ""; }
+function ptRefrescar() {
+  const n = noLeidos();
+  const b = document.getElementById("badgePortal");
+  if (b) { b.textContent = n; b.style.display = n ? "inline" : "none"; }
+  const s = document.getElementById("portal");
+  if (!s || !s.classList.contains("active")) return;
+  ptPintaClientes(); ptPintaPanel(true);
+}
+window.ptRefrescar = ptRefrescar;
+
+// ---------- Lista de clientes ----------
+window.ptPintaClientes = function () {
+  const box = document.getElementById("ptClientes"); if (!box) return;
+  const q = (document.getElementById("ptBuscar").value || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  const solo = document.getElementById("ptSoloPend").checked;
+  const ult = {}; P.msgs.forEach((m) => (ult[m.clienteId] = m.fecha));
+  const conUsr = new Set(P.usuarios.map((u) => u.clienteId));
+  let L = clientes().map((c) => ({ id: c.id, nombre: c.nombre || "(sin nombre)", n: noLeidos(c.id), est: estado(c.id), ult: ult[c.id] || "", usr: conUsr.has(c.id) }));
+  if (q) L = L.filter((c) => c.nombre.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").includes(q));
+  if (solo) L = L.filter((c) => c.n || c.est === "pendiente");
+  L.sort((a, b) => (b.n - a.n) || ((b.est === "pendiente") - (a.est === "pendiente")) || b.ult.localeCompare(a.ult) || (b.usr - a.usr) || a.nombre.localeCompare(b.nombre));
+  const est = { pendiente: "Pendiente", curso: "En curso", resuelto: "Resuelto" };
+  box.innerHTML = L.map((c) => "<div class='pt-cli-item" + (c.id === P.sel ? " sel" : "") + "' onclick=\"ptSel(" + js(c.id) + ")\"><div style='flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'>" + esc(c.nombre) +
+    (c.usr ? "" : " <span title='Sin usuarios en el portal' style='color:#CBD5E1;'>○</span>") + "</div>" +
+    (c.est ? "<span class='pt-est " + c.est + "'>" + est[c.est] + "</span>" : "") + (c.n ? "<span class='pt-dot'>" + c.n + "</span>" : "") + "</div>").join("") ||
+    "<div style='font-size:12px;color:var(--gray-400);padding:10px;'>Sin resultados.</div>";
+  const pend = clientes().filter((c) => noLeidos(c.id) || estado(c.id) === "pendiente").length;
+  const r = document.getElementById("ptResumen"); if (r) r.textContent = pend ? pend + " conversación(es) pendiente(s)" : "Todo al día";
+};
+window.ptSel = function (cid) { P.sel = cid; P.cola = []; P.audio = null; ptPintaClientes(); ptPintaPanel(); };
+window.ptTab = function (t) { P.tab = t; ptPintaPanel(); };
+
+// ---------- Panel del cliente ----------
+function ptPintaPanel(soloDatos) {
+  const box = document.getElementById("ptPanel"); if (!box || !P.sel) return;
+  const cid = P.sel;
+  // Al refrescar por datos nuevos, no repintar si está escribiendo (no perder el texto)
+  if (soloDatos && P.tab !== "mensajes") {
+    const v = (id) => (document.getElementById(id) || {}).value;
+    const ocupado = (document.activeElement && box.contains(document.activeElement) && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))
+      || ((document.getElementById("ptDocs") || {}).files || []).length || v("nuNom") || v("nuUsr");
+    if (ocupado) return;
+  }
+  const borrador = (document.getElementById("ptTexto") || {}).value;
+  const tabs = [["mensajes", "💬 Mensajes" + (noLeidos(cid) ? " (" + noLeidos(cid) + ")" : "")], ["documentos", "📁 Documentos"], ["usuarios", "👤 Usuarios"], ["ajustes", "⚙ Ajustes"]];
+  const pc = P.pcli[cid] || {};
+  box.innerHTML = "<div style='display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;'><div style='font-size:16px;font-weight:600;color:var(--navy);'>" + esc(cliNombre(cid)) + "</div>" +
+    "<div style='font-size:12px;'>" + (pc.contratoFirmado ? "<span style='color:#065F46;'>✓ Contrato firmado " + esc(pc.contratoFirmado.split("-").reverse().join("/")) + "</span>" : "<span style='color:#B45309;'>Contrato sin firmar</span>") + "</div></div>" +
+    "<div class='pt-tabs'>" + tabs.map(([k, l]) => "<button class='pt-tab" + (P.tab === k ? " sel" : "") + "' onclick=\"ptTab('" + k + "')\">" + l + "</button>").join("") + "</div><div id='ptCuerpo'></div>";
+  ({ mensajes: pintaMensajes, documentos: pintaDocumentos, usuarios: pintaUsuarios, ajustes: pintaAjustes })[P.tab](cid);
+  if (borrador && document.getElementById("ptTexto")) document.getElementById("ptTexto").value = borrador;
+}
+
+// ---------- Mensajes ----------
+function adjuntosHtml(m) {
+  let h = "";
+  const suyo = (p) => typeof p === "string" && p.startsWith("mensajes/" + m.clienteId + "/");
+  (m.adjuntos || []).filter((a) => suyo(a.path)).forEach((a, i) => { h += "<button class='pt-adj' onclick=\"ptAbrir(" + js(a.path) + "," + js(a.nombre) + "," + js(a.tipo || "") + ")\">" + (/^image\//.test(a.tipo) ? "🖼" : /pdf/.test(a.tipo) ? "📄" : "📎") + " " + esc(a.nombre) + "</button>"; });
+  if (m.audio && suyo(m.audio.path)) h += "<div style='margin-top:6px;'><button class='pt-adj' onclick=\"ptAudio(this," + js(m.audio.path) + "," + js(m.audio.tipo || "") + ")\">▶ Nota de voz" + (m.audio.seg ? " · " + Math.round(m.audio.seg) + " s" : "") + "</button></div>";
+  return h;
+}
+function pintaMensajes(cid) {
+  const c = document.getElementById("ptCuerpo");
+  const M = P.msgs.filter((m) => m.clienteId === cid);
+  const est = estado(cid);
+  c.innerHTML = "<div style='display:flex;gap:8px;align-items:center;margin-bottom:8px;font-size:12px;color:var(--gray-600);'>Estado: <select class='pt-fi' onchange=\"ptEstado(" + js(cid) + ",this.value)\">" +
+    [["", "—"], ["pendiente", "Pendiente"], ["curso", "En curso"], ["resuelto", "Resuelto"]].map(([k, l]) => "<option value='" + k + "'" + (est === k ? " selected" : "") + ">" + l + "</option>").join("") + "</select></div>" +
+    "<div class='pt-msgs' id='ptMsgs'>" + (M.length ? M.map((m) => "<div class='pt-b " + (m.de === "despacho" ? "desp" : "cli") + "'>" + esc(m.texto || "") + adjuntosHtml(m) +
+      "<div class='pt-meta'>" + (m.de === "cliente" ? esc(m.autorNombre || "Cliente") + " · " : "") + fFecha(m.fecha) + (m.de === "despacho" ? (m.leidoCliente ? " · ✓✓ leído" : " · ✓ enviado") : "") + "</div></div>").join("") :
+      "<div style='color:var(--gray-400);font-size:13px;text-align:center;padding:30px;'>Todavía no hay mensajes con este cliente.</div>") + "</div>" +
+    "<div style='margin-top:10px;'><textarea class='pt-in' id='ptTexto' placeholder='Escribe tu respuesta…'></textarea>" +
+    "<div id='ptCola' style='font-size:12px;color:var(--gray-600);margin:6px 0;'></div>" +
+    "<div style='display:flex;gap:8px;flex-wrap:wrap;align-items:center;'><button class='pt-btn sec' onclick=\"document.getElementById('ptFile').click()\">📎 Adjuntar</button>" +
+    "<button class='pt-btn sec' id='ptRec' onclick='ptGrabar()'>🎤 Nota de voz</button><span id='ptRecT' style='font-size:12px;color:#B91C1C;'></span><span style='flex:1'></span>" +
+    "<button class='pt-btn pri' id='ptEnviar' onclick=\"ptEnviar(" + js(cid) + ")\">Enviar</button></div>" +
+    "<input type='file' id='ptFile' multiple style='display:none' onchange='ptAddCola(this)'></div>";
+  pintaCola();
+  const box = document.getElementById("ptMsgs"); if (box) box.scrollTop = box.scrollHeight;
+  // Marcar como leídos los mensajes del cliente
+  M.filter((m) => m.de === "cliente" && !m.leidoDespacho).forEach((m) => updateDoc(doc(db, "portal_mensajes", m.id), { leidoDespacho: true }).catch(() => {}));
+}
+window.ptEstado = (cid, v) => setDoc(doc(db, "portal_hilos", cid), { estado: v, actualizado: new Date().toISOString() }, { merge: true });
+function pintaCola() {
+  const el = document.getElementById("ptCola"); if (!el) return;
+  el.innerHTML = P.cola.map((f, i) => "📎 " + esc(f.name) + " (" + fBytes(f.size) + ") <a href='#' onclick='P_quitar(" + i + ");return false;'>quitar</a>").join(" · ") +
+    (P.audio ? (P.cola.length ? " · " : "") + "🎤 Nota de voz (" + Math.round(P.audio.seg) + " s) <a href='#' onclick='P_quitarAudio();return false;'>quitar</a>" : "");
+}
+window.P_quitar = (i) => { P.cola.splice(i, 1); pintaCola(); };
+window.P_quitarAudio = () => { P.audio = null; pintaCola(); };
+window.ptAddCola = (inp) => { for (const f of inp.files) { if (f.size > 25 * 1048576) { alert(f.name + ": máximo 25 MB."); continue; } P.cola.push(f); } inp.value = ""; pintaCola(); };
+
+// Grabación de notas de voz (también la usa el portal del cliente)
+let rec = null, recT0 = 0, recTimer = null;
+window.ptGrabar = async function () {
+  const btn = document.getElementById("ptRec");
+  if (rec && rec.state === "recording") { rec.stop(); return; }
+  if (!navigator.mediaDevices || !window.MediaRecorder) { alert("Este navegador no permite grabar audio."); return; }
+  let stream; try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); } catch (e) { alert("No hay permiso para usar el micrófono."); return; }
+  const tipo = ["audio/webm;codecs=opus", "audio/mp4", "audio/ogg;codecs=opus", "audio/webm"].find((t) => MediaRecorder.isTypeSupported(t)) || "";
+  const trozos = []; rec = new MediaRecorder(stream, tipo ? { mimeType: tipo } : undefined);
+  rec.ondataavailable = (e) => e.data.size && trozos.push(e.data);
+  rec.onstop = () => { stream.getTracks().forEach((t) => t.stop()); clearInterval(recTimer); const seg = (Date.now() - recT0) / 1000;
+    const tp = (rec.mimeType || tipo || "audio/webm").split(";")[0]; P.audio = { blob: new Blob(trozos, { type: tp }), seg, tipo: tp };
+    if (btn) btn.textContent = "🎤 Nota de voz"; const t = document.getElementById("ptRecT"); if (t) t.textContent = ""; pintaCola(); };
+  rec.start(); recT0 = Date.now(); if (btn) btn.textContent = "⏹ Parar";
+  recTimer = setInterval(() => { const s = Math.round((Date.now() - recT0) / 1000); const t = document.getElementById("ptRecT"); if (t) t.textContent = "● " + s + " s"; if (s >= 180) rec.stop(); }, 500);
+};
+const extDe = (tipo) => ({ "audio/webm": "webm", "audio/mp4": "m4a", "audio/ogg": "ogg" })[tipo] || "audio";
+const limpio = (n) => String(n).normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^A-Za-z0-9._-]+/g, "_").slice(-80);
+
+window.ptEnviar = async function (cid) {
+  const txt = (document.getElementById("ptTexto").value || "").trim();
+  if (!txt && !P.cola.length && !P.audio) return;
+  const btn = document.getElementById("ptEnviar"); btn.disabled = true; btn.textContent = "Enviando…";
+  try {
+    const ts = Date.now(), adj = [];
+    for (const [i, f] of P.cola.entries()) {
+      const path = "mensajes/" + cid + "/" + ts + "_" + i + "_" + limpio(f.name);
+      await uploadBytes(ref(st, path), f, { contentType: f.type || "application/octet-stream" });
+      adj.push({ nombre: f.name, path, tipo: f.type || "", tamano: f.size });
+    }
+    let audio = null;
+    if (P.audio) { const path = "mensajes/" + cid + "/" + ts + "_voz." + extDe(P.audio.tipo); await uploadBytes(ref(st, path), P.audio.blob, { contentType: P.audio.tipo }); audio = { path, tipo: P.audio.tipo, seg: P.audio.seg }; }
+    await addDoc(collection(db, "portal_mensajes"), { clienteId: cid, clienteNombre: cliNombre(cid), de: "despacho", autorUid: auth.currentUser.uid, autorNombre: "Durespin", texto: txt, adjuntos: adj, audio, fecha: new Date().toISOString(), leidoDespacho: true, leidoCliente: false });
+    if (estado(cid) === "pendiente") await setDoc(doc(db, "portal_hilos", cid), { estado: "curso", actualizado: new Date().toISOString() }, { merge: true });
+    P.cola = []; P.audio = null; document.getElementById("ptTexto").value = ""; pintaMensajes(cid);
+  } catch (e) { console.error(e); alert("No se ha podido enviar: " + e.message); }
+  const b2 = document.getElementById("ptEnviar"); if (b2) { b2.disabled = false; b2.textContent = "Enviar"; }
+};
+async function bajar(path) { return await getBlob(ref(st, path)); }
+// Solo se abren en pestaña los tipos seguros (fotos y PDF); lo demás se descarga (evita SVG/HTML con código)
+const SEGUROS = ["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf"];
+window.ptAbrir = async function (path, nombre, tipo) {
+  try { const b0 = await bajar(path); const t = SEGUROS.includes(b0.type) ? b0.type : "application/octet-stream"; const u = URL.createObjectURL(new Blob([b0], { type: t }));
+    if (t !== "application/octet-stream") window.open(u, "_blank", "noopener"); else { const a = document.createElement("a"); a.href = u; a.download = nombre || "archivo"; a.click(); }
+    setTimeout(() => URL.revokeObjectURL(u), 60000);
+  } catch (e) { alert("No se ha podido abrir: " + e.message); }
+};
+window.ptAudio = async function (btn, path, tipo) {
+  try { const b = await bajar(path); const au = document.createElement("audio"); au.controls = true; au.autoplay = true; au.src = URL.createObjectURL(b); au.style.cssText = "max-width:240px;height:34px;"; btn.replaceWith(au); }
+  catch (e) { alert("No se ha podido reproducir: " + e.message); }
+};
+
+// ---------- Documentos para el cliente ----------
+function pintaDocumentos(cid) {
+  const c = document.getElementById("ptCuerpo");
+  const E = P.entregas.filter((e) => e.clienteId === cid);
+  const pc = P.pcli[cid] || {}, cl = clientes().find((x) => x.id === cid) || {};
+  const anio = new Date().getFullYear();
+  c.innerHTML = (!pc.contratoFirmado ? "<div class='pt-aviso'>El cliente <b>no verá estos documentos</b> hasta que marques el contrato como firmado (pestaña Ajustes).</div>" : "") +
+    "<div style='background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:12px;margin-bottom:14px;'>" +
+    "<div style='font-weight:600;color:var(--navy);font-size:13px;margin-bottom:6px;'>Dejar documentos al cliente</div>" +
+    "<div style='display:flex;gap:8px;flex-wrap:wrap;align-items:end;'>" +
+    "<div><span class='pt-lbl'>Categoría</span><select class='pt-fi' id='ptCat' onchange='ptCatCambio()'>" + Object.entries(CATS).map(([k, l]) => "<option value='" + k + "'" + (P.cat === k ? " selected" : "") + ">" + l + "</option>").join("") + "</select></div>" +
+    "<div><span class='pt-lbl'>Año</span><input class='pt-fi' id='ptAnio' type='number' value='" + anio + "' style='width:90px;'></div>" +
+    "<div style='flex:1;min-width:200px;'><span class='pt-lbl'>Archivos</span><input type='file' id='ptDocs' multiple class='pt-fi' style='width:100%;'></div></div>" +
+    "<label style='display:flex;gap:6px;align-items:center;font-size:12px;margin-top:8px;color:var(--gray-600);'><input type='checkbox' id='ptPriv'> Privado (solo lo ven los usuarios con permiso «privados»)</label>" +
+    "<label style='display:flex;gap:6px;align-items:center;font-size:12px;margin-top:4px;color:var(--gray-600);'><input type='checkbox' id='ptCif'> Proteger los PDF con la clave de documentos del cliente" + (cl.claveDocs ? "" : " <span style='color:#B45309;'>(no tiene clave: créala en Ajustes)</span>") + "</label>" +
+    "<div style='margin-top:10px;display:flex;gap:8px;align-items:center;'><button class='pt-btn pri' id='ptSubir' onclick=\"ptSubirDocs(" + js(cid) + ")\">Subir al portal</button><span id='ptSubeEst' style='font-size:12px;color:var(--gray-600);'></span></div></div>" +
+    (E.length ? E.map((e) => "<div class='pt-row'><div style='flex:1;min-width:200px;'><b>" + esc(e.nombre) + "</b>" + (e.cifrado ? " 🔒" : "") + (e.privado ? " <span style='font-size:10px;background:#FEF3C7;color:#92400E;border-radius:6px;padding:1px 6px;'>privado</span>" : "") +
+      "<div style='font-size:11px;color:var(--gray-400);'>" + esc(CATS[e.categoria] || e.categoria) + " · " + esc(e.anio) + " · " + fBytes(e.tamano || 0) + " · subido " + fFecha(e.subido) + "</div>" +
+      "<div style='font-size:11px;' id='ptDesc_" + esc(e.id) + "'>" + descargasTxt(e) + "</div></div>" +
+      "<button class='pt-btn sec' onclick=\"ptAbrir(" + js(e.path) + "," + js(e.nombre) + "," + js(e.tipo || "") + ")\">Ver</button>" +
+      "<button class='pt-btn dan' onclick=\"ptBorrarEntrega(" + js(e.id) + ")\">Quitar</button></div>").join("") :
+      "<div style='color:var(--gray-400);font-size:13px;text-align:center;padding:20px;'>Aún no has dejado documentos a este cliente.</div>");
+  ptCatCambio();
+  E.forEach((e) => cargaDescargas(e));
+}
+const descCache = {};
+function descargasTxt(e) { const d = descCache[e.id]; if (!d) return "<span style='color:var(--gray-400);'>…</span>"; if (!d.length) return "<span style='color:#B45309;'>Sin descargar</span>";
+  const u = d[d.length - 1]; return "<span style='color:#065F46;'>⬇ Descargado " + d.length + " vez/veces · última: " + esc(u.nombre || "") + " " + fFecha(u.fecha) + "</span>"; }
+async function cargaDescargas(e) {
+  try { const s = await getDocs(collection(db, "portal_entregas", e.id, "descargas")); descCache[e.id] = s.docs.map((d) => d.data()).sort((a, b) => String(a.fecha).localeCompare(String(b.fecha))); }
+  catch (er) { descCache[e.id] = []; }
+  const el = document.getElementById("ptDesc_" + e.id); if (el) el.innerHTML = descargasTxt(e);
+}
+window.ptCatCambio = function () { const c = (document.getElementById("ptCat") || {}).value; P.cat = c; const priv = c === "nominas" || c === "contratos";
+  const p = document.getElementById("ptPriv"), z = document.getElementById("ptCif"); if (p) p.checked = priv; if (z) z.checked = priv; };
+let PDFLibP = null;
+function cargaPdfLib() { if (window.PDFLib && window.PDFLib.PDFDocument && window.PDFLib.PDFDocument.prototype.encrypt) return Promise.resolve(window.PDFLib);
+  if (!PDFLibP) PDFLibP = new Promise((ok, ko) => { const s = document.createElement("script"); s.src = PDFLIB_URL; s.onload = () => ok(window.PDFLib); s.onerror = () => ko(new Error("No se ha podido cargar el cifrado de PDF")); document.head.appendChild(s); });
+  return PDFLibP; }
+async function cifrarPdf(file, clave) {
+  const L = await cargaPdfLib();
+  const d = await L.PDFDocument.load(await file.arrayBuffer(), { ignoreEncryption: false });
+  const owner = Array.from(crypto.getRandomValues(new Uint8Array(18)), (b) => b.toString(16).padStart(2, "0")).join("");
+  d.encrypt({ userPassword: clave, ownerPassword: owner, permissions: { printing: "highResolution", copying: true, modifying: false } });
+  return new Blob([await d.save({ useObjectStreams: false })], { type: "application/pdf" });
+}
+window._ptCifrarPdf = cifrarPdf; // para pruebas
+window.ptSubirDocs = async function (cid) {
+  const files = Array.from(document.getElementById("ptDocs").files || []);
+  if (!files.length) { alert("Elige uno o varios archivos."); return; }
+  const cat = document.getElementById("ptCat").value, anio = String(document.getElementById("ptAnio").value || new Date().getFullYear());
+  const priv = document.getElementById("ptPriv").checked, cif = document.getElementById("ptCif").checked;
+  const cl = clientes().find((x) => x.id === cid) || {};
+  if (cif && !cl.claveDocs) { alert("Este cliente no tiene clave de documentos. Créala en la pestaña Ajustes."); return; }
+  if (cif && files.some((f) => !/pdf$/i.test(f.type) && !/\.pdf$/i.test(f.name))) { if (!confirm("Solo se pueden proteger con clave los PDF. Los demás archivos se subirán sin clave. ¿Seguir?")) return; }
+  const btn = document.getElementById("ptSubir"), est = document.getElementById("ptSubeEst"); btn.disabled = true;
+  let ok = 0;
+  try {
+    for (const [i, f] of files.entries()) {
+      est.textContent = "Subiendo " + (i + 1) + " de " + files.length + "…";
+      const esPdf = /pdf$/i.test(f.type) || /\.pdf$/i.test(f.name);
+      let blob = f, cifrado = false;
+      if (cif && esPdf) { blob = await cifrarPdf(f, cl.claveDocs); cifrado = true; }
+      const path = "entregas/" + cid + "/" + (priv ? "privado" : "general") + "/" + Date.now() + "_" + limpio(f.name);
+      await uploadBytes(ref(st, path), blob, { contentType: esPdf ? "application/pdf" : (f.type || "application/octet-stream") });
+      await addDoc(collection(db, "portal_entregas"), { clienteId: cid, categoria: cat, anio, nombre: f.name, path, tamano: blob.size, tipo: esPdf ? "application/pdf" : (f.type || ""), privado: priv, cifrado, subido: new Date().toISOString(), subidoPor: "despacho" });
+      ok++;
+    }
+    est.textContent = "✓ " + ok + " documento(s) subido(s)."; document.getElementById("ptDocs").value = "";
+  } catch (e) { console.error(e); est.textContent = ""; alert("Error al subir (" + ok + " subidos): " + e.message); }
+  btn.disabled = false;
+};
+window.ptBorrarEntrega = async function (id) {
+  const e = P.entregas.find((x) => x.id === id); if (!e || !confirm("¿Quitar «" + e.nombre + "» del portal del cliente?")) return;
+  try { await deleteObject(ref(st, e.path)).catch((er) => { if (er.code !== "storage/object-not-found") throw er; }); await deleteDoc(doc(db, "portal_entregas", id)); }
+  catch (er) { alert("No se ha podido quitar: " + er.message); }
+};
+
+// ---------- Usuarios del portal ----------
+async function llamaUsuarios(datos) {
+  const tok = await auth.currentUser.getIdToken();
+  const r = await fetch(URL_USUARIOS, { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + tok }, body: JSON.stringify(datos) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || "HTTP " + r.status);
+  return j;
+}
+const claveAleatoria = () => { const A = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"; return Array.from(crypto.getRandomValues(new Uint8Array(12)), (b) => A[b % A.length]).join(""); };
+window._ptClave = claveAleatoria;
+function pintaUsuarios(cid) {
+  const c = document.getElementById("ptCuerpo");
+  const U = P.usuarios.filter((u) => u.clienteId === cid);
+  const cl = clientes().find((x) => x.id === cid) || {};
+  const vinculados = new Set(P.usuarios.map((u) => (u.email || "").toLowerCase()));
+  const cand = [cl.portalEmail].filter((e) => e && /@portal\.facturas$/i.test(e) && !vinculados.has(String(e).toLowerCase()));
+  const chk = (id, v, l) => "<label style='display:inline-flex;gap:4px;align-items:center;margin-right:10px;'><input type='checkbox' id='" + id + "'" + (v ? " checked" : "") + "> " + l + "</label>";
+  c.innerHTML = (U.length ? U.map((u) => "<div class='pt-row'><div style='flex:1;min-width:220px;'><b>" + esc(u.nombre || u.email) + "</b> " + (u.rol === "titular" ? "<span style='font-size:10px;background:#E0E7FF;color:#3730A3;border-radius:6px;padding:1px 6px;'>titular</span>" : "") +
+      (u.activo === false ? " <span style='font-size:10px;background:#FEE2E2;color:#991B1B;border-radius:6px;padding:1px 6px;'>desactivado</span>" : "") +
+      "<div style='font-size:11px;color:var(--gray-400);'>" + esc(u.email) + "</div>" +
+      "<div style='font-size:12px;margin-top:4px;'>" + chk("pm_" + u.uid, u.permisos?.mensajes !== false, "Mensajes") + chk("pd_" + u.uid, u.permisos?.documentos !== false, "Documentos") + chk("pp_" + u.uid, !!u.permisos?.privados, "Privados (nóminas, contratos)") +
+      "<button class='pt-btn sec' style='padding:3px 9px;font-size:11px;' onclick=\"ptUsrPermisos(" + js(u.uid) + ")\">Guardar permisos</button></div></div>" +
+      "<button class='pt-btn sec' onclick=\"ptUsrClave(" + js(u.uid) + ")\">Nueva contraseña</button>" +
+      "<button class='pt-btn " + (u.activo === false ? "pri" : "dan") + "' onclick=\"ptUsrAct(" + js(u.uid) + "," + (u.activo === false) + ")\">" + (u.activo === false ? "Activar" : "Desactivar") + "</button></div>").join("") :
+      "<div style='color:var(--gray-400);font-size:13px;padding:10px 4px;'>Este cliente aún no tiene usuarios en el portal.</div>") +
+    "<div style='background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:12px;margin-top:14px;'><div style='font-weight:600;color:var(--navy);font-size:13px;'>Añadir usuario</div>" +
+    "<div style='display:flex;gap:8px;flex-wrap:wrap;align-items:end;'><div><span class='pt-lbl'>Nombre</span><input class='pt-fi' id='nuNom' placeholder='Nombre de la persona'></div>" +
+    "<div><span class='pt-lbl'>Usuario</span><input class='pt-fi' id='nuUsr' placeholder='p. ej. anagarcia' style='width:150px;'><span style='font-size:12px;color:var(--gray-400);'> @portal.facturas</span></div>" +
+    "<div><span class='pt-lbl'>Contraseña inicial</span><input class='pt-fi' id='nuPwd' value='" + claveAleatoria() + "' style='width:150px;font-family:monospace;'></div>" +
+    "<div><span class='pt-lbl'>Tipo</span><select class='pt-fi' id='nuRol'><option value='titular'>Titular</option><option value='autorizado'" + (U.length ? " selected" : "") + ">Autorizado</option></select></div></div>" +
+    "<div style='font-size:12px;margin-top:8px;'>" + chk("nuPm", true, "Mensajes") + chk("nuPd", true, "Documentos") + chk("nuPp", !U.length, "Privados (nóminas, contratos)") + "</div>" +
+    "<button class='pt-btn pri' style='margin-top:8px;' onclick=\"ptUsrCrear(" + js(cid) + ")\">Crear usuario</button>" +
+    "<div style='font-size:11px;color:var(--gray-400);margin-top:6px;'>Apunta la contraseña inicial y dásela por teléfono o en persona, nunca por WhatsApp.</div>" +
+    (cand.length ? "<div style='margin-top:12px;border-top:1px solid #E2E8F0;padding-top:10px;'><div style='font-weight:600;color:var(--navy);font-size:13px;'>Vincular una cuenta que ya existe</div>" +
+      "<div style='font-size:12px;color:var(--gray-600);margin:4px 0;'>Cuenta del portal que ya usa este cliente (se le pondrá una contraseña nueva):</div>" +
+      cand.map((e) => "<div class='pt-row'><span style='flex:1;'>" + esc(e) + "</span><button class='pt-btn sec' onclick=\"ptUsrVincular(" + js(cid) + "," + js(e) + ")\">Vincular como titular</button></div>").join("") + "</div>" : "") + "</div>";
+}
+const permisosDe = (pre) => ({ mensajes: document.getElementById(pre + "m").checked, documentos: document.getElementById(pre + "d").checked, privados: document.getElementById(pre + "p").checked });
+window.ptUsrCrear = async function (cid) {
+  const nombre = document.getElementById("nuNom").value.trim(), usuario = document.getElementById("nuUsr").value.trim(), clave = document.getElementById("nuPwd").value.trim();
+  if (!nombre || !usuario) { alert("Pon el nombre y el usuario."); return; }
+  try { const r = await llamaUsuarios({ accion: "crear", clienteId: cid, clienteNombre: cliNombre(cid), nombre, usuario, clave, rol: document.getElementById("nuRol").value, permisos: permisosDe("nuP") });
+    await asegurarPcli(cid);
+    alert("Usuario creado.\n\nUsuario: " + r.email + "\nContraseña: " + clave + "\n\nApúntalo ahora: la contraseña no se vuelve a mostrar."); pintaUsuarios(cid);
+  } catch (e) { alert("No se ha podido crear: " + e.message); }
+};
+window.ptUsrVincular = async function (cid, email) {
+  const clave = claveAleatoria();
+  if (!confirm("Se vinculará " + email + " a " + cliNombre(cid) + " con una CONTRASEÑA NUEVA (por seguridad).\n\nTendrás que darle al cliente la contraseña nueva. ¿Seguir?")) return;
+  try { await llamaUsuarios({ accion: "vincular", clienteId: cid, clienteNombre: cliNombre(cid), usuario: email, nombre: cliNombre(cid), rol: "titular", clave, permisos: { mensajes: true, documentos: true, privados: true } }); await asegurarPcli(cid);
+    alert("Vinculado.\n\nUsuario: " + email + "\nContraseña nueva: " + clave + "\n\nApúntala y dásela al cliente por teléfono o en persona."); }
+  catch (e) { alert("No se ha podido vincular: " + e.message); }
+};
+window.ptUsrPermisos = async function (uid) { const u = P.usuarios.find((x) => x.uid === uid);
+  try { await llamaUsuarios({ accion: "permisos", uid, rol: u.rol, permisos: { mensajes: document.getElementById("pm_" + uid).checked, documentos: document.getElementById("pd_" + uid).checked, privados: document.getElementById("pp_" + uid).checked } }); aviso("✓ Permisos guardados", true); }
+  catch (e) { alert(e.message); } };
+window.ptUsrAct = async function (uid, activar) { if (!activar && !confirm("¿Desactivar este usuario? No podrá entrar al portal.")) return;
+  try { await llamaUsuarios({ accion: activar ? "activar" : "desactivar", uid }); } catch (e) { alert(e.message); } };
+window.ptUsrClave = async function (uid) { const c = prompt("Nueva contraseña (mínimo 10 caracteres):", claveAleatoria()); if (!c) return;
+  try { await llamaUsuarios({ accion: "clave", uid, clave: c }); alert("Contraseña cambiada: " + c + "\nDásela por teléfono o en persona."); } catch (e) { alert(e.message); } };
+async function asegurarPcli(cid) { if (!P.pcli[cid]) await setDoc(doc(db, "portal_clientes", cid), { nombre: cliNombre(cid), contratoFirmado: "" }, { merge: true }); }
+
+// ---------- Ajustes del cliente ----------
+function pintaAjustes(cid) {
+  const c = document.getElementById("ptCuerpo");
+  const pc = P.pcli[cid] || {}, cl = clientes().find((x) => x.id === cid) || {};
+  c.innerHTML = "<span class='pt-lbl'>Contrato de servicios firmado el</span><input type='date' class='pt-fi' id='ajCont' value='" + esc(pc.contratoFirmado || "") + "'> " +
+    "<button class='pt-btn pri' onclick=\"ptGuardaContrato(" + js(cid) + ")\">Guardar</button>" +
+    "<div style='font-size:11px;color:var(--gray-400);margin-top:4px;'>Sin esta fecha, el cliente puede escribirte y enviar facturas, pero no ve los documentos que le dejes.</div>" +
+    "<span class='pt-lbl' style='margin-top:18px;'>Clave de documentos (para abrir los PDF protegidos)</span>" +
+    "<input class='pt-fi' id='ajClave' type='password' value='" + esc(cl.claveDocs || "") + "' style='font-family:monospace;width:200px;'> " +
+    "<button class='pt-btn sec' onclick=\"const i=document.getElementById('ajClave');i.type=i.type==='password'?'text':'password'\">👁</button> " +
+    "<button class='pt-btn sec' onclick=\"document.getElementById('ajClave').value=_ptClave();document.getElementById('ajClave').type='text'\">Generar</button> " +
+    "<button class='pt-btn pri' onclick=\"ptGuardaClave(" + js(cid) + ")\">Guardar</button>" +
+    "<div style='font-size:11px;color:var(--gray-400);margin-top:4px;'>Solo la ves tú. Dásela al cliente por teléfono o en persona. Si la cambias, los PDF ya subidos siguen abriéndose con la anterior.</div>" +
+    "<span class='pt-lbl' style='margin-top:18px;'>Correo para los avisos de novedades</span>" +
+    "<input class='pt-fi' id='ajMail' type='email' value='" + esc(cl.emailAvisos || cl.email || "") + "' style='width:260px;'> <button class='pt-btn pri' onclick=\"ptGuardaMail(" + js(cid) + ")\">Guardar</button>" +
+    "<div style='margin-top:22px;border-top:1px solid #E5E7EB;padding-top:12px;'><label style='display:flex;gap:8px;align-items:center;font-size:13px;'><input type='checkbox' id='ajAvisos'" + (P.cfg.emailActivo ? " checked" : "") + " onchange='ptAvisosGlobal(this.checked)'> <b>Avisar por correo a los clientes</b> cuando les escribas o les dejes documentos (para todos los clientes)</label>" +
+    "<div style='font-size:11px;color:var(--gray-400);margin-top:4px;'>El correo solo dice «tienes novedades en tu portal», sin datos, como mucho uno cada 30 minutos. Necesita configurar la cuenta de envío en la función.</div></div>";
+}
+window.ptGuardaContrato = async (cid) => { await setDoc(doc(db, "portal_clientes", cid), { nombre: cliNombre(cid), contratoFirmado: document.getElementById("ajCont").value || "" }, { merge: true }); aviso("✓ Guardado", true); };
+window.ptGuardaClave = async (cid) => { const v = document.getElementById("ajClave").value.trim(); if (v && v.length < 8) { alert("Mínimo 8 caracteres."); return; }
+  await setDoc(doc(db, "clients", cid), { claveDocs: v }, { merge: true }); aviso("✓ Clave guardada", true); };
+window.ptGuardaMail = async (cid) => { await setDoc(doc(db, "clients", cid), { emailAvisos: document.getElementById("ajMail").value.trim() }, { merge: true }); aviso("✓ Guardado", true); };
+window.ptAvisosGlobal = async (v) => { await setDoc(doc(db, "avisos_config", "portal"), { emailActivo: !!v }, { merge: true }); };
+
+// Abrir directamente el portal desde el aviso push (…/duraspinvest/#portal)
+onAuthStateChanged(auth, (u) => { if (u && location.hash === "#portal") setTimeout(() => { const b = document.getElementById("navPortal"); if (typeof showSection === "function") showSection("portal", b); }, 1200); });
 </script>
 </body>
 </html>
