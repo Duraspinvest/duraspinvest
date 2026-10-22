@@ -5133,7 +5133,7 @@ document.getElementById('loginPassword').addEventListener('keydown', e => { if(e
 // ===== PORTAL DEL CLIENTE · lado del despacho (mensajes, documentos, usuarios, ajustes) =====
 import { getApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getBlob, deleteObject } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
 const app = getApp(), db = getFirestore(app), auth = getAuth(app), st = getStorage(app);
@@ -5206,16 +5206,16 @@ function ptPintaPanel(soloDatos) {
   if (soloDatos && P.tab !== "mensajes") {
     const v = (id) => (document.getElementById(id) || {}).value;
     const ocupado = (document.activeElement && box.contains(document.activeElement) && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))
-      || ((document.getElementById("ptDocs") || {}).files || []).length || v("nuNom") || v("nuUsr");
+      || ((document.getElementById("ptDocs") || {}).files || []).length || v("nuNom") || v("nuUsr") || (P.tab === "fichaje" && [...box.querySelectorAll("details[open]")].length);
     if (ocupado) return;
   }
   const borrador = (document.getElementById("ptTexto") || {}).value;
-  const tabs = [["mensajes", "💬 Mensajes" + (noLeidos(cid) ? " (" + noLeidos(cid) + ")" : "")], ["documentos", "📁 Documentos"], ["usuarios", "👤 Usuarios"], ["ajustes", "⚙ Ajustes"]];
+  const tabs = [["mensajes", "💬 Mensajes" + (noLeidos(cid) ? " (" + noLeidos(cid) + ")" : "")], ["documentos", "📁 Documentos"], ["usuarios", "👤 Usuarios"], ["fichaje", "⏱ Fichaje"], ["ajustes", "⚙ Ajustes"]];
   const pc = P.pcli[cid] || {};
   box.innerHTML = "<div style='display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;'><div style='font-size:16px;font-weight:600;color:var(--navy);'>" + esc(cliNombre(cid)) + "</div>" +
     "<div style='font-size:12px;'>" + (pc.contratoFirmado ? "<span style='color:#065F46;'>✓ Contrato firmado " + esc(pc.contratoFirmado.split("-").reverse().join("/")) + "</span>" : "<span style='color:#B45309;'>Contrato sin firmar</span>") + "</div></div>" +
     "<div class='pt-tabs'>" + tabs.map(([k, l]) => "<button class='pt-tab" + (P.tab === k ? " sel" : "") + "' onclick=\"ptTab('" + k + "')\">" + l + "</button>").join("") + "</div><div id='ptCuerpo'></div>";
-  ({ mensajes: pintaMensajes, documentos: pintaDocumentos, usuarios: pintaUsuarios, ajustes: pintaAjustes })[P.tab](cid);
+  ({ mensajes: pintaMensajes, documentos: pintaDocumentos, usuarios: pintaUsuarios, fichaje: pintaFichaje, ajustes: pintaAjustes })[P.tab](cid);
   if (borrador && document.getElementById("ptTexto")) document.getElementById("ptTexto").value = borrador;
 }
 
@@ -5407,7 +5407,7 @@ function pintaUsuarios(cid) {
   c.innerHTML = (U.length ? U.map((u) => "<div class='pt-row'><div style='flex:1;min-width:220px;'><b>" + esc(u.nombre || u.email) + "</b> " + (u.rol === "titular" ? "<span style='font-size:10px;background:#E0E7FF;color:#3730A3;border-radius:6px;padding:1px 6px;'>titular</span>" : "") +
       (u.activo === false ? " <span style='font-size:10px;background:#FEE2E2;color:#991B1B;border-radius:6px;padding:1px 6px;'>desactivado</span>" : "") +
       "<div style='font-size:11px;color:var(--gray-400);'>" + esc(u.email) + "</div>" +
-      "<div style='font-size:12px;margin-top:4px;'>" + chk("pm_" + u.uid, u.permisos?.mensajes !== false, "Mensajes") + chk("pd_" + u.uid, u.permisos?.documentos !== false, "Documentos") + chk("pp_" + u.uid, !!u.permisos?.privados, "Privados (nóminas, contratos)") +
+      "<div style='font-size:12px;margin-top:4px;'>" + chk("pm_" + u.uid, u.permisos?.mensajes !== false, "Mensajes") + chk("pd_" + u.uid, u.permisos?.documentos !== false, "Documentos") + chk("pp_" + u.uid, !!u.permisos?.privados, "Privados (nóminas, contratos)") + chk("pf_" + u.uid, !!u.permisos?.fichajes, "Fichajes (registro horario)") +
       "<button class='pt-btn sec' style='padding:3px 9px;font-size:11px;' onclick=\"ptUsrPermisos(" + js(u.uid) + ")\">Guardar permisos</button></div></div>" +
       "<button class='pt-btn sec' onclick=\"ptUsrClave(" + js(u.uid) + ")\">Nueva contraseña</button>" +
       "<button class='pt-btn " + (u.activo === false ? "pri" : "dan") + "' onclick=\"ptUsrAct(" + js(u.uid) + "," + (u.activo === false) + ")\">" + (u.activo === false ? "Activar" : "Desactivar") + "</button></div>").join("") :
@@ -5417,14 +5417,14 @@ function pintaUsuarios(cid) {
     "<div><span class='pt-lbl'>Usuario</span><input class='pt-fi' id='nuUsr' placeholder='p. ej. anagarcia' style='width:150px;'><span style='font-size:12px;color:var(--gray-400);'> @portal.facturas</span></div>" +
     "<div><span class='pt-lbl'>Contraseña inicial</span><input class='pt-fi' id='nuPwd' value='" + claveAleatoria() + "' style='width:150px;font-family:monospace;'></div>" +
     "<div><span class='pt-lbl'>Tipo</span><select class='pt-fi' id='nuRol'><option value='titular'>Titular</option><option value='autorizado'" + (U.length ? " selected" : "") + ">Autorizado</option></select></div></div>" +
-    "<div style='font-size:12px;margin-top:8px;'>" + chk("nuPm", true, "Mensajes") + chk("nuPd", true, "Documentos") + chk("nuPp", !U.length, "Privados (nóminas, contratos)") + "</div>" +
+    "<div style='font-size:12px;margin-top:8px;'>" + chk("nuPm", true, "Mensajes") + chk("nuPd", true, "Documentos") + chk("nuPp", !U.length, "Privados (nóminas, contratos)") + chk("nuPf", false, "Fichajes (registro horario)") + "</div>" +
     "<button class='pt-btn pri' style='margin-top:8px;' onclick=\"ptUsrCrear(" + js(cid) + ")\">Crear usuario</button>" +
     "<div style='font-size:11px;color:var(--gray-400);margin-top:6px;'>Apunta la contraseña inicial y dásela por teléfono o en persona, nunca por WhatsApp.</div>" +
     (cand.length ? "<div style='margin-top:12px;border-top:1px solid #E2E8F0;padding-top:10px;'><div style='font-weight:600;color:var(--navy);font-size:13px;'>Vincular una cuenta que ya existe</div>" +
       "<div style='font-size:12px;color:var(--gray-600);margin:4px 0;'>Cuenta del portal que ya usa este cliente (se le pondrá una contraseña nueva):</div>" +
       cand.map((e) => "<div class='pt-row'><span style='flex:1;'>" + esc(e) + "</span><button class='pt-btn sec' onclick=\"ptUsrVincular(" + js(cid) + "," + js(e) + ")\">Vincular como titular</button></div>").join("") + "</div>" : "") + "</div>";
 }
-const permisosDe = (pre) => ({ mensajes: document.getElementById(pre + "m").checked, documentos: document.getElementById(pre + "d").checked, privados: document.getElementById(pre + "p").checked });
+const permisosDe = (pre) => ({ mensajes: document.getElementById(pre + "m").checked, documentos: document.getElementById(pre + "d").checked, privados: document.getElementById(pre + "p").checked, fichajes: document.getElementById(pre + "f").checked });
 window.ptUsrCrear = async function (cid) {
   const nombre = document.getElementById("nuNom").value.trim(), usuario = document.getElementById("nuUsr").value.trim(), clave = document.getElementById("nuPwd").value.trim();
   if (!nombre || !usuario) { alert("Pon el nombre y el usuario."); return; }
@@ -5436,12 +5436,12 @@ window.ptUsrCrear = async function (cid) {
 window.ptUsrVincular = async function (cid, email) {
   const clave = claveAleatoria();
   if (!confirm("Se vinculará " + email + " a " + cliNombre(cid) + " con una CONTRASEÑA NUEVA (por seguridad).\n\nTendrás que darle al cliente la contraseña nueva. ¿Seguir?")) return;
-  try { await llamaUsuarios({ accion: "vincular", clienteId: cid, clienteNombre: cliNombre(cid), usuario: email, nombre: cliNombre(cid), rol: "titular", clave, permisos: { mensajes: true, documentos: true, privados: true } }); await asegurarPcli(cid);
+  try { await llamaUsuarios({ accion: "vincular", clienteId: cid, clienteNombre: cliNombre(cid), usuario: email, nombre: cliNombre(cid), rol: "titular", clave, permisos: { mensajes: true, documentos: true, privados: true, fichajes: false } }); await asegurarPcli(cid);
     alert("Vinculado.\n\nUsuario: " + email + "\nContraseña nueva: " + clave + "\n\nApúntala y dásela al cliente por teléfono o en persona."); }
   catch (e) { alert("No se ha podido vincular: " + e.message); }
 };
 window.ptUsrPermisos = async function (uid) { const u = P.usuarios.find((x) => x.uid === uid);
-  try { await llamaUsuarios({ accion: "permisos", uid, rol: u.rol, permisos: { mensajes: document.getElementById("pm_" + uid).checked, documentos: document.getElementById("pd_" + uid).checked, privados: document.getElementById("pp_" + uid).checked } }); aviso("✓ Permisos guardados", true); }
+  try { await llamaUsuarios({ accion: "permisos", uid, rol: u.rol, permisos: { mensajes: document.getElementById("pm_" + uid).checked, documentos: document.getElementById("pd_" + uid).checked, privados: document.getElementById("pp_" + uid).checked, fichajes: document.getElementById("pf_" + uid).checked } }); aviso("✓ Permisos guardados", true); }
   catch (e) { alert(e.message); } };
 window.ptUsrAct = async function (uid, activar) { if (!activar && !confirm("¿Desactivar este usuario? No podrá entrar al portal.")) return;
   try { await llamaUsuarios({ accion: activar ? "activar" : "desactivar", uid }); } catch (e) { alert(e.message); } };
@@ -5472,6 +5472,103 @@ window.ptGuardaClave = async (cid) => { const v = document.getElementById("ajCla
   await setDoc(doc(db, "clients", cid), { claveDocs: v }, { merge: true }); aviso("✓ Clave guardada", true); };
 window.ptGuardaMail = async (cid) => { await setDoc(doc(db, "clients", cid), { emailAvisos: document.getElementById("ajMail").value.trim() }, { merge: true }); aviso("✓ Guardado", true); };
 window.ptAvisosGlobal = async (v) => { await setDoc(doc(db, "avisos_config", "portal"), { emailActivo: !!v }, { merge: true }); };
+
+// ---------- Registro horario (fichaje) de los trabajadores del cliente ----------
+const URL_FICHAJE = "https://fichajeusuario-gyc3opqqlq-ew.a.run.app";
+const URL_FICHAR = "https://duraspinvest.github.io/portal-cliente/fichar.html";
+P.ftrab = []; P.ntrab = {};
+onAuthStateChanged(auth, (u) => { if (!u) return; subs.push(onSnapshot(collection(db, "fichaje_trabajadores"), (s) => { P.ftrab = s.docs.map((d) => ({ ...d.data(), uid: d.id })); if (P.tab === "fichaje") ptPintaPanel(true); }, (e) => console.warn("fichaje", e.message))); });
+async function llamaFichaje(datos) {
+  const tok = await auth.currentUser.getIdToken();
+  const r = await fetch(URL_FICHAJE, { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + tok }, body: JSON.stringify(datos) });
+  const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || "HTTP " + r.status); return j;
+}
+const pinAleatorio = () => { for (;;) { const p = String(100000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 900000)); if (!/^(\d)\1{5}$/.test(p) && !"0123456789".includes(p) && !"9876543210".includes(p)) return p; } };
+const usuarioDe = (nombre) => { const w = String(nombre || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z ]/g, "").split(/\s+/).filter(Boolean); return (w[0] || "trab") + (w[1] ? w[1].slice(0, 3) : ""); };
+function horarioDe(t) {
+  // Propuesta a partir de la ficha de Laboral (días y horas/semana); se puede cambiar
+  const dias = (t.diasSemana && t.diasSemana.length ? t.diasSemana : [1, 2, 3, 4, 5]).map(Number);
+  const hs = Number(t.horasSemana) || (40 * (Number(t.jornadaPct) || 100) / 100);
+  const dia = Math.round((hs / dias.length) * 60);
+  const a = (m) => String(Math.floor(m / 60)).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0");
+  if (dia <= 360) return { dias, desde: "09:00", hasta: a(540 + dia), desde2: "", hasta2: "" };
+  return { dias, desde: "09:00", hasta: "13:00", desde2: "15:00", hasta2: a(900 + dia - 240) };
+}
+const DSEM = ["", "L", "M", "X", "J", "V", "S", "D"];
+const horTxt = (h) => !h || !h.dias || !h.dias.length ? "Sin horario" : h.dias.map((d) => DSEM[d]).join("") + " " + [h.desde && h.hasta ? h.desde + "–" + h.hasta : "", h.desde2 && h.hasta2 ? h.desde2 + "–" + h.hasta2 : ""].filter(Boolean).join(" y ");
+function camposHorario(pre, h, disp) {
+  return "<div style='display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:12px;margin-top:6px;'>" +
+    [1, 2, 3, 4, 5, 6, 7].map((d) => "<label style='display:inline-flex;gap:2px;align-items:center;'><input type='checkbox' class='" + pre + "dia' value='" + d + "'" + ((h.dias || []).includes(d) ? " checked" : "") + ">" + DSEM[d] + "</label>").join("") +
+    " <input type='time' class='pt-fi' id='" + pre + "d1' value='" + esc(h.desde || "") + "' style='width:96px;'>–<input type='time' class='pt-fi' id='" + pre + "h1' value='" + esc(h.hasta || "") + "' style='width:96px;'>" +
+    " y <input type='time' class='pt-fi' id='" + pre + "d2' value='" + esc(h.desde2 || "") + "' style='width:96px;'>–<input type='time' class='pt-fi' id='" + pre + "h2' value='" + esc(h.hasta2 || "") + "' style='width:96px;'>" +
+    " <select class='pt-fi' id='" + pre + "disp'><option value='propio'>Ficha en su móvil</option><option value='compartido'" + (disp === "compartido" ? " selected" : "") + ">Ficha en el móvil de la empresa</option></select></div>";
+}
+const leeHorario = (pre) => ({ dias: [...document.querySelectorAll("." + pre + "dia:checked")].map((c) => Number(c.value)), desde: document.getElementById(pre + "d1").value, hasta: document.getElementById(pre + "h1").value, desde2: document.getElementById(pre + "d2").value, hasta2: document.getElementById(pre + "h2").value });
+async function pintaFichaje(cid) {
+  const c = document.getElementById("ptCuerpo");
+  if (!P.ntrab[cid]) { c.innerHTML = "<div style='color:var(--gray-400);font-size:13px;'>Cargando trabajadores de Laboral…</div>";
+    try { const s = await getDocs(query(collection(db, "nom_trabajadores"), where("empresaId", "==", cid))); P.ntrab[cid] = s.docs.map((d) => ({ ...d.data(), id: d.id })); }
+    catch (e) { c.innerHTML = "No se han podido leer los trabajadores: " + esc(e.message); return; }
+    if (P.sel !== cid || P.tab !== "fichaje") return; }
+  const hoy = new Date().toISOString().slice(0, 10);
+  const N = P.ntrab[cid].filter((t) => !t.fechaBaja || t.fechaBaja >= hoy).sort((a, b) => String(a.nombre).localeCompare(String(b.nombre)));
+  const F = P.ftrab.filter((f) => f.clienteId === cid);
+  const gest = P.usuarios.filter((u) => u.clienteId === cid && u.permisos && u.permisos.fichajes);
+  let h = "<div style='display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center;'><div style='font-size:13px;color:var(--gray-600);'>Trabajadores de Laboral en alta. Cada uno con su usuario, contraseña y PIN (el PIN es para fichar en el móvil de la empresa).</div>" +
+    "<button class='pt-btn pri' onclick=\"window.open('" + URL_FICHAR + "?c=" + encodeURIComponent(cid) + "','_blank')\">📋 Ver registros y correcciones</button></div>" +
+    "<div style='font-size:12px;margin:8px 0;padding:8px 10px;border-radius:8px;" + (gest.length ? "background:#ECFDF5;color:#065F46;'>Encargado de los fichajes: " + gest.map((u) => esc(u.nombre || u.email)).join(", ") : "background:#FFFBEB;color:#92400E;'>Nadie de la empresa gestiona los fichajes. En «👤 Usuarios», marca «Fichajes» al titular o al encargado.") + "</div>";
+  h += N.map((t) => {
+    const f = F.find((x) => x.trabajadorId === t.id);
+    if (f) return "<div class='pt-row'><div style='flex:1;min-width:240px;'><b>" + esc(t.nombre) + "</b> " + (f.activo === false ? "<span style='font-size:10px;background:#FEE2E2;color:#991B1B;border-radius:6px;padding:1px 6px;'>desactivado</span>" : "<span style='font-size:10px;background:#D1FAE5;color:#065F46;border-radius:6px;padding:1px 6px;'>con acceso</span>") +
+      "<div style='font-size:11px;color:var(--gray-400);'>Usuario: " + esc(String(f.email).split("@")[0]) + " · " + esc(horTxt(f.horario)) + " · " + (f.dispositivo === "compartido" ? "móvil de la empresa" : "su móvil") + "</div>" +
+      "<details style='font-size:12px;margin-top:4px;'><summary style='cursor:pointer;color:var(--navy-light);'>Cambiar horario o móvil</summary>" + camposHorario("fh_" + f.uid + "_", f.horario || {}, f.dispositivo) +
+      "<button class='pt-btn sec' style='margin-top:6px;padding:4px 10px;font-size:12px;' onclick=\"ftDatos(" + js(f.uid) + ")\">Guardar</button></details></div>" +
+      "<button class='pt-btn sec' onclick=\"ftClave(" + js(f.uid) + ")\">Contraseña</button><button class='pt-btn sec' onclick=\"ftPin(" + js(f.uid) + ")\">PIN</button>" +
+      "<button class='pt-btn " + (f.activo === false ? "pri" : "dan") + "' onclick=\"ftAct(" + js(f.uid) + "," + (f.activo === false) + ")\">" + (f.activo === false ? "Activar" : "Desactivar") + "</button></div>";
+    const pre = "fn_" + t.id + "_";
+    return "<div class='pt-row' style='background:#F8FAFC;'><div style='flex:1;min-width:240px;'><b>" + esc(t.nombre) + "</b> <span style='font-size:10px;background:#E5E7EB;color:#374151;border-radius:6px;padding:1px 6px;'>sin acceso</span>" +
+      "<div style='font-size:11px;color:var(--gray-400);'>" + esc(t.categoria || "") + (t.horasSemana ? " · " + t.horasSemana + " h/semana" : "") + (t.jornadaPct && t.jornadaPct < 100 ? " · parcial " + t.jornadaPct + " %" : "") + "</div>" +
+      "<div style='display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;'><input class='pt-fi' id='" + pre + "usr' value='" + esc(usuarioDe(t.nombre)) + "' style='width:130px;' title='Usuario'>" +
+      "<input class='pt-fi' id='" + pre + "pwd' value='" + claveAleatoria() + "' style='width:140px;font-family:monospace;' title='Contraseña inicial'>" +
+      "<input class='pt-fi' id='" + pre + "pin' value='" + pinAleatorio() + "' style='width:90px;font-family:monospace;' title='PIN (6 números)'></div>" + camposHorario(pre, horarioDe(t), "propio") + "</div>" +
+      "<button class='pt-btn pri' onclick=\"ftCrear(" + js(cid) + "," + js(t.id) + ")\">Crear acceso</button></div>";
+  }).join("") || "<div style='color:var(--gray-400);font-size:13px;padding:10px 4px;'>Este cliente no tiene trabajadores en alta en la app Laboral.</div>";
+  c.innerHTML = h;
+}
+window.ftCrear = async function (cid, tid) {
+  const t = (P.ntrab[cid] || []).find((x) => x.id === tid) || {}, pre = "fn_" + tid + "_", cl = clientes().find((x) => x.id === cid) || {};
+  const usuario = document.getElementById(pre + "usr").value.trim(), clave = document.getElementById(pre + "pwd").value.trim(), pin = document.getElementById(pre + "pin").value.trim();
+  try {
+    await llamaFichaje({ accion: "crear", clienteId: cid, clienteNombre: cliNombre(cid), clienteNif: cl.nif || cl.cif || cl.NIF || "", trabajadorId: tid, nombre: t.nombre, dni: t.dni || "",
+      usuario, clave, pin, horario: leeHorario(pre), dispositivo: document.getElementById(pre + "disp").value });
+    ftHoja(t.nombre, cliNombre(cid), usuario.toLowerCase(), clave, pin);
+  } catch (e) { alert("No se ha podido crear: " + e.message); }
+};
+// Hoja para darle en mano al trabajador (no se guarda: la contraseña y el PIN no se vuelven a mostrar)
+function ftHoja(nombre, empresa, usuario, clave, pin) {
+  const w = window.open("", "_blank");
+  if (!w) { alert("Acceso creado.\n\nUsuario: " + usuario + "\nContraseña: " + clave + "\nPIN: " + pin + "\n\nApúntalo ahora: no se vuelve a mostrar."); return; }
+  w.document.write("<html><head><meta charset='utf-8'><title>Acceso al registro horario</title></head><body style='font-family:sans-serif;max-width:560px;margin:30px auto;font-size:15px;line-height:1.5;'>" +
+    "<h2 style='margin-bottom:0;'>Registro horario · " + esc(empresa) + "</h2><div style='color:#666;'>Durespin · Asesoría fiscal y laboral</div>" +
+    "<p>Hola, <b>" + esc(nombre) + "</b>. Estos son tus datos para fichar:</p><table style='font-size:17px;border-collapse:collapse;'>" +
+    "<tr><td style='padding:6px 14px 6px 0;'>Dirección</td><td><b>duraspinvest.github.io/portal-cliente/fichar.html</b></td></tr>" +
+    "<tr><td style='padding:6px 14px 6px 0;'>Usuario</td><td><b style='font-family:monospace;'>" + esc(usuario) + "</b></td></tr>" +
+    "<tr><td style='padding:6px 14px 6px 0;'>Contraseña</td><td><b style='font-family:monospace;'>" + esc(clave) + "</b></td></tr>" +
+    "<tr><td style='padding:6px 14px 6px 0;'>PIN (móvil de la empresa)</td><td><b style='font-family:monospace;'>" + esc(pin) + "</b></td></tr></table>" +
+    "<ol><li>Abre la dirección en tu móvil y entra con tu usuario y contraseña. Deja que el móvil la recuerde.</li><li>Activa la huella o la cara cuando te lo pregunte.</li><li>Al empezar, pulsa <b>Entrada</b>; en las pausas, <b>Pausa</b> y <b>Volver</b>; al terminar, <b>Salida</b>.</li>" +
+    "<li>Si fichas en el móvil de la empresa: toca tu nombre y pon tu PIN. No se lo digas a nadie.</li><li>Si te equivocas, díselo a tu encargado: lo corrige y queda anotado.</li></ol>" +
+    "<p style='font-size:12px;color:#666;'>La hora la pone el servidor. Los fichajes no se pueden borrar ni modificar. Guarda esta hoja en un sitio seguro.</p>" +
+    "<script>setTimeout(()=>print(),300)<\/script></body></html>");
+  w.document.close();
+}
+window.ftDatos = async function (uid) { const pre = "fh_" + uid + "_";
+  try { await llamaFichaje({ accion: "datos", uid, horario: leeHorario(pre), dispositivo: document.getElementById(pre + "disp").value }); aviso("✓ Guardado", true); } catch (e) { alert(e.message); } };
+window.ftClave = async function (uid) { const c = prompt("Nueva contraseña (mínimo 10 caracteres):", claveAleatoria()); if (!c) return;
+  try { await llamaFichaje({ accion: "clave", uid, clave: c }); alert("Contraseña cambiada: " + c + "\nDásela en persona o por teléfono."); } catch (e) { alert(e.message); } };
+window.ftPin = async function (uid) { const p = prompt("Nuevo PIN de 6 números:", pinAleatorio()); if (!p) return;
+  try { await llamaFichaje({ accion: "pin", uid, pin: p.trim() }); alert("PIN cambiado: " + p.trim()); } catch (e) { alert(e.message); } };
+window.ftAct = async function (uid, activar) { if (!activar && !confirm("¿Desactivar el acceso? No podrá fichar. Sus fichajes se conservan.")) return;
+  try { await llamaFichaje({ accion: activar ? "activar" : "desactivar", uid }); } catch (e) { alert(e.message); } };
 
 // Abrir directamente el portal desde el aviso push (…/duraspinvest/#portal)
 onAuthStateChanged(auth, (u) => { if (u && location.hash === "#portal") setTimeout(() => { const b = document.getElementById("navPortal"); if (typeof showSection === "function") showSection("portal", b); }, 1200); });
