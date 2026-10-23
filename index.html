@@ -538,6 +538,7 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
   <button class="nav-btn active" onclick="showSection('dashboard',this)">⊞ Inicio</button>
   <button class="nav-btn" onclick="showSection('inbox',this)" id="navInbox">📥 Inbox <span id="badgeInbox" style="display:none;background:#EF4444;color:white;border-radius:20px;font-size:10px;padding:1px 6px;font-weight:700;margin-left:2px;"></span></button>
   <button class="nav-btn" onclick="showSection('portal',this)" id="navPortal">💬 Portal <span id="badgePortal" style="display:none;background:#EF4444;color:white;border-radius:20px;font-size:10px;padding:1px 6px;font-weight:700;margin-left:2px;"></span></button>
+  <button class="nav-btn" onclick="showSection('documentos',this);docPintar&&docPintar()" id="navDocumentos">📄 Documentos</button>
   <button class="nav-btn" onclick="showSection('eisenhower',this)" id="navTareas">⊕ Tareas <span id="badgeTareas" style="display:none;background:#EF4444;color:white;border-radius:20px;font-size:10px;padding:1px 6px;font-weight:700;margin-left:2px;"></span></button>
   <button class="nav-btn" onclick="showSection('calendar',this)">▦ Calendario</button>
   <button class="nav-btn" onclick="showSection('clientes',this)">◉ Clientes</button>
@@ -552,31 +553,57 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
 <!-- ===== PORTAL DEL CLIENTE (mensajes, documentos, usuarios) ===== -->
 <style>
 #portal .pt-wrap{display:grid;grid-template-columns:280px 1fr;gap:14px;align-items:start;}
+#documentos .pt-wrap{display:grid;grid-template-columns:280px 1fr;gap:14px;align-items:start;}
 #portal .pt-cli{background:white;border-radius:var(--radius);box-shadow:var(--shadow);padding:10px;max-height:calc(100vh - 170px);overflow:auto;position:sticky;top:120px;}
+#documentos .pt-cli{background:white;border-radius:var(--radius);box-shadow:var(--shadow);padding:10px;max-height:calc(100vh - 170px);overflow:auto;position:sticky;top:120px;}
 #portal .pt-cli-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13px;color:var(--gray-800);}
+#documentos .pt-cli-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13px;color:var(--gray-800);}
 #portal .pt-cli-item:hover{background:#F1F5F9;}
+#documentos .pt-cli-item:hover{background:#F1F5F9;}
 #portal .pt-cli-item.sel{background:#EEF2FF;font-weight:600;color:var(--navy);}
+#documentos .pt-cli-item.sel{background:#EEF2FF;font-weight:600;color:var(--navy);}
 #portal .pt-dot{min-width:18px;height:18px;border-radius:9px;background:#EF4444;color:white;font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;padding:0 5px;}
+#documentos .pt-dot{min-width:18px;height:18px;border-radius:9px;background:#EF4444;color:white;font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;padding:0 5px;}
 #portal .pt-est{font-size:10px;padding:1px 7px;border-radius:10px;white-space:nowrap;}
+#documentos .pt-est{font-size:10px;padding:1px 7px;border-radius:10px;white-space:nowrap;}
 #portal .pt-est.pendiente{background:#FEF3C7;color:#92400E;} #portal .pt-est.curso{background:#DBEAFE;color:#1E40AF;} #portal .pt-est.resuelto{background:#D1FAE5;color:#065F46;}
+#documentos .pt-est.pendiente{background:#FEF3C7;color:#92400E;} #documentos .pt-est.curso{background:#DBEAFE;color:#1E40AF;} #documentos .pt-est.resuelto{background:#D1FAE5;color:#065F46;}
 #portal .pt-panel{background:white;border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;min-height:420px;}
+#documentos .pt-panel{background:white;border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;min-height:420px;}
 #portal .pt-tabs{display:flex;gap:4px;border-bottom:1px solid #E5E7EB;margin:10px 0 14px;flex-wrap:wrap;}
+#documentos .pt-tabs{display:flex;gap:4px;border-bottom:1px solid #E5E7EB;margin:10px 0 14px;flex-wrap:wrap;}
 #portal .pt-tab{padding:8px 14px;border:none;background:none;cursor:pointer;font-size:13px;color:var(--gray-600);border-bottom:2px solid transparent;}
+#documentos .pt-tab{padding:8px 14px;border:none;background:none;cursor:pointer;font-size:13px;color:var(--gray-600);border-bottom:2px solid transparent;}
 #portal .pt-tab.sel{color:var(--navy);font-weight:600;border-bottom-color:var(--navy);}
+#documentos .pt-tab.sel{color:var(--navy);font-weight:600;border-bottom-color:var(--navy);}
 #portal .pt-msgs{display:flex;flex-direction:column;gap:8px;max-height:52vh;overflow:auto;padding:4px 2px 8px;}
+#documentos .pt-msgs{display:flex;flex-direction:column;gap:8px;max-height:52vh;overflow:auto;padding:4px 2px 8px;}
 #portal .pt-b{max-width:78%;padding:9px 12px;border-radius:12px;font-size:13px;line-height:1.45;white-space:pre-wrap;word-wrap:break-word;}
+#documentos .pt-b{max-width:78%;padding:9px 12px;border-radius:12px;font-size:13px;line-height:1.45;white-space:pre-wrap;word-wrap:break-word;}
 #portal .pt-b.cli{align-self:flex-start;background:#F1F5F9;color:var(--gray-800);border-bottom-left-radius:4px;}
+#documentos .pt-b.cli{align-self:flex-start;background:#F1F5F9;color:var(--gray-800);border-bottom-left-radius:4px;}
 #portal .pt-b.desp{align-self:flex-end;background:var(--navy);color:white;border-bottom-right-radius:4px;}
+#documentos .pt-b.desp{align-self:flex-end;background:var(--navy);color:white;border-bottom-right-radius:4px;}
 #portal .pt-b .pt-meta{font-size:10px;opacity:.7;margin-top:4px;}
+#documentos .pt-b .pt-meta{font-size:10px;opacity:.7;margin-top:4px;}
 #portal .pt-adj{display:inline-flex;align-items:center;gap:4px;margin:4px 4px 0 0;padding:4px 8px;border-radius:7px;font-size:12px;cursor:pointer;background:rgba(255,255,255,.18);border:1px solid rgba(0,0,0,.08);color:inherit;}
+#documentos .pt-adj{display:inline-flex;align-items:center;gap:4px;margin:4px 4px 0 0;padding:4px 8px;border-radius:7px;font-size:12px;cursor:pointer;background:rgba(255,255,255,.18);border:1px solid rgba(0,0,0,.08);color:inherit;}
 #portal .pt-b.cli .pt-adj{background:white;}
+#documentos .pt-b.cli .pt-adj{background:white;}
 #portal textarea.pt-in{width:100%;min-height:64px;padding:10px;border:1.5px solid #D6DEE8;border-radius:9px;font:inherit;font-size:14px;resize:vertical;box-sizing:border-box;}
+#documentos textarea.pt-in{width:100%;min-height:64px;padding:10px;border:1.5px solid #D6DEE8;border-radius:9px;font:inherit;font-size:14px;resize:vertical;box-sizing:border-box;}
 #portal .pt-btn{padding:8px 14px;border-radius:8px;border:none;cursor:pointer;font-size:13px;}
+#documentos .pt-btn{padding:8px 14px;border-radius:8px;border:none;cursor:pointer;font-size:13px;}
 #portal .pt-btn.pri{background:var(--navy);color:white;} #portal .pt-btn.sec{background:#F1F5F9;color:var(--gray-600);} #portal .pt-btn.dan{background:#FEF2F2;color:#B91C1C;}
+#documentos .pt-btn.pri{background:var(--navy);color:white;} #documentos .pt-btn.sec{background:#F1F5F9;color:var(--gray-600);} #documentos .pt-btn.dan{background:#FEF2F2;color:#B91C1C;}
 #portal .pt-row{display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid #F1F5F9;font-size:13px;flex-wrap:wrap;}
+#documentos .pt-row{display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid #F1F5F9;font-size:13px;flex-wrap:wrap;}
 #portal .pt-lbl{font-size:11px;font-weight:600;color:#4A5A6B;text-transform:uppercase;letter-spacing:.4px;display:block;margin:10px 0 4px;}
+#documentos .pt-lbl{font-size:11px;font-weight:600;color:#4A5A6B;text-transform:uppercase;letter-spacing:.4px;display:block;margin:10px 0 4px;}
 #portal .pt-fi{padding:8px 10px;border:1.5px solid #D6DEE8;border-radius:8px;font:inherit;font-size:13px;box-sizing:border-box;}
+#documentos .pt-fi{padding:8px 10px;border:1.5px solid #D6DEE8;border-radius:8px;font:inherit;font-size:13px;box-sizing:border-box;}
 #portal .pt-aviso{background:#FFFBEB;border:1px solid #FDE68A;color:#92400E;border-radius:9px;padding:9px 12px;font-size:12px;margin-bottom:12px;}
+#documentos .pt-aviso{background:#FFFBEB;border:1px solid #FDE68A;color:#92400E;border-radius:9px;padding:9px 12px;font-size:12px;margin-bottom:12px;}
 @media(max-width:800px){#portal .pt-wrap{grid-template-columns:1fr;}#portal .pt-cli{position:static;max-height:260px;}}
 </style>
 <div id="portal" class="section">
@@ -591,6 +618,22 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
       <div id="ptClientes"></div>
     </div>
     <div class="pt-panel" id="ptPanel"><div style="color:var(--gray-400);font-size:13px;padding:40px 10px;text-align:center;">Elige un cliente de la lista.</div></div>
+  </div>
+</div>
+
+<!-- DOCUMENTOS: plantillas con el papel de carta -->
+<div id="documentos" class="section">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+    <div><div style="font-size:18px;font-weight:600;color:var(--navy);">Documentos</div>
+    <div style="font-size:12px;color:var(--gray-600);">Plantillas con el papel de carta de Durespin: se rellenan con los datos del cliente y salen en PDF para descargar o dejar en su portal.</div></div>
+    <button class="pt-btn pri" onclick="docNueva()">+ Nueva plantilla</button>
+  </div>
+  <div class="pt-wrap">
+    <div class="pt-cli"><div id="docLista"></div></div>
+    <div class="pt-panel" id="docPanel"></div>
+  </div>
+  <div id="docModal" onclick="if(event.target===this)this.style.display='none'" style="display:none;position:fixed;inset:0;background:rgba(10,37,64,0.45);z-index:3000;align-items:center;justify-content:center;padding:16px;">
+    <div id="docModalB" style="background:white;border-radius:14px;width:100%;max-width:960px;max-height:94vh;overflow:auto;padding:18px;"></div>
   </div>
 </div>
 
@@ -5474,7 +5517,7 @@ window.ptGuardaMail = async (cid) => { await setDoc(doc(db, "clients", cid), { e
 window.ptAvisosGlobal = async (v) => { await setDoc(doc(db, "avisos_config", "portal"), { emailActivo: !!v }, { merge: true }); };
 
 // ---------- Registro horario (fichaje) de los trabajadores del cliente ----------
-const URL_FICHAJE = "https://fichajeusuario-gyc3opqqlq-ew.a.run.app";
+const URL_FICHAJE = "https://europe-west1-duraspinvest.cloudfunctions.net/fichajeUsuario";
 const URL_FICHAR = "https://duraspinvest.github.io/portal-cliente/fichar.html";
 P.ftrab = []; P.ntrab = {};
 onAuthStateChanged(auth, (u) => { if (!u) return; subs.push(onSnapshot(collection(db, "fichaje_trabajadores"), (s) => { P.ftrab = s.docs.map((d) => ({ ...d.data(), uid: d.id })); if (P.tab === "fichaje") ptPintaPanel(true); }, (e) => console.warn("fichaje", e.message))); });
@@ -5572,6 +5615,434 @@ window.ftAct = async function (uid, activar) { if (!activar && !confirm("¿Desac
 
 // Abrir directamente el portal desde el aviso push (…/duraspinvest/#portal)
 onAuthStateChanged(auth, (u) => { if (u && location.hash === "#portal") setTimeout(() => { const b = document.getElementById("navPortal"); if (typeof showSection === "function") showSection("portal", b); }, 1200); });
+</script>
+<script>window.DOC_CONTRATO="# CONTRATO DE PRESTACIÓN DE SERVICIOS DE ASESORÍA\n\nEn Barcelona, a {{hoy}}.\n\n## Reunidos\n\nDe una parte, **Emilio Durá Galán**, con NIF 46568304C y domicilio profesional en Calle Navas de Tolosa, 296, local, 08027 Barcelona, asesor fiscal, contable y laboral que actúa bajo la denominación profesional Durespin (el «Asesor»).\n\nDe otra parte, **{{cliente.nombre}}**, con NIF {{cliente.nif}} y domicilio en {{Domicilio del cliente}}[[si ¿Firma un representante (sociedad)?]], representada por {{Representante (nombre y apellidos)}}, en calidad de {{Cargo del representante}}[[fin]] (el «Cliente»).\n\nAmbas partes se reconocen capacidad para contratar y\n\n## Exponen\n\n1. Que el Asesor presta al Cliente servicios de asesoría desde el {{Cliente desde|fecha}} en virtud de un acuerdo verbal.\n2. Que ambas partes desean formalizar por escrito las condiciones de esos servicios, que sustituyen a cualquier acuerdo anterior.\n\nY, en consecuencia, acuerdan las siguientes cláusulas.\n\n## Cláusulas\n\n### 1. Servicios contratados\n\n1.1. El Cliente encarga al Asesor los servicios indicados en el Anexo I, según esta descripción:\n\n| Código | Servicio | Qué comprende |\n|---|---|---|\n| 1 | Fiscal | Preparación y presentación de las declaraciones periódicas y resúmenes anuales: IVA, pagos fraccionados, retenciones y modelos informativos |\n| 2 | Contabilidad | Libros registro (autónomos) o contabilidad completa (sociedades) |\n| 3 | Laboral | Nóminas, seguros sociales, altas y bajas, contratos y finiquitos |\n| 4 | Renta | Declaración anual del IRPF |\n| 5 | Cierre de sociedad | Cuentas anuales, Impuesto sobre Sociedades y depósito en el Registro Mercantil |\n| 6 | Inmuebles | Gestión fiscal de alquileres e inquilinos |\n\n1.2. Cualquier otro servicio no indicado en el Anexo I es un servicio extraordinario y se regirá por la cláusula 2.\n\n### 2. Servicios no incluidos\n\n2.1. Salvo que el Anexo I diga otra cosa, la cuota no incluye:\n\n- La atención de requerimientos, comprobaciones, inspecciones y procedimientos sancionadores de cualquier organismo, salvo que se deban a un error del Asesor.\n- Las regularizaciones y declaraciones de ejercicios anteriores al inicio del servicio.\n- La constitución, modificación o disolución de sociedades y los trámites ante notaría o registros.\n- Los recursos, reclamaciones y el asesoramiento jurídico.\n- Las tasas, impuestos, aranceles y demás pagos a organismos o terceros, que corren siempre a cargo del Cliente.\n\n2.2. Los servicios extraordinarios se presupuestarán antes de empezar. A falta de presupuesto, se aplicará una tarifa de 60 € por hora.\n\n### 3. Obligaciones del Cliente y plazos de entrega\n\n3.1. El Cliente entregará al Asesor, de forma **mensual**, las facturas emitidas y recibidas y el resto de documentación del mes.\n\n3.2. La documentación de cada trimestre estará completa, como máximo, el **día 10** del mes siguiente al cierre del trimestre.\n\n3.3. Las incidencias laborales del mes (altas, bajas, variaciones de jornada, horas extraordinarias, anticipos o bajas médicas) se comunicarán, como máximo, el **día 20** de cada mes.\n\n3.4. El Cliente responde de la veracidad e integridad de la información que entrega, conservará los originales durante los plazos legales y comunicará sin demora cualquier cambio relevante: domicilio, cuenta bancaria, actividad, trabajadores, inmuebles o socios.\n\n3.5. Si la documentación llega después de esos plazos, el Asesor presentará las declaraciones con la información de que disponga. Las declaraciones complementarias o rectificaciones que haga falta presentar después se considerarán servicios extraordinarios. Las sanciones, recargos e intereses derivados del retraso o de la falta de documentación son a cargo del Cliente.\n\n### 4. Borradores y aceptación\n\n4.1. Antes de presentar cada declaración, el Asesor dejará el borrador en el portal de clientes.\n\n4.2. El borrador se considerará aceptado si el Cliente no formula observaciones en las **48 horas** siguientes a su puesta a disposición y, en todo caso, si no lo hace antes de las **10:00 del último día** del plazo de presentación.\n\n4.3. Las decisiones que dependen del Cliente, como pedir un aplazamiento, domiciliar el pago u optar por un régimen, se tomarán con su conformidad.\n\n### 5. Portal de clientes y comunicaciones\n\n5.1. El Asesor pone a disposición del Cliente un portal privado para entregar documentación, consultar los borradores y descargar las declaraciones presentadas, las nóminas y el resto de documentos.\n\n5.2. El Cliente puede designar varios usuarios autorizados, que figuran en el Anexo I y puede cambiar por escrito. El Cliente custodia las contraseñas y responde de los accesos y actuaciones de las personas a las que las facilite.\n\n5.3. A partir del **1 de enero de 2027**, las comunicaciones y consultas se harán por el portal y las urgencias por teléfono al {{Despacho: Teléfono de urgencias}}. Hasta esa fecha podrán hacerse también por correo electrónico a emilio@durespin.com.\n\n5.4. La puesta a disposición de un documento en el portal equivale a su entrega al Cliente.\n\n### 6. Representación y certificados digitales\n\n6.1. El Cliente autoriza al Asesor a presentar en su nombre, como colaborador social o mediante apoderamiento, las declaraciones y comunicaciones comprendidas en los servicios contratados ante la Agencia Tributaria, la Seguridad Social y demás administraciones.\n\n6.2. Si el Cliente entrega al Asesor su certificado digital, este lo custodiará de forma segura y solo lo usará para prestar los servicios contratados. El Cliente puede revocar su uso en cualquier momento.\n\n6.3. Al terminar el contrato, el Asesor eliminará el certificado de sus equipos y el Cliente revocará los apoderamientos concedidos.\n\n### 7. Honorarios\n\n7.1. Los honorarios son los que figuran en el Anexo I: una cuota mensual por los servicios periódicos y, en su caso, un importe aparte por las declaraciones anuales que se indiquen.\n\n7.2. La cuota mensual cubre las obligaciones correspondientes a los meses pagados, aunque se presenten después. Por ejemplo, la cuota de enero a marzo incluye las declaraciones del primer trimestre y los seguros sociales de marzo, que se presentan en abril.\n\n7.3. [[si ¿La cuota se actualiza con el IPC?]]La cuota se actualizará cada mes de enero conforme al IPC. [[fin]]Si el volumen de facturas, trabajadores u operaciones varía de forma relevante respecto a lo indicado en el Anexo I, el Asesor podrá proponer una nueva cuota, que el Cliente podrá aceptar o rechazar dando de baja el servicio.\n\n7.4. A los honorarios se añadirá el IVA vigente y, cuando el Cliente sea empresario o profesional, se practicará la retención de IRPF que proceda.\n\n### 8. Forma de pago e impago\n\n8.1. La cuota mensual se factura el último día de cada mes y se abonará, como máximo, el **día 10 del mes siguiente**, {{Forma de pago|opciones: por transferencia a la cuenta indicada en la factura / mediante recibo domiciliado conforme al Anexo III}}.\n\n8.2. Las declaraciones anuales que se facturen aparte (renta, Impuesto sobre Sociedades, cuentas anuales u otras) se abonarán **antes de su presentación**. El Asesor dejará el borrador en el portal y la presentará una vez cobrada.\n\n8.3. Si el día 10 no se ha recibido el pago, el Asesor enviará un recordatorio por el portal o por correo electrónico. Si el **día 15** sigue sin recibirlo, el Asesor podrá suspender los servicios sin necesidad de nuevo aviso: dejará de elaborar nóminas y de presentar seguros sociales y declaraciones hasta que se pague la deuda.\n\n8.4. Durante la suspensión, el Asesor no responde de las obligaciones que venzan ni de sus consecuencias. Las sanciones, recargos e intereses que se deriven son a cargo del Cliente. Una vez pagada la deuda, el Asesor reanudará los servicios y presentará las obligaciones pendientes. Que el Asesor continúe prestando los servicios pese al impago no supone renuncia a suspenderlos más adelante ni a reclamar la deuda.\n\n8.5. Cuando el Cliente sea empresario o profesional, las cantidades vencidas y no pagadas devengarán, sin necesidad de requerimiento, el interés de demora y la indemnización de 40 € por factura por costes de cobro previstos en los artículos 7 y 8 de la Ley 3/2004, de 29 de diciembre, de lucha contra la morosidad.\n\n### 9. Duración y baja del servicio\n\n9.1. El contrato tiene duración indefinida y no tiene permanencia mínima.\n\n9.2. El Cliente puede darse de baja en cualquier momento comunicándolo por escrito:\n\n- Si avisa entre el día 1 y el 15 del mes, abonará media cuota de ese mes.\n- Si avisa entre el día 16 y el último día del mes, abonará la cuota completa de ese mes.\n\n9.3. El Asesor puede terminar el contrato con un preaviso escrito de 30 días.\n\n9.4. El Asesor presentará las declaraciones de los periodos pagados conforme a la cláusula 7.2. Las declaraciones de periodos no pagados y los resúmenes o declaraciones anuales de un ejercicio que no se haya pagado completo no están incluidos. Si el Cliente los encarga, se presupuestarán aparte.\n\n9.5. Al terminar el contrato, el Asesor entregará al Cliente toda su documentación en un plazo de 15 días, con independencia de que haya cantidades pendientes. Los trabajos realizados y no pagados se entregarán una vez abonados.\n\n### 10. Responsabilidad\n\n10.1. El Asesor prestará los servicios con la diligencia profesional debida, pero no garantiza resultados ni resoluciones favorables de las administraciones.\n\n10.2. Si por un error del Asesor se impone al Cliente una sanción o un recargo, el Asesor los asumirá. No asumirá la cuota del impuesto ni los intereses de demora, que el Cliente habría tenido que pagar igualmente.\n\n10.3. Salvo dolo o negligencia grave, la responsabilidad del Asesor se limita al importe de los honorarios percibidos del Cliente en los doce meses anteriores al hecho que la cause.\n\n10.4. El Asesor tiene contratado un seguro de responsabilidad civil profesional con Catalana Occidente, póliza n.º {{Despacho: Número de póliza de responsabilidad civil}}.\n\n### 11. Confidencialidad\n\nEl Asesor guardará secreto profesional sobre toda la información del Cliente, también después de terminar el contrato, salvo las comunicaciones que le imponga la ley.\n\n### 12. Protección de datos\n\n12.1. **Responsable.** Emilio Durá Galán (Durespin), NIF 46568304C, Calle Navas de Tolosa, 296, local, 08027 Barcelona, emilio@durespin.com.\n\n12.2. **Finalidades y base.** Los datos del Cliente y de sus representantes se tratan para prestar los servicios contratados y facturarlos (ejecución del contrato) y para cumplir las obligaciones legales del Asesor, en particular las fiscales y las de prevención del blanqueo de capitales (obligación legal).\n\n12.3. **Destinatarios.** Los datos se comunicarán a la Agencia Tributaria, la Seguridad Social y las demás administraciones ante las que haya que actuar. Tienen acceso a ellos, como encargados del tratamiento, los proveedores que el Asesor usa para prestar el servicio: alojamiento de las aplicaciones y del correo (Google), dominio y web (Dinahosting), programa de gestión (Delsol), asistente de inteligencia artificial (Anthropic), mensajería (WhatsApp) y recepción del correo postal (Gilberte Asociados BCN, S.L.). Algunos de estos proveedores pueden tratar datos fuera del Espacio Económico Europeo con las garantías previstas en el RGPD, como las cláusulas contractuales tipo de la Comisión Europea o el Marco de Privacidad de Datos UE-EE. UU.\n\n12.4. **Conservación.** Los datos se conservan mientras dure el contrato y, después, durante los plazos legales: 6 años la documentación contable, 4 años la fiscal y laboral, y 10 años la de prevención del blanqueo de capitales.\n\n12.5. **Derechos.** El Cliente puede ejercer sus derechos de acceso, rectificación, supresión, oposición, limitación y portabilidad escribiendo a emilio@durespin.com, y reclamar ante la Agencia Española de Protección de Datos (www.aepd.es).\n\n12.6. **Datos de terceros.** Cuando el Asesor trate por cuenta del Cliente datos de sus trabajadores, inquilinos u otras personas, se aplicará el contrato de encargado del tratamiento del Anexo II.\n\n### 13. Prevención del blanqueo de capitales\n\nEl Asesor es sujeto obligado conforme a la Ley 10/2010, de 28 de abril. El Cliente facilitará los documentos necesarios para su identificación, la de sus titulares reales y, cuando proceda, el origen de sus fondos, y autoriza su conservación durante el plazo legal. El Asesor podrá terminar el contrato si no obtiene esa información o si así lo exige la normativa.\n\n### 14. Ley aplicable y jurisdicción\n\nEste contrato se rige por la legislación española. Las partes se someten a los Juzgados y Tribunales de Barcelona, salvo que el Cliente sea consumidor, en cuyo caso serán competentes los de su domicilio.\n\nY en prueba de conformidad, firman este contrato y sus anexos en el lugar y la fecha indicados.\n\n[[firmas: El Asesor; Emilio Durá Galán (Durespin) | El Cliente; {{cliente.nombre}}]]\n\n[[salto]]\n\n## Anexo I. Servicios contratados y honorarios\n\n| Concepto | Detalle |\n|---|---|\n| Servicios contratados (códigos) | {{Servicios contratados (códigos, p. ej. 1/2/3)}} |\n| Cuota mensual | {{Cuota mensual (€)|número}} € + IVA |\n| La cuota incluye | {{La cuota incluye (p. ej. hasta 30 facturas al mes y 2 trabajadores)}} |\n| Declaraciones anuales aparte | {{Declaraciones anuales aparte (o «Ninguna»)}} |\n| Servicios extraordinarios | Presupuesto previo; a falta de presupuesto, 60 €/hora + IVA |\n| Forma de pago | {{Forma de pago|opciones: por transferencia a la cuenta indicada en la factura / mediante recibo domiciliado conforme al Anexo III}} |\n| Usuarios autorizados del portal | {{Usuarios autorizados del portal (nombre y email)|largo}} |\n\n[[firmas: El Asesor; Emilio Durá Galán (Durespin) | El Cliente; {{cliente.nombre}}]]\n\n[[si ¿Incluir el Anexo II (tiene trabajadores, inquilinos u otros datos de terceros)?]]\n[[salto]]\n\n## Anexo II. Contrato de encargado del tratamiento (artículo 28 RGPD)\n\nSe aplica cuando, para prestar los servicios, el Asesor trata datos personales de los que el Cliente es responsable. En este anexo, el Cliente es el **responsable** y el Asesor el **encargado** del tratamiento.\n\n**1. Objeto.** El encargado tratará por cuenta del responsable los datos necesarios para prestar los servicios del Anexo I: gestión laboral y de nóminas, seguros sociales, contabilidad, declaraciones fiscales y gestión de alquileres.\n\n**2. Duración.** La del contrato de servicios.\n\n**3. Datos tratados.**\n\n| Personas afectadas | Tipos de datos |\n|---|---|\n| Trabajadores | Identificativos, DNI o NIE, número de afiliación, datos del contrato, salario, cuenta bancaria, situación familiar a efectos de IRPF y datos de salud limitados a bajas, incapacidades y partes de la mutua |\n| Inquilinos y arrendatarios | Identificativos, contacto, rentas y fianzas |\n| Clientes y proveedores del responsable | Identificativos, contacto, facturas y datos bancarios |\n| Socios, administradores y otros terceros | Identificativos y datos económicos necesarios para el servicio |\n\n**4. Obligaciones del encargado.** El encargado se obliga a:\n\n1. Tratar los datos solo para prestar los servicios y siguiendo las instrucciones documentadas del responsable, que son este contrato y las que le dé por escrito.\n2. Guardar confidencialidad y exigirla a cualquier persona que trabaje para él.\n3. Aplicar las medidas de seguridad adecuadas al riesgo: acceso con contraseña y doble factor a sus herramientas, permisos limitados en el portal para que cada cliente solo vea lo suyo, copias de seguridad periódicas y custodia segura de la documentación en papel.\n4. Ayudar al responsable a atender las solicitudes de ejercicio de derechos de las personas afectadas.\n5. Notificar al responsable, sin dilación indebida y en un máximo de **48 horas** desde que tenga conocimiento, cualquier violación de seguridad que afecte a sus datos, con la información disponible para que pueda notificarla, si procede, a la AEPD.\n6. Ayudar al responsable en las evaluaciones de impacto y consultas a la autoridad de control que procedan.\n7. Poner a disposición del responsable la información necesaria para demostrar el cumplimiento de este anexo y permitir las auditorías razonables que este solicite.\n8. Al terminar el servicio, devolver los datos al responsable y suprimir sus copias. Podrá conservarlos bloqueados mientras puedan derivarse responsabilidades de su actuación.\n\n**5. Subencargados.** El responsable autoriza de forma general al encargado a recurrir a los proveedores indicados en la cláusula 12.3 del contrato. El encargado informará al responsable de cualquier cambio con al menos 15 días de antelación por el portal o por correo electrónico, y el responsable podrá oponerse por escrito dentro de ese plazo. El encargado impondrá a cada subencargado las mismas obligaciones de protección de datos de este anexo.\n\n**6. Transferencias internacionales.** Solo se harán a través de subencargados que ofrezcan las garantías del capítulo V del RGPD.\n\n**7. Obligaciones del responsable.** Facilitar al encargado los datos necesarios, informar a las personas afectadas del tratamiento conforme al RGPD y supervisar el cumplimiento de este anexo.\n\n[[firmas: El encargado; Emilio Durá Galán (Durespin) | El responsable; {{cliente.nombre}}]]\n[[fin]]\n\n[[si ¿Incluir el Anexo III (cobro por recibo domiciliado)?]]\n[[salto]]\n\n## Anexo III. Orden de domiciliación SEPA\n\n| Campo | Dato |\n|---|---|\n| Acreedor | Emilio Durá Galán (Durespin), Calle Navas de Tolosa, 296, local, 08027 Barcelona |\n| Identificador del acreedor | {{Despacho: Identificador de acreedor SEPA}} |\n| Referencia de la orden | {{Referencia de la orden (número de cliente)}} |\n| Deudor | {{cliente.nombre}} · {{cliente.nif}} |\n| Cuenta del deudor (IBAN) | {{IBAN del cliente}} |\n| Tipo de pago | Recurrente |\n\nMediante la firma de esta orden, el deudor autoriza al acreedor a enviar instrucciones a su entidad para adeudar su cuenta, y a la entidad para efectuar los adeudos conforme a esas instrucciones. Como parte de sus derechos, el deudor puede pedir a su entidad el reembolso en los términos y condiciones del contrato suscrito con ella, dentro de las ocho semanas siguientes a la fecha del adeudo.\n\n[[firmas: Fecha y lugar; Barcelona, {{hoy}} | Firma del deudor; {{cliente.nombre}}]]\n[[fin]]\n";</script>
+<script type="module">
+// ===== DOCUMENTOS · plantillas con el papel de carta de Durespin → PDF → descarga o portal del cliente =====
+// Sintaxis de las plantillas (texto):
+//   # Título   ## Sección   ### Apartado      **negrita**   *cursiva*
+//   - viñeta   1. lista numerada   | tabla | con | barras |  (2ª fila |---|---| = cabecera)
+//   {{cliente.nombre}} {{cliente.nif}} {{cliente.email}} {{cliente.tel}} {{hoy}}   → de la ficha del cliente
+//   {{Domicilio}}  {{Fecha de inicio|fecha}}  {{Cuota mensual|número}}  {{Forma de pago|opciones: transferencia / recibo}}  {{Usuarios|largo}}
+//        → se preguntan al generar y se recuerdan para ese cliente. Si empiezan por «Despacho:», se recuerdan para todos.
+//   [[si ¿Incluir el Anexo II?]] … [[fin]]   → bloque que solo sale si se marca
+//   [[salto]]   → página nueva        [[firmas: El Asesor; Emilio Durá Galán | El Cliente; {{cliente.nombre}}]]
+import { getApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, collection, doc, addDoc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getStorage, ref, uploadBytes } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
+
+const app = getApp(), db = getFirestore(app), auth = getAuth(app), st = getStorage(app);
+const PDFLIB_URL = "https://cdn.jsdelivr.net/npm/@cantoo/pdf-lib@2.11.1/dist/pdf-lib.min.js";
+const D = { plantillas: [], datos: {}, gen: [], sel: null, cli: "", varios: false, vals: {}, url: null };
+window._DOC = D;
+const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+const js = (v) => esc(JSON.stringify(String(v == null ? "" : v)));
+const clientes = () => (window.clients || []).filter((c) => (c.categoria || "despacho") !== "auxiliar").sort((a, b) => String(a.nombre).localeCompare(String(b.nombre)));
+const cli = (id) => clientes().find((c) => c.id === id) || {};
+const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+const fLarga = (iso) => { if (!iso) return ""; const [y, m, d] = String(iso).slice(0, 10).split("-").map(Number); return d + " de " + MESES[m - 1] + " de " + y; };
+const hoyIso = () => new Date().toLocaleDateString("sv-SE");
+const limpio = (n) => String(n).normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^A-Za-z0-9._-]+/g, "_").slice(-90);
+const CATS = { contratos: "Contratos", impuestos: "Impuestos", nominas: "Nóminas y seguros sociales", otros: "Otros" };
+
+// ---------- Datos ----------
+let subs = [];
+onAuthStateChanged(auth, (u) => {
+  subs.forEach((f) => f()); subs = [];
+  if (!u) return;
+  subs.push(onSnapshot(collection(db, "doc_plantillas"), (s) => { D.plantillas = s.docs.map((d) => ({ ...d.data(), id: d.id })).sort((a, b) => String(a.nombre).localeCompare(String(b.nombre))); docPintar(); }, (e) => console.warn("doc_plantillas", e.message)));
+  subs.push(onSnapshot(collection(db, "doc_datos"), (s) => { D.datos = {}; s.docs.forEach((d) => (D.datos[d.id] = d.data())); }, () => {}));
+  subs.push(onSnapshot(collection(db, "doc_generados"), (s) => { D.gen = s.docs.map((d) => ({ ...d.data(), id: d.id })).sort((a, b) => String(b.fecha).localeCompare(String(a.fecha))); docPintaHist(); }, () => {}));
+});
+
+// ---------- Análisis de la plantilla: campos y condiciones ----------
+function campoInfo(raw) {
+  const [nom, tipo] = String(raw).split("|").map((x) => x.trim());
+  const t = { nombre: nom, tipo: "texto", opciones: [] };
+  if (tipo) {
+    if (/^fecha/i.test(tipo)) t.tipo = "fecha";
+    else if (/^n[uú]mero|^importe/i.test(tipo)) t.tipo = "numero";
+    else if (/^largo/i.test(tipo)) t.tipo = "largo";
+    else if (/^opciones?\s*:/i.test(tipo)) { t.tipo = "opciones"; t.opciones = tipo.replace(/^opciones?\s*:/i, "").split("/").map((x) => x.trim()).filter(Boolean); }
+  }
+  t.global = /^despacho\s*:/i.test(nom);
+  return t;
+}
+function analizar(txt) {
+  const campos = [], conds = [], vistos = new Set();
+  String(txt || "").replace(/\[\[si\s+([^\]]+)\]\]/gi, (m, c) => { const k = c.trim(); if (!vistos.has("?" + k)) { vistos.add("?" + k); conds.push(k); } return m; });
+  String(txt || "").replace(/\{\{([^}]+)\}\}/g, (m, c) => {
+    const i = campoInfo(c); if (/^(cliente\.|hoy$)/i.test(i.nombre)) return m;
+    if (!vistos.has(i.nombre)) { vistos.add(i.nombre); campos.push(i); } return m;
+  });
+  return { campos, conds };
+}
+// Rellena la plantilla para un cliente: quita bloques no marcados y sustituye los campos
+function aplicarCond(txt, vals) {
+  let out = String(txt || "");
+  // condiciones (admite anidadas, de dentro hacia fuera)
+  for (let i = 0; i < 20 && /\[\[si\s+[^\]]+\]\]/i.test(out); i++)
+    out = out.replace(/\[\[si\s+([^\]]+)\]\]((?:(?!\[\[si\s)[\s\S])*?)\[\[fin\]\]/gi, (m, k, cuerpo) => (vals["?" + k.trim()] ? cuerpo : ""));
+  return out;
+}
+function rellenar(txt, cid, vals) {
+  const c = cli(cid);
+  let out = aplicarCond(txt, vals);
+  const fij = { "cliente.nombre": c.nombre || "", "cliente.nif": c.nif || "", "cliente.email": c.email || "", "cliente.tel": c.tel || "", hoy: fLarga(hoyIso()) };
+  out = out.replace(/\{\{([^}]+)\}\}/g, (m, raw) => {
+    const i = campoInfo(raw), k = i.nombre;
+    if (k.toLowerCase() in fij) return fij[k.toLowerCase()] || "________";
+    let v = vals[k];
+    if (v == null || String(v).trim() === "") return "________";
+    if (i.tipo === "fecha") return fLarga(v);
+    if (i.tipo === "numero") { const n = parseFloat(String(v).replace(",", ".")); return isNaN(n) ? v : n.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+    return String(v);
+  });
+  return out;
+}
+
+// ---------- PDF con el papel de carta ----------
+function cargaPdfLib() {
+  if (window.PDFLib && window.PDFLib.PDFDocument) return Promise.resolve(window.PDFLib);
+  return new Promise((ok, ko) => { const s = document.createElement("script"); s.src = PDFLIB_URL; s.onload = () => ok(window.PDFLib); s.onerror = () => ko(new Error("No se ha podido cargar el generador de PDF")); document.head.appendChild(s); });
+}
+let _carta = null;
+async function carta() {
+  if (_carta) return _carta;
+  const get = async (f) => { const r = await fetch(f, { cache: "force-cache" }); if (!r.ok) throw new Error("Falta " + f + " en el repositorio"); return new Uint8Array(await r.arrayBuffer()); };
+  _carta = { cab: await get("carta_cabecera.png"), pie: await get("carta_pie.png") };
+  return _carta;
+}
+// Bloques: {t:"h1|h2|h3|p|li|tabla|salto|firmas|esp", ...}
+function bloques(txt) {
+  const L = String(txt).replace(/\r/g, "").split("\n"), B = [];
+  let par = [];
+  const cierra = () => { if (par.length) { B.push({ t: "p", txt: par.join(" ") }); par = []; } };
+  for (let i = 0; i < L.length; i++) {
+    const l = L[i], s = l.trim();
+    if (!s) { cierra(); continue; }
+    let m;
+    if (/^\[\[salto\]\]$/i.test(s)) { cierra(); B.push({ t: "salto" }); continue; }
+    if ((m = s.match(/^\[\[firmas:\s*(.+)\]\]$/i))) { cierra(); B.push({ t: "firmas", cols: m[1].split("|").map((c) => c.split(";").map((x) => x.trim())) }); continue; }
+    if ((m = s.match(/^(#{1,3})\s+(.*)$/))) { cierra(); B.push({ t: "h" + m[1].length, txt: m[2] }); continue; }
+    if (/^\|.*\|$/.test(s)) {
+      cierra(); const filas = []; let cab = false;
+      while (i < L.length && /^\|.*\|$/.test(L[i].trim())) {
+        const r = L[i].trim().slice(1, -1).split("|").map((x) => x.trim());
+        if (r.every((x) => /^:?-{2,}:?$/.test(x))) cab = true; else filas.push(r);
+        i++;
+      }
+      i--; B.push({ t: "tabla", filas, cab }); continue;
+    }
+    if ((m = l.match(/^(\s*)[-*•]\s+(.*)$/))) { cierra(); B.push({ t: "li", marca: "•", txt: m[2], niv: m[1].length >= 2 ? 1 : 0 }); continue; }
+    if ((m = l.match(/^(\s*)(\d+[.)]|[a-z][.)])\s+(.*)$/))) { cierra(); B.push({ t: "li", marca: m[2], txt: m[3], niv: m[1].length >= 2 ? 1 : 0 }); continue; }
+    par.push(s);
+  }
+  cierra();
+  return B;
+}
+// Trozos con estilo: **negrita**, *cursiva*
+function runs(txt) {
+  const R = []; let b = false, it = false, buf = "";
+  const push = () => { if (buf) { R.push({ s: buf, b, i: it }); buf = ""; } };
+  for (let k = 0; k < txt.length; k++) {
+    if (txt[k] === "*" && txt[k + 1] === "*") { push(); b = !b; k++; continue; }
+    if (txt[k] === "*" && txt[k + 1] !== " " && (it || /\S/.test(txt[k + 1] || ""))) { push(); it = !it; continue; }
+    buf += txt[k];
+  }
+  push(); return R;
+}
+async function generarPdf(texto, titulo) {
+  const P = await cargaPdfLib(), C = await carta();
+  const { PDFDocument, StandardFonts, rgb } = P;
+  const pdf = await PDFDocument.create();
+  pdf.setTitle(titulo || "Documento Durespin"); pdf.setAuthor("Durespin · Emilio Durá"); pdf.setCreator("Durespin");
+  const F = { r: await pdf.embedFont(StandardFonts.TimesRoman), b: await pdf.embedFont(StandardFonts.TimesRomanBold), i: await pdf.embedFont(StandardFonts.TimesRomanItalic), bi: await pdf.embedFont(StandardFonts.TimesRomanBoldItalic) };
+  const fnt = (r) => (r.b && r.i ? F.bi : r.b ? F.b : r.i ? F.i : F.r);
+  // Caracteres que la fuente no tiene → equivalentes
+  const SUST = { "◆": "·", "✓": "X", "✔": "X", "→": "->", "←": "<-", "≥": ">=", "≤": "<=", " ": " ", " ": " ", " ": " ", "−": "-", "⚠": "!" };
+  const san = (s) => { let o = ""; for (const ch of String(s)) { const c = SUST[ch] != null ? SUST[ch] : ch; try { F.r.encodeText(c); o += c; } catch (e) { o += "?"; } } return o; };
+  const cab = await pdf.embedPng(C.cab), pie = await pdf.embedPng(C.pie);
+  const W = 595.28, H = 841.89, MM = 72 / 25.4;
+  const X0 = 25 * MM, X1 = W - 25 * MM, ANCHO = X1 - X0, YTOP = H - 40 * MM, YMIN = 46 * MM;
+  const NAVY = rgb(0.067, 0.2, 0.38), TXT = rgb(0.13, 0.13, 0.13), GRIS = rgb(0.45, 0.47, 0.5), LINEA = rgb(0.78, 0.81, 0.85), FONDO = rgb(0.93, 0.95, 0.97);
+  const pags = []; let pg, y;
+  const nueva = () => {
+    pg = pdf.addPage([W, H]); pags.push(pg);
+    const hc = W * cab.height / cab.width; pg.drawImage(cab, { x: 0, y: H - 13.97 * MM - hc, width: W, height: hc });
+    const hp = W * pie.height / pie.width; pg.drawImage(pie, { x: 0, y: H - 257.81 * MM - hp, width: W, height: hp });
+    y = YTOP;
+  };
+  nueva();
+  const cabe = (h) => { if (y - h < YMIN) { nueva(); return false; } return true; };
+  // Parte el texto en líneas de palabras con estilo
+  const lineas = (txt, size, ancho, base) => {
+    const palabras = [];
+    runs(san(txt)).forEach((r) => { const st = { b: r.b || (base && base.b), i: r.i || (base && base.i) }; r.s.split(/(\s+)/).forEach((w) => { if (w === "") return; if (/^\s+$/.test(w)) palabras.push({ sp: true }); else palabras.push({ w, ...st }); }); });
+    const out = []; let cur = [], cw = 0; const spW = F.r.widthOfTextAtSize(" ", size);
+    const wOf = (p) => fnt(p).widthOfTextAtSize(p.w, size);
+    let pend = false;
+    for (const p of palabras) {
+      if (p.sp) { pend = cur.length > 0; continue; }
+      const ww = wOf(p), add = (pend ? spW : 0) + ww;
+      if (cur.length && cw + add > ancho) { out.push(cur); cur = []; cw = 0; pend = false; }
+      cur.push({ ...p, sp: pend && cur.length > 0, ww }); cw += (cur.length > 1 && pend ? spW : 0) + ww; pend = false;
+    }
+    if (cur.length) out.push(cur);
+    return out;
+  };
+  const dibLinea = (ln, x, yy, size, ancho, just, color) => {
+    const spW = F.r.widthOfTextAtSize(" ", size);
+    const natural = ln.reduce((s, p, k) => s + p.ww + (k && p.sp ? spW : 0), 0);
+    const huecos = ln.filter((p, k) => k && p.sp).length;
+    const extra = just && huecos ? (ancho - natural) / huecos : 0;
+    let cx = x;
+    ln.forEach((p, k) => { if (k && p.sp) cx += spW + extra; pg.drawText(p.w, { x: cx, y: yy, size, font: fnt(p), color: color || TXT }); cx += p.ww; });
+  };
+  const parrafo = (txt, { size = 10.5, x = X0, ancho = ANCHO, base = null, color = null, just = true, antes = 0, despues = 6, centro = false } = {}) => {
+    const lh = size * 1.32, Ls = lineas(txt, size, ancho, base);
+    y -= antes;
+    Ls.forEach((ln, k) => {
+      cabe(lh); y -= lh;
+      if (centro) { const spW = F.r.widthOfTextAtSize(" ", size); const nat = ln.reduce((s, p, j) => s + p.ww + (j && p.sp ? spW : 0), 0); dibLinea(ln, x + (ancho - nat) / 2, y + 2, size, ancho, false, color); }
+      else dibLinea(ln, x, y + 2, size, ancho, just && k < Ls.length - 1, color);
+    });
+    y -= despues;
+  };
+  const tabla = (bl) => {
+    const nc = Math.max(...bl.filas.map((r) => r.length)), size = 9.5, lh = size * 1.28, pad = 4;
+    const nat = Array(nc).fill(0), minw = Array(nc).fill(0);
+    bl.filas.forEach((r, ri) => r.forEach((c, k) => { const b = { b: bl.cab && ri === 0 }; const t = san(c.replace(/\*/g, "")); nat[k] = Math.max(nat[k], (b.b ? F.b : F.r).widthOfTextAtSize(t, size) + 2 * pad); t.split(/\s+/).forEach((w) => (minw[k] = Math.max(minw[k], (b.b ? F.b : F.r).widthOfTextAtSize(w, size) + 2 * pad))); }));
+    let wd = nat.slice(); const tot = wd.reduce((a, b) => a + b, 0);
+    if (tot > ANCHO) { const sobr = ANCHO - minw.reduce((a, b) => a + b, 0); const flex = nat.map((n, k) => Math.max(0, n - minw[k])); const fT = flex.reduce((a, b) => a + b, 0) || 1; wd = minw.map((m, k) => m + Math.max(0, sobr) * flex[k] / fT); }
+    else wd = wd.map((w) => w * ANCHO / tot);
+    const filaH = (r, ri) => Math.max(...r.map((c, k) => lineas(c, size, wd[k] - 2 * pad, { b: bl.cab && ri === 0 }).length || 1)) * lh + 2 * pad;
+    const dibFila = (r, ri) => {
+      const h = filaH(r, ri);
+      if (y - h < YMIN) { nueva(); if (bl.cab && ri > 0) dibFila(bl.filas[0], 0); }
+      let cx = X0; const top = y;
+      if (bl.cab && ri === 0) pg.drawRectangle({ x: X0, y: top - h, width: ANCHO, height: h, color: FONDO });
+      r.forEach((c, k) => {
+        const Ls = lineas(c, size, wd[k] - 2 * pad, { b: bl.cab && ri === 0 }); let yy = top - pad;
+        Ls.forEach((ln) => { yy -= lh; dibLinea(ln, cx + pad, yy + 2.5, size, wd[k] - 2 * pad, false, bl.cab && ri === 0 ? NAVY : TXT); });
+        pg.drawRectangle({ x: cx, y: top - h, width: wd[k], height: h, borderColor: LINEA, borderWidth: 0.6 });
+        cx += wd[k];
+      });
+      y = top - h;
+    };
+    y -= 4; bl.filas.forEach((r, ri) => dibFila(r, ri)); y -= 10;
+  };
+  const B = bloques(texto);
+  B.forEach((bl, idx) => {
+    if (bl.t === "salto") { nueva(); return; }
+    if (bl.t === "h1") { cabe(40); parrafo(bl.txt, { size: 15, base: { b: true }, color: NAVY, just: false, centro: true, antes: 2, despues: 12 }); return; }
+    if (bl.t === "h2" || bl.t === "h3") {
+      const sz = bl.t === "h2" ? 12.5 : 11; cabe(sz * 1.3 * 3 + 14);   // título + al menos dos líneas en la misma página
+      parrafo(bl.txt, { size: sz, base: { b: true }, color: bl.t === "h2" ? NAVY : TXT, just: false, antes: bl.t === "h2" ? 8 : 4, despues: 4 });
+      if (bl.t === "h2") { pg.drawLine({ start: { x: X0, y: y + 2 }, end: { x: X1, y: y + 2 }, thickness: 0.6, color: LINEA }); y -= 4; }
+      return;
+    }
+    if (bl.t === "p") {
+      const sig = B[idx + 1];
+      if (sig && sig.t === "firmas") cabe(lineas(bl.txt, 10.5, ANCHO).length * 10.5 * 1.32 + 6 + 38 * MM + 14);
+      parrafo(bl.txt); return;
+    }
+    if (bl.t === "li") {
+      const ind = (bl.niv ? 12 : 0) * MM / 2.83 + 6 * MM, xm = X0 + (bl.niv ? 6 * MM : 0);
+      const sig = B[idx + 1]; const ultimo = !sig || sig.t !== "li";
+      cabe(14); const y0 = y;
+      parrafo(bl.txt, { x: X0 + ind, ancho: ANCHO - ind, despues: ultimo ? 6 : 2 });
+      // marca a la altura de la primera línea (puede haber saltado de página)
+      const ymarca = (y0 - 10.5 * 1.32 + 2 >= YMIN) && pags[pags.length - 1] === pg && y < y0 ? y0 - 10.5 * 1.32 + 2 : null;
+      if (ymarca != null) pg.drawText(san(bl.marca), { x: xm, y: ymarca, size: 10.5, font: bl.marca === "•" ? F.r : F.b, color: TXT });
+      return;
+    }
+    if (bl.t === "tabla") { tabla(bl); return; }
+    if (bl.t === "firmas") {
+      const n = bl.cols.length, gap = 10 * MM, w = (ANCHO - gap * (n - 1)) / n, h = 38 * MM;
+      if (y - h < YMIN) nueva();
+      y -= 14;
+      bl.cols.forEach((c, k) => {
+        const x = X0 + k * (w + gap);
+        pg.drawText(san(c[0] || ""), { x, y, size: 10.5, font: F.b, color: TXT });
+        pg.drawLine({ start: { x, y: y - 24 * MM }, end: { x: x + w, y: y - 24 * MM }, thickness: 0.6, color: GRIS });
+        (c.slice(1)).forEach((t, j) => pg.drawText(san(t), { x, y: y - 24 * MM - 12 - j * 12, size: 9.5, font: F.r, color: TXT }));
+      });
+      y -= h; return;
+    }
+  });
+  // Numeración de páginas
+  pags.forEach((p, k) => { if (pags.length > 1) { const t = "Página " + (k + 1) + " de " + pags.length; p.drawText(t, { x: X1 - F.r.widthOfTextAtSize(t, 8), y: 43 * MM, size: 8, font: F.r, color: GRIS }); } });
+  return await pdf.save();
+}
+window._docGenerarPdf = generarPdf; window._docRellenar = rellenar; window._docAnalizar = analizar;
+
+// ---------- Pantalla ----------
+window.docPintar = docPintar;
+function docPintar() {
+  const box = document.getElementById("docLista"); if (!box) return;
+  box.innerHTML = (D.plantillas.length ? D.plantillas.map((p) => "<div class='pt-cli-item" + (p.id === D.sel ? " sel" : "") + "' onclick=\"docSel(" + js(p.id) + ")\"><div style='flex:1;min-width:0;'><div style='overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'>" + esc(p.nombre) + "</div><div style='font-size:10px;color:var(--gray-400);'>" + esc(CATS[p.categoria] || p.categoria || "") + "</div></div></div>").join("")
+    : "<div style='font-size:12px;color:var(--gray-400);padding:8px;'>Aún no hay plantillas.</div>") +
+    (D.plantillas.some((p) => p.semilla === "contrato-servicios") ? "" : "<button class='pt-btn sec' style='width:100%;margin-top:8px;' onclick='docSemilla()'>+ Añadir el contrato de servicios Durespin</button>");
+  if (D.sel && !D.plantillas.some((p) => p.id === D.sel)) D.sel = null;
+  docPintaPanel();
+}
+window.docSel = (id) => { D.sel = id; D.vals = {}; docPintar(); };
+function docPintaPanel() {
+  const box = document.getElementById("docPanel"); if (!box) return;
+  const p = D.plantillas.find((x) => x.id === D.sel);
+  if (!p) { box.innerHTML = "<div style='color:var(--gray-400);font-size:13px;padding:40px 10px;text-align:center;'>Elige una plantilla o crea una nueva.</div>"; return; }
+  const cs = clientes();
+  const datosCli = (D.cli && D.datos[D.cli]) || {}, datosDes = D.datos._despacho || {};
+  const todas = analizar(p.texto).conds;
+  const cv = {}; todas.forEach((k) => (cv["?" + k] = D.vals["?" + k] != null ? D.vals["?" + k] : !!datosCli["?" + k]));
+  const A = { conds: todas, campos: analizar(aplicarCond(p.texto, cv)).campos };
+  const val = (c) => D.vals[c.nombre] != null ? D.vals[c.nombre] : (c.global ? datosDes[c.nombre] : datosCli[c.nombre]) || "";
+  const campo = (c, k) => {
+    const id = "docC" + k, v = val(c), lab = "<span class='pt-lbl'>" + esc(c.nombre) + (c.global ? " <span style='font-weight:400;text-transform:none;color:var(--gray-400);'>(para todos)</span>" : "") + "</span>";
+    if (c.tipo === "largo") return "<div style='grid-column:1/-1;'>" + lab + "<textarea class='pt-fi' id='" + id + "' rows='2' style='width:100%;' oninput='docVal(" + k + ",this.value)'>" + esc(v) + "</textarea></div>";
+    if (c.tipo === "opciones") return "<div>" + lab + "<select class='pt-fi' id='" + id + "' style='width:100%;' onchange='docVal(" + k + ",this.value)'><option value=''>—</option>" + c.opciones.map((o) => "<option" + (o === v ? " selected" : "") + ">" + esc(o) + "</option>").join("") + "</select></div>";
+    return "<div>" + lab + "<input class='pt-fi' id='" + id + "' style='width:100%;' type='" + (c.tipo === "fecha" ? "date" : "text") + "' value='" + esc(v) + "' oninput='docVal(" + k + ",this.value)'></div>";
+  };
+  window._docCampos = A.campos; window._docConds = A.conds;
+  const condV = (k) => D.vals["?" + k] != null ? D.vals["?" + k] : !!datosCli["?" + k];
+  box.innerHTML = "<div style='display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center;'><div><div style='font-size:16px;font-weight:600;color:var(--navy);'>" + esc(p.nombre) + "</div><div style='font-size:11px;color:var(--gray-400);'>" + esc(CATS[p.categoria] || "") + " · " + A.campos.length + " datos a rellenar</div></div>" +
+    "<div style='display:flex;gap:6px;'><button class='pt-btn sec' onclick=\"docEditar(" + js(p.id) + ")\">✏ Editar plantilla</button><button class='pt-btn sec' onclick=\"docDuplicar(" + js(p.id) + ")\">Duplicar</button><button class='pt-btn dan' onclick=\"docBorrar(" + js(p.id) + ")\">Borrar</button></div></div>" +
+    "<div style='margin-top:12px;display:flex;gap:10px;align-items:end;flex-wrap:wrap;'><div style='flex:1;min-width:240px;'><span class='pt-lbl'>Cliente</span>" +
+    (D.varios ? "<div style='max-height:150px;overflow:auto;border:1.5px solid #D6DEE8;border-radius:8px;padding:6px;font-size:12px;'>" + cs.map((c) => "<label style='display:flex;gap:6px;'><input type='checkbox' class='docVarios' value='" + esc(c.id) + "'> " + esc(c.nombre) + "</label>").join("") + "</div>"
+      : "<select class='pt-fi' id='docCli' style='width:100%;' onchange='docCli(this.value)'><option value=''>Elige cliente…</option>" + cs.map((c) => "<option value='" + esc(c.id) + "'" + (c.id === D.cli ? " selected" : "") + ">" + esc(c.nombre) + "</option>").join("") + "</select>") +
+    "</div><label style='font-size:12px;display:flex;gap:6px;align-items:center;'><input type='checkbox'" + (D.varios ? " checked" : "") + " onchange='docVarios(this.checked)'> Varios clientes (circulares)</label></div>" +
+    (A.conds.length ? "<div style='margin-top:12px;'><span class='pt-lbl'>Partes que se incluyen</span>" + A.conds.map((k, i) => "<label style='display:flex;gap:6px;align-items:center;font-size:13px;margin:3px 0;'><input type='checkbox'" + (condV(k) ? " checked" : "") + " onchange='docCond(" + i + ",this.checked)'> " + esc(k) + "</label>").join("") + "</div>" : "") +
+    (A.campos.length ? "<div style='margin-top:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px 12px;'>" + A.campos.map(campo).join("") + "</div>" : "") +
+    (D.varios ? "<div style='font-size:11px;color:#92400E;background:#FFFBEB;border-radius:8px;padding:6px 8px;margin-top:10px;'>Con varios clientes, los datos de arriba son los mismos para todos; nombre, NIF, etc. salen de la ficha de cada uno.</div>" : "") +
+    "<div style='display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;border-top:1px solid #E5E7EB;padding-top:12px;align-items:end;'>" +
+    "<button class='pt-btn sec' onclick='docVista()'>👁 Vista previa</button><button class='pt-btn sec' onclick='docDescargar()'" + (D.varios ? " disabled title='Solo con un cliente'" : "") + ">⬇ Descargar PDF</button>" +
+    "<div style='margin-left:auto;display:flex;gap:6px;align-items:end;flex-wrap:wrap;'><div><span class='pt-lbl'>Carpeta del portal</span><select class='pt-fi' id='docCat'>" + Object.entries(CATS).map(([k, l]) => "<option value='" + k + "'" + (k === (p.categoria || "otros") ? " selected" : "") + ">" + l + "</option>").join("") + "</select></div>" +
+    "<label style='font-size:12px;display:flex;gap:4px;align-items:center;'><input type='checkbox' id='docPriv'" + (p.privado !== false ? " checked" : "") + "> Privado</label>" +
+    "<label style='font-size:12px;display:flex;gap:4px;align-items:center;'><input type='checkbox' id='docCif'> Con clave</label>" +
+    "<button class='pt-btn pri' onclick='docPortal()'>📤 Dejar en el portal</button></div></div>" +
+    "<div id='docEst' style='font-size:12px;color:var(--gray-600);margin-top:8px;'></div>" +
+    "<div id='docVistaBox' style='margin-top:10px;'></div>" +
+    "<div style='margin-top:14px;'><span class='pt-lbl'>Últimos generados</span><div id='docHist'></div></div>";
+  docPintaHist();
+}
+window.docVal = (k, v) => { D.vals[window._docCampos[k].nombre] = v; };
+window.docCond = (i, v) => { D.vals["?" + window._docConds[i]] = v; docPintaPanel(); };
+window.docCli = (cid) => { D.cli = cid; D.vals = {}; docPintaPanel(); };
+window.docVarios = (v) => { D.varios = v; docPintaPanel(); };
+function docPintaHist() {
+  const box = document.getElementById("docHist"); if (!box) return;
+  const L = D.gen.filter((g) => (!D.sel || g.plantilla === D.sel) && (D.varios || !D.cli || g.cid === D.cli)).slice(0, 12);
+  box.innerHTML = L.length ? L.map((g) => "<div class='pt-row' style='font-size:12px;'><span style='flex:1;'>" + esc(g.nombre) + "</span><span style='color:var(--gray-400);'>" + esc((cli(g.cid).nombre || "")) + " · " + new Date(g.fecha).toLocaleDateString("es-ES") + (g.portal ? " · en el portal" : " · descargado") + "</span></div>").join("") : "<div style='font-size:12px;color:var(--gray-400);'>Ninguno todavía.</div>";
+}
+
+// Valores definitivos para un cliente (lo escrito ahora, o lo guardado de ese cliente, o lo del despacho)
+function valoresPara(cid) {
+  const dc = D.datos[cid] || {}, dd = D.datos._despacho || {}, v = {};
+  (window._docCampos || []).forEach((c) => { v[c.nombre] = D.vals[c.nombre] != null ? D.vals[c.nombre] : (c.global ? dd[c.nombre] : dc[c.nombre]) || ""; });
+  (window._docConds || []).forEach((k) => { v["?" + k] = D.vals["?" + k] != null ? D.vals["?" + k] : !!dc["?" + k]; });
+  return v;
+}
+async function recordar(cid, v) {
+  const cliD = {}, desD = {};
+  (window._docCampos || []).forEach((c) => { if (v[c.nombre] !== "" && v[c.nombre] != null) (c.global ? desD : cliD)[c.nombre] = v[c.nombre]; });
+  (window._docConds || []).forEach((k) => (cliD["?" + k] = !!v["?" + k]));
+  if (Object.keys(cliD).length && !D.varios) await setDoc(doc(db, "doc_datos", cid), cliD, { merge: true });
+  if (Object.keys(desD).length) await setDoc(doc(db, "doc_datos", "_despacho"), desD, { merge: true });
+}
+function destinos() {
+  if (D.varios) return [...document.querySelectorAll(".docVarios:checked")].map((x) => x.value);
+  return D.cli ? [D.cli] : [];
+}
+const nombreArchivo = (p, cid) => limpio(p.nombre + " - " + (cli(cid).nombre || cid) + " - " + hoyIso()) + ".pdf";
+async function pdfDe(p, cid) {
+  const v = valoresPara(cid);
+  const faltan = (window._docCampos || []).filter((c) => !String(v[c.nombre] || "").trim()).map((c) => c.nombre);
+  const bytes = await generarPdf(rellenar(p.texto, cid, v), p.nombre + " · " + (cli(cid).nombre || ""));
+  return { bytes, faltan, v };
+}
+window.docVista = async () => {
+  const p = D.plantillas.find((x) => x.id === D.sel), ds = destinos(); if (!p) return;
+  if (!ds.length) { alert("Elige el cliente."); return; }
+  const est = document.getElementById("docEst"); est.textContent = "Generando…";
+  try {
+    const { bytes, faltan } = await pdfDe(p, ds[0]);
+    if (D.url) URL.revokeObjectURL(D.url); D.url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+    document.getElementById("docVistaBox").innerHTML = "<iframe src='" + D.url + "' style='width:100%;height:75vh;border:1px solid #E2E8F0;border-radius:8px;'></iframe>";
+    est.innerHTML = faltan.length ? "<span style='color:#B45309;'>Sin rellenar (salen como ______): " + esc(faltan.join(", ")) + "</span>" : "✓ Vista previa" + (ds.length > 1 ? " del primer cliente" : "");
+  } catch (e) { console.error(e); est.textContent = ""; alert("No se ha podido generar: " + e.message); }
+};
+window.docDescargar = async () => {
+  const p = D.plantillas.find((x) => x.id === D.sel), cid = D.cli; if (!p) return; if (!cid) { alert("Elige el cliente."); return; }
+  try {
+    const { bytes, faltan, v } = await pdfDe(p, cid);
+    if (faltan.length && !confirm("Sin rellenar: " + faltan.join(", ") + ".\n\nSaldrán como «______». ¿Descargar igualmente?")) return;
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" })); a.download = nombreArchivo(p, cid); a.click();
+    await recordar(cid, v);
+    await addDoc(collection(db, "doc_generados"), { cid, plantilla: p.id, nombre: p.nombre, fecha: new Date().toISOString(), portal: false });
+  } catch (e) { console.error(e); alert("No se ha podido generar: " + e.message); }
+};
+window.docPortal = async () => {
+  const p = D.plantillas.find((x) => x.id === D.sel), ds = destinos(); if (!p) return;
+  if (!ds.length) { alert("Elige el cliente o los clientes."); return; }
+  const cat = document.getElementById("docCat").value, priv = document.getElementById("docPriv").checked, cifra = document.getElementById("docCif").checked;
+  if (cifra && ds.some((c) => !cli(c).claveDocs)) { alert("Para enviarlo con clave, " + ds.filter((c) => !cli(c).claveDocs).map((c) => cli(c).nombre).join(", ") + " necesita(n) clave de documentos (Portal > Ajustes)."); return; }
+  const sinContrato = ds.filter((c) => !((window._PT && window._PT.pcli[c]) || {}).contratoFirmado);
+  if (!confirm("Se dejará «" + p.nombre + "» en el portal de " + ds.length + " cliente(s)." + (sinContrato.length ? "\n\nOjo: " + sinContrato.length + " no tienen fecha de contrato firmado y no lo verán en Documentos hasta que la pongas (si es el propio contrato, mándaselo mejor como adjunto de un mensaje)." : "") + "\n\n¿Seguir?")) return;
+  const est = document.getElementById("docEst"); let ok = 0;
+  for (const [i, cid] of ds.entries()) {
+    est.textContent = "Generando y subiendo " + (i + 1) + " de " + ds.length + "…";
+    try {
+      let { bytes, v } = await pdfDe(p, cid);
+      let blob = new Blob([bytes], { type: "application/pdf" }), cifrado = false;
+      if (cifra && window._ptCifrarPdf) { blob = await window._ptCifrarPdf(blob, cli(cid).claveDocs); cifrado = true; }
+      const nom = nombreArchivo(p, cid), path = "entregas/" + cid + "/" + (priv ? "privado" : "general") + "/" + Date.now() + "_" + nom;
+      await uploadBytes(ref(st, path), blob, { contentType: "application/pdf" });
+      const e = await addDoc(collection(db, "portal_entregas"), { clienteId: cid, categoria: cat, anio: String(new Date().getFullYear()), nombre: nom, path, tamano: blob.size, tipo: "application/pdf", privado: priv, cifrado, subido: new Date().toISOString(), subidoPor: "despacho" });
+      await recordar(cid, v);
+      await addDoc(collection(db, "doc_generados"), { cid, plantilla: p.id, nombre: p.nombre, fecha: new Date().toISOString(), portal: true, entrega: e.id });
+      ok++;
+    } catch (err) { console.error(err); alert("Error con " + (cli(cid).nombre || cid) + ": " + err.message); }
+  }
+  est.textContent = "✓ Dejado en el portal de " + ok + " cliente(s).";
+};
+
+// ---------- Editor de plantillas ----------
+const AYUDA = "# Título · ## Sección · ### Apartado · **negrita** · *cursiva* · «- » viñeta · «1. » numerada · | tabla | (2.ª fila |---|) · [[salto]] página nueva · [[firmas: Izquierda; nombre | Derecha; nombre]]\n" +
+  "De la ficha: {{cliente.nombre}} {{cliente.nif}} {{cliente.email}} {{cliente.tel}} {{hoy}}\n" +
+  "Se preguntan y se recuerdan por cliente: {{Domicilio}} {{Fecha de inicio|fecha}} {{Cuota mensual|número}} {{Forma de pago|opciones: transferencia / recibo domiciliado}} {{Observaciones|largo}} — si empiezan por «Despacho:» se recuerdan para todos los clientes.\n" +
+  "Partes opcionales: [[si ¿Incluir el Anexo II?]] … [[fin]]";
+window.docNueva = () => docEditar(null);
+window.docEditar = (id) => {
+  const p = D.plantillas.find((x) => x.id === id) || { nombre: "", categoria: "otros", privado: true, texto: "# Título del documento\n\nEn Barcelona, a {{hoy}}.\n\nTexto…\n\n[[firmas: El Asesor; Emilio Durá Galán (Durespin) | El Cliente; {{cliente.nombre}}]]" };
+  const m = document.getElementById("docModal"), b = document.getElementById("docModalB");
+  b.innerHTML = "<div style='font-size:16px;font-weight:600;color:var(--navy);margin-bottom:10px;'>" + (id ? "Editar plantilla" : "Nueva plantilla") + "</div>" +
+    "<div style='display:flex;gap:8px;flex-wrap:wrap;'><div style='flex:1;min-width:220px;'><span class='pt-lbl'>Nombre</span><input class='pt-fi' id='docENom' style='width:100%;' value='" + esc(p.nombre) + "'></div>" +
+    "<div><span class='pt-lbl'>Carpeta del portal</span><select class='pt-fi' id='docECat'>" + Object.entries(CATS).map(([k, l]) => "<option value='" + k + "'" + (k === p.categoria ? " selected" : "") + ">" + l + "</option>").join("") + "</select></div>" +
+    "<label style='font-size:12px;display:flex;gap:4px;align-items:end;padding-bottom:8px;'><input type='checkbox' id='docEPriv'" + (p.privado !== false ? " checked" : "") + "> Privado por defecto</label></div>" +
+    "<span class='pt-lbl'>Texto</span><textarea class='pt-fi' id='docETxt' style='width:100%;height:52vh;font-family:ui-monospace,Consolas,monospace;font-size:12px;line-height:1.45;'>" + esc(p.texto) + "</textarea>" +
+    "<div style='font-size:11px;color:var(--gray-600);white-space:pre-wrap;background:#F8FAFC;border-radius:8px;padding:8px;margin-top:6px;'>" + esc(AYUDA) + "</div>" +
+    "<div style='display:flex;gap:8px;justify-content:flex-end;margin-top:10px;'><button class='pt-btn sec' onclick=\"document.getElementById('docModal').style.display='none'\">Cancelar</button><button class='pt-btn pri' onclick=\"docGuardar(" + js(id || "") + ")\">Guardar</button></div>";
+  m.style.display = "flex";
+};
+window.docGuardar = async (id) => {
+  const nombre = document.getElementById("docENom").value.trim(), texto = document.getElementById("docETxt").value;
+  if (!nombre) { alert("Pon un nombre."); return; }
+  const prev = D.plantillas.find((x) => x.id === id) || {};
+  const nid = id || ("pl" + Date.now());
+  await setDoc(doc(db, "doc_plantillas", nid), { ...prev, id: nid, nombre, texto, categoria: document.getElementById("docECat").value, privado: document.getElementById("docEPriv").checked, modificado: new Date().toISOString(), creado: prev.creado || new Date().toISOString() });
+  document.getElementById("docModal").style.display = "none"; D.sel = nid; D.vals = {};
+};
+window.docDuplicar = async (id) => { const p = D.plantillas.find((x) => x.id === id); if (!p) return; const nid = "pl" + Date.now(); const { semilla, ...resto } = p; await setDoc(doc(db, "doc_plantillas", nid), { ...resto, id: nid, nombre: p.nombre + " (copia)", creado: new Date().toISOString() }); D.sel = nid; };
+window.docBorrar = async (id) => { const p = D.plantillas.find((x) => x.id === id); if (!p || !confirm("¿Borrar la plantilla «" + p.nombre + "»? Los documentos ya generados no se borran.")) return; await deleteDoc(doc(db, "doc_plantillas", id)); };
+window.docSemilla = async () => {
+  if (!window.DOC_CONTRATO) { alert("Falta el texto del contrato."); return; }
+  const nid = "pl_contrato_servicios";
+  await setDoc(doc(db, "doc_plantillas", nid), { id: nid, nombre: "Contrato de prestación de servicios", categoria: "contratos", privado: true, texto: window.DOC_CONTRATO, semilla: "contrato-servicios", creado: new Date().toISOString() });
+  D.sel = nid;
+};
+
 </script>
 </body>
 </html>
