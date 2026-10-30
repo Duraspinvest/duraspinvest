@@ -5454,7 +5454,7 @@ function pintaUsuarios(cid) {
       "<div style='font-size:11px;color:var(--gray-400);'>" + esc(u.email) + "</div>" +
       "<div style='font-size:12px;margin-top:4px;'>" + chk("pm_" + u.uid, u.permisos?.mensajes !== false, "Mensajes") + chk("pd_" + u.uid, u.permisos?.documentos !== false, "Documentos") + chk("pp_" + u.uid, !!u.permisos?.privados, "Privados (nóminas, contratos)") + chk("pf_" + u.uid, !!u.permisos?.fichajes, "Fichajes (registro horario)") +
       "<button class='pt-btn sec' style='padding:3px 9px;font-size:11px;' onclick=\"ptUsrPermisos(" + js(u.uid) + ")\">Guardar permisos</button></div></div>" +
-      "<button class='pt-btn sec' onclick=\"ptUsrClave(" + js(u.uid) + ")\">Nueva contraseña</button>" +
+      "<button class='pt-btn sec' onclick=\"ptBienvenida(" + js(u.uid) + ")\" title='Texto para mandar al cliente con el enlace y su usuario (sin la contraseña)'>✉ Bienvenida</button>" + "<button class='pt-btn sec' onclick=\"ptUsrClave(" + js(u.uid) + ")\">Nueva contraseña</button>" +
       "<button class='pt-btn " + (u.activo === false ? "pri" : "dan") + "' onclick=\"ptUsrAct(" + js(u.uid) + "," + (u.activo === false) + ")\">" + (u.activo === false ? "Activar" : "Desactivar") + "</button></div>").join("") :
       "<div style='color:var(--gray-400);font-size:13px;padding:10px 4px;'>Este cliente aún no tiene usuarios en el portal.</div>") +
     "<div style='background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:12px;margin-top:14px;'><div style='font-weight:600;color:var(--navy);font-size:13px;'>Añadir usuario</div>" +
@@ -5475,16 +5475,44 @@ window.ptUsrCrear = async function (cid) {
   if (!nombre || !usuario) { alert("Pon el nombre y el usuario."); return; }
   try { const r = await llamaUsuarios({ accion: "crear", clienteId: cid, clienteNombre: cliNombre(cid), nombre, usuario, clave, rol: document.getElementById("nuRol").value, permisos: permisosDe("nuP") });
     await asegurarPcli(cid);
-    alert("Usuario creado.\n\nUsuario: " + r.email + "\nContraseña: " + clave + "\n\nApúntalo ahora: la contraseña no se vuelve a mostrar."); pintaUsuarios(cid);
+    alert("Usuario creado.\n\nUsuario: " + r.email + "\nContraseña: " + clave + "\n\nApúntalo ahora: la contraseña no se vuelve a mostrar."); pintaUsuarios(cid); ptMsgBienvenida(nombre, r.email);
   } catch (e) { alert("No se ha podido crear: " + e.message); }
 };
 window.ptUsrVincular = async function (cid, email) {
   const clave = claveAleatoria();
   if (!confirm("Se vinculará " + email + " a " + cliNombre(cid) + " con una CONTRASEÑA NUEVA (por seguridad).\n\nTendrás que darle al cliente la contraseña nueva. ¿Seguir?")) return;
   try { await llamaUsuarios({ accion: "vincular", clienteId: cid, clienteNombre: cliNombre(cid), usuario: email, nombre: cliNombre(cid), rol: "titular", clave, permisos: { mensajes: true, documentos: true, privados: true, fichajes: false } }); await asegurarPcli(cid);
-    alert("Vinculado.\n\nUsuario: " + email + "\nContraseña nueva: " + clave + "\n\nApúntala y dásela al cliente por teléfono o en persona."); }
+    alert("Vinculado.\n\nUsuario: " + email + "\nContraseña nueva: " + clave + "\n\nApúntala y dásela al cliente por teléfono o en persona."); ptMsgBienvenida(cliNombre(cid), email); }
   catch (e) { alert("No se ha podido vincular: " + e.message); }
 };
+// Mensaje de bienvenida al portal (sin contraseña: esa se da por teléfono o en persona)
+function textoBienvenida(nombre, usuario) {
+  const n = String(nombre || "").trim().split(/\s+/)[0] || "";
+  const u = String(usuario || "").replace(/@portal\.facturas$/i, "");
+  return "Hola" + (n ? ", " + n : "") + ": ya tienes acceso a tu portal de cliente de Durespin. Desde ahí podrás enviarme mensajes, notas de voz y documentos (facturas, fotos…) y descargarte tus impuestos, nóminas y demás documentación.\n\n" +
+    "Entra en: duraspinvest.github.io/portal-cliente\nUsuario: " + u + " (solo eso, sin @ ni nada más)\nLa contraseña te la doy por teléfono.\n\n" +
+    "Consejo: la primera vez deja que el móvil recuerde la contraseña y activa la entrada con huella o cara cuando te lo pregunte. También puedes añadir el portal a la pantalla de inicio del móvil para tenerlo como una app.\n\n" +
+    "Para cualquier cosa, escríbeme por el portal; para urgencias, llámame al 654 60 95 87.\n\n" +
+    "Importante: a partir del 1 de enero de 2027 todas las comunicaciones con el despacho (mensajes, documentos y consultas) serán solo a través del portal, y las urgencias, solo por teléfono. Aprovecha estos meses para acostumbrarte a usarlo.";
+}
+function ptMsgBienvenida(nombre, usuario) {
+  const t = textoBienvenida(nombre, usuario);
+  let m = document.getElementById("ptBienv");
+  if (!m) { m = document.createElement("div"); m.id = "ptBienv"; m.style.cssText = "position:fixed;inset:0;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;"; (document.getElementById("portal") || document.body).appendChild(m); }   // dentro de #portal para que coja los estilos de los botones
+  m.innerHTML = "<div style='background:white;border-radius:12px;max-width:620px;width:100%;padding:18px;box-shadow:0 10px 30px rgba(0,0,0,.2);'>" +
+    "<div style='font-weight:600;color:var(--navy);margin-bottom:4px;'>Mensaje de bienvenida</div>" +
+    "<div style='font-size:12px;color:var(--gray-600);margin-bottom:8px;'>Mándaselo por WhatsApp o correo. <b>La contraseña no va en el mensaje</b>: dásela por teléfono o en persona. Puedes retocar el texto antes de copiarlo.</div>" +
+    "<textarea id='ptBienvTxt' class='pt-fi' style='width:100%;box-sizing:border-box;height:300px;font-size:13px;line-height:1.45;'>" + esc(t) + "</textarea>" +
+    "<div style='display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:10px;'>" +
+    "<button class='pt-btn sec' onclick=\"document.getElementById('ptBienv').remove()\">Cerrar</button>" +
+    "<button class='pt-btn sec' onclick=\"window.open('mailto:?subject='+encodeURIComponent('Tu portal de cliente de Durespin')+'&body='+encodeURIComponent(document.getElementById('ptBienvTxt').value))\">Correo</button>" +
+    "<button class='pt-btn sec' onclick=\"window.open('https://wa.me/?text='+encodeURIComponent(document.getElementById('ptBienvTxt').value),'_blank')\">WhatsApp</button>" +
+    "<button class='pt-btn pri' onclick='ptBienvCopiar(this)'>Copiar</button></div></div>";
+}
+window.ptBienvCopiar = async function (b) { const v = document.getElementById("ptBienvTxt").value;
+  try { await navigator.clipboard.writeText(v); } catch (e) { const t = document.getElementById("ptBienvTxt"); t.select(); document.execCommand("copy"); }
+  b.textContent = "✓ Copiado"; setTimeout(() => { b.textContent = "Copiar"; }, 1500); };
+window.ptBienvenida = function (uid) { const u = P.usuarios.find((x) => x.uid === uid) || {}; ptMsgBienvenida(u.nombre || cliNombre(u.clienteId), u.email); };
 window.ptUsrPermisos = async function (uid) { const u = P.usuarios.find((x) => x.uid === uid);
   try { await llamaUsuarios({ accion: "permisos", uid, rol: u.rol, permisos: { mensajes: document.getElementById("pm_" + uid).checked, documentos: document.getElementById("pd_" + uid).checked, privados: document.getElementById("pp_" + uid).checked, fichajes: document.getElementById("pf_" + uid).checked } }); aviso("✓ Permisos guardados", true); }
   catch (e) { alert(e.message); } };
