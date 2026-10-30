@@ -5395,7 +5395,9 @@ async function cifrarPdf(file, clave) {
   const L = await cargaPdfLib();
   const d = await L.PDFDocument.load(await file.arrayBuffer(), { ignoreEncryption: false });
   const owner = Array.from(crypto.getRandomValues(new Uint8Array(18)), (b) => b.toString(16).padStart(2, "0")).join("");
-  d.encrypt({ userPassword: clave, ownerPassword: owner, permissions: { printing: "highResolution", copying: true, modifying: false } });
+  const opts = { userPassword: clave, ownerPassword: owner, permissions: { printing: "highResolution", copying: true, modifying: false } };
+  // Los justificantes de la AEAT son PDF/A, que no admite cifrado: se quita la marca PDF/A (metadatos XMP) y se cifra igual. El contenido no cambia.
+  try { d.encrypt(opts); } catch (e) { if (!/PDF\/A/.test(e.message || "")) throw e; d.catalog.delete(L.PDFName.of("Metadata")); d.encrypt(opts); }
   return new Blob([await d.save({ useObjectStreams: false })], { type: "application/pdf" });
 }
 window._ptCifrarPdf = cifrarPdf; // para pruebas
