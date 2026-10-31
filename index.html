@@ -266,7 +266,10 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
 
     // Clientes
     unsubClients = onSnapshot(collection(db, "clients"), (snap) => {
-      window.clients = snap.docs.map(d => ({...d.data(), id: d.id}));
+      window.clientsAll = snap.docs.map(d => ({...d.data(), id: d.id}));
+      // Clientes dados de baja: no salen en listas ni selectores, pero sus datos se conservan (apartado «Bajas» en Clientes)
+      window.clientesBaja = window.clientsAll.filter(c => c.baja);
+      window.clients = window.clientsAll.filter(c => !c.baja);
       if(typeof renderClientesList === 'function') renderClientesList();
       // Poblar filtro de clientes en tareas
       const selCT = document.getElementById('filtroClienteTareas');
@@ -368,7 +371,7 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
       document.getElementById('lockScreen').style.display = 'none';
       // Inicializar arrays vacíos antes de que lleguen los datos
       window.tasks = [];
-      window.clients = [];
+      window.clients = []; window.clientsAll = []; window.clientesBaja = [];
       window.prospectos = [];
       window.planningData = {};
       window.tesoreria = [];
@@ -927,6 +930,7 @@ main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%;}
         <button class="btn btn-primary btn-sm" onclick="openClienteModal()">+ Nuevo cliente</button>
       </div>
     </div>
+    <div id="cliTabs" style="display:flex;gap:6px;margin:0 0 8px;"></div>
     <div class="search-bar">
       <input type="text" class="search-input" placeholder="Buscar cliente..." oninput="filterClientes(this.value)">
     </div>
@@ -1620,7 +1624,7 @@ function openTaskModal(q) {
 }
 
 function openTaskModalForClient(cid) {
-  const c = (window.clients || []).find(x => String(x.id) === String(cid));
+  const c = (window.clientsAll||window.clients||[]).find(x => String(x.id) === String(cid));
   const nombre = c ? c.nombre : '';
   openTaskModal('Q1 Importante + urgente');
   document.getElementById('tCliente').value = nombre;
@@ -1630,7 +1634,7 @@ function openClienteModal(id) {
   document.getElementById('clienteModalTitle').textContent = id ? 'Editar cliente' : 'Nuevo cliente';
   document.getElementById('cId').value = id || '';
   if (id) {
-    const c = (window.clients || []).find(x => String(x.id) === String(id)) || {};
+    const c = (window.clientsAll||window.clients||[]).find(x => String(x.id) === String(id)) || {};
     document.getElementById('cNombre').value = c.nombre || '';
     document.getElementById('cNif').value = c.nif || '';
     document.getElementById('cTipo').value = c.tipo || 'Sociedad';
@@ -1664,7 +1668,7 @@ function openClienteModal(id) {
     });
   }
   // Cargar obligaciones
-  const obligs = id ? ((window.clients||[]).find(x=>String(x.id)===String(id))?.obligaciones || []) : [];
+  const obligs = id ? ((window.clientsAll||window.clients||[]).find(x=>String(x.id)===String(id))?.obligaciones || []) : [];
   ['111','190','115','180','130','303','390','202','200','349','347'].forEach(m => {
     const el = document.getElementById('oblig_'+m);
     if(el) el.checked = obligs.includes(m);
@@ -1738,7 +1742,7 @@ async function saveCliente() {
   const nombre = document.getElementById('cNombre').value.trim();
   if (!nombre) return document.getElementById('cNombre').focus();
   const id = document.getElementById('cId').value;
-  const existing = id ? (window.clients || []).find(x => String(x.id) === String(id)) : null;
+  const existing = id ? (window.clientsAll||window.clients||[]).find(x => String(x.id) === String(id)) : null;
   const c = {
     id: id || String(Date.now()),
     nombre,
@@ -1775,9 +1779,11 @@ async function saveCliente() {
     c.registro = existing.registro || {};
     c.tramites = existing.tramites || {};
     c.expedientes = existing.expedientes || [];
+    if (existing.baja) c.baja = existing.baja;   // editar no reactiva un cliente de baja
     c.polizas = existing.polizas || [];
   }
-  await fbSet('clients', c.id, c);
+  // conserva los campos que no están en el formulario (clave de documentos, avisos del portal, baja…)
+  await fbSet('clients', c.id, existing ? { ...existing, ...c } : c);
   closeModal('clienteModalOverlay');
 }
 
@@ -1826,7 +1832,7 @@ function renderRegistro(){
   cont.innerHTML=t;
 }
 async function cycleReg(cid,tri){
-  const c=(window.clients||[]).find(x=>String(x.id)===String(cid)); if(!c) return;
+  const c=(window.clientsAll||window.clients||[]).find(x=>String(x.id)===String(cid)); if(!c) return;
   const anio=(document.getElementById('regAnio')||{}).value||'2026';
   if(!c.registro) c.registro={};
   if(!c.registro[anio]) c.registro[anio]={estados:{},notas:''};
@@ -1838,7 +1844,7 @@ async function cycleReg(cid,tri){
 }
 let _regModalState=null;
 function openRegistroModal(cid){
-  const c=(window.clients||[]).find(x=>String(x.id)===String(cid)); if(!c) return;
+  const c=(window.clientsAll||window.clients||[]).find(x=>String(x.id)===String(cid)); if(!c) return;
   const anio=(document.getElementById('regAnio')||{}).value||'2026';
   const r=getReg(c,anio);
   _regModalState=Object.assign({}, r.estados||{});
@@ -1866,7 +1872,7 @@ function cycleRegModal(tri){
 async function saveRegistroModal(){
   const cid=document.getElementById('regCid').value;
   const anio=document.getElementById('regAnioModal').value;
-  const c=(window.clients||[]).find(x=>String(x.id)===String(cid)); if(!c) return;
+  const c=(window.clientsAll||window.clients||[]).find(x=>String(x.id)===String(cid)); if(!c) return;
   if(!c.registro) c.registro={};
   c.registro[anio]={estados:Object.assign({},_regModalState),notas:document.getElementById('regNotas').value.trim()};
   closeModal('registroModal');
@@ -1909,7 +1915,7 @@ function fillMovClientes(){
   const s=document.getElementById('movCliente'); if(!s) return;
   s.innerHTML='<option value="">(sin cliente)</option>'+tesClientes().map(c=>'<option value="'+c.id+'">'+(c.nombre||'')+'</option>').join('');
 }
-function tesClienteNombre(id){const c=(window.clients||[]).find(x=>String(x.id)===String(id));return c?c.nombre:'';}
+function tesClienteNombre(id){const c=(window.clientsAll||window.clients||[]).find(x=>String(x.id)===String(id));return c?c.nombre:'';}
 function tesFiltrados(){
   const anio=(document.getElementById('tesAnio')||{}).value||'2026';
   const mes=(document.getElementById('tesMes')||{}).value||'';
@@ -2045,7 +2051,7 @@ async function generarPrevisionesMes(){
 }
 
 async function deleteCliente(id) {
-  if (!confirm('¿Eliminar este cliente?')) return;
+  if (!confirm('¿ELIMINAR este cliente? Se borra su ficha para siempre.\n\nSi solo se ha ido del despacho, usa mejor «Dar de baja»: deja de salir en las listas pero conserva sus datos.\n\n¿Eliminar de verdad?')) return;
   await fbDelete('clients', id);
   showClientesList();
   renderClientesList();
@@ -2055,7 +2061,7 @@ async function addNota(cid) {
   const inp = document.getElementById('notaInput_ficha') || document.getElementById('notaInput_' + cid);
   const texto = inp.value.trim();
   if (!texto) return;
-  const c = (window.clients || []).find(x => String(x.id) === String(cid));
+  const c = (window.clientsAll||window.clients||[]).find(x => String(x.id) === String(cid));
   if (!c) return;
   if (!c.notas) c.notas = [];
   c.notas.unshift({ texto, fecha: new Date().toISOString() });
@@ -2065,7 +2071,7 @@ async function addNota(cid) {
 }
 
 async function deleteNota(cid, idx) {
-  const c = (window.clients || []).find(x => String(x.id) === String(cid));
+  const c = (window.clientsAll||window.clients||[]).find(x => String(x.id) === String(cid));
   if (!c) return;
   c.notas.splice(parseInt(idx), 1);
   await fbSet('clients', cid, c);
@@ -2078,7 +2084,7 @@ async function addDoc(cid) {
   const nombre = inpNombre.value.trim();
   if (!nombre) return;
   const url = inpUrl.value.trim();
-  const c = (window.clients || []).find(x => String(x.id) === String(cid));
+  const c = (window.clientsAll||window.clients||[]).find(x => String(x.id) === String(cid));
   if (!c) return;
   if (!c.docs) c.docs = [];
   c.docs.unshift({ nombre, url, fecha: new Date().toISOString() });
@@ -2089,7 +2095,7 @@ async function addDoc(cid) {
 }
 
 async function deleteDoc(cid, idx) {
-  const c = (window.clients || []).find(x => String(x.id) === String(cid));
+  const c = (window.clientsAll||window.clients||[]).find(x => String(x.id) === String(cid));
   if (!c) return;
   c.docs.splice(parseInt(idx), 1);
   await fbSet('clients', cid, c);
@@ -2617,7 +2623,12 @@ function renderClientesList(filter) {
   }
   const el = document.getElementById('clientesList');
   if (!el) return;
-  const allClients = window.clients || [];
+  const nB = (window.clientesBaja || []).length, verB = !!window._verBajas && nB > 0;
+  if (!nB) window._verBajas = false;
+  const tabs = document.getElementById('cliTabs');
+  if (tabs) tabs.innerHTML = nB ? '<button class="btn btn-sm" style="' + (verB ? 'background:var(--gray-100);color:var(--gray-600);' : 'background:var(--navy-mid);color:white;') + '" onclick="cliVerBajas(false)">Activos (' + (window.clients || []).length + ')</button>' +
+    '<button class="btn btn-sm" style="' + (verB ? 'background:var(--navy-mid);color:white;' : 'background:var(--gray-100);color:var(--gray-600);') + '" onclick="cliVerBajas(true)">Bajas (' + nB + ')</button>' : '';
+  const allClients = verB ? (window.clientesBaja || []) : (window.clients || []);
   const filterLow = (filter || '').toLowerCase();
   const list = allClients.filter(c => {
     if (!filterLow) return true;
@@ -2645,13 +2656,42 @@ function renderClientesList(filter) {
           <div class="cliente-nif">${c.nif||'Sin NIF'} · ${c.tipo||''}</div>
           <div class="cliente-badges">${badges}<span class="badge badge-tipo">IVA ${c.iva||'General'}</span></div>
         </div>
-        <div class="cliente-tareas"><div class="cliente-tareas-num">${tp}</div><div class="cliente-tareas-label">tareas</div></div>
+        ${c.baja ? `<div style="text-align:right;font-size:11px;color:#991B1B;">Baja<br>${fechaBaja(c.baja.fecha)}</div>` : `<div class="cliente-tareas"><div class="cliente-tareas-num">${tp}</div><div class="cliente-tareas-label">tareas</div></div>`}
       </div>`;
     } catch(e) { console.error('Error cliente:', c.nombre, e); return ''; }
   }).join('');
 }
 
 function filterClientes(v) { renderClientesList(v); }
+function cliVerBajas(v) { window._verBajas = v; renderClientesList(); }
+window.cliVerBajas = cliVerBajas;
+function fechaBaja(f) { return f ? String(f).split('-').reverse().join('/') : ''; }
+// Dar de baja / reactivar un cliente: no se borra nada; sale de las listas y queda en «Bajas»
+async function bajaCliente(id) {
+  const c = (window.clientsAll || []).find(x => String(x.id) === String(id)); if (!c) return;
+  const hoy = new Date(), hoyTxt = String(hoy.getDate()).padStart(2, '0') + '/' + String(hoy.getMonth() + 1).padStart(2, '0') + '/' + hoy.getFullYear();
+  const f = prompt('Baja de ' + c.nombre + ' en el despacho.\n\nFecha de baja (dd/mm/aaaa):', hoyTxt); if (f == null) return;
+  const m = String(f).trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/); if (!m) { alert('Fecha no válida. Escríbela como dd/mm/aaaa.'); return; }
+  const fecha = m[3] + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0');
+  const motivo = prompt('Motivo (opcional): cambio de asesoría, cese de actividad, impago…', ''); if (motivo == null) return;
+  const nU = typeof window.ptAccesosCliente === 'function' ? window.ptAccesosCliente(id) : { usuarios: 0, fichajes: 0 };
+  let desact = false;
+  if (nU.usuarios || nU.fichajes) desact = confirm('Tiene ' + nU.usuarios + ' usuario(s) del portal y ' + nU.fichajes + ' acceso(s) de fichaje activos.\n\n¿Desactivarlos también? (Aceptar = sí; no se borra nada y se pueden volver a activar)');
+  if (!confirm('Se dará de baja a ' + c.nombre + ' con fecha ' + f + '.\n\nDejará de salir en Clientes, en el Portal y en los desplegables, pero sus datos, tareas, documentos y mensajes se conservan. Lo verás en Clientes › Bajas y puedes reactivarlo cuando quieras.\n\n¿Seguir?')) return;
+  try { await window.fsSetDoc(window.fsDoc(window.db, 'clients', String(id)), { baja: { fecha, motivo: String(motivo).trim(), registrada: new Date().toISOString() } }, { merge: true }); }
+  catch (e) { alert('No se ha podido guardar la baja: ' + (e.message || e)); return; }
+  if (desact && typeof window.ptDesactivarCliente === 'function') { try { await window.ptDesactivarCliente(id); } catch (e) { alert('Baja guardada, pero no se han podido desactivar todos los accesos: ' + (e.message || e)); } }
+  showClientesList(); renderClientesList();
+}
+window.bajaCliente = bajaCliente;
+async function reactivarCliente(id) {
+  const c = (window.clientsAll || []).find(x => String(x.id) === String(id)); if (!c) return;
+  if (!confirm('¿Reactivar a ' + c.nombre + '? Vuelve a salir en Clientes y en el Portal. Los usuarios del portal que desactivaste siguen desactivados: actívalos en Portal › Usuarios si hace falta.')) return;
+  try { await window.fsSetDoc(window.fsDoc(window.db, 'clients', String(id)), { baja: window.fsDeleteField ? window.fsDeleteField() : null }, { merge: true }); }
+  catch (e) { alert('No se ha podido reactivar: ' + (e.message || e)); return; }
+  window._verBajas = false; showClientesList(); renderClientesList();
+}
+window.reactivarCliente = reactivarCliente;
 function showClientesList() {
   document.getElementById('clientesLista').style.display = '';
   document.getElementById('clienteFicha').style.display = 'none';
@@ -2659,7 +2699,7 @@ function showClientesList() {
 }
 
 function showFicha(id) {
-  const c = (window.clients || []).find(x => String(x.id) === String(id));
+  const c = (window.clientsAll||window.clients||[]).find(x => String(x.id) === String(id));
   if (!c) return;
   window._fichaClienteId = id; // Guardar para los onclick
   document.getElementById('clientesLista').style.display = 'none';
@@ -2682,9 +2722,11 @@ function showFicha(id) {
   parts.push('<div class="ficha-nombre">' + c.nombre + '</div>');
   parts.push('<div class="ficha-nif">' + (c.nif||'Sin NIF') + ' · ' + (c.tipo||'') + '</div>');
   parts.push('<div style="margin-top:6px;font-size:12px;color:var(--gray-400);">' + catLabel + '</div>');
+  if (c.baja) parts.push('<div style="margin-top:6px;font-size:12px;padding:4px 10px;border-radius:8px;background:#FEE2E2;color:#991B1B;display:inline-block;">Baja en el despacho desde ' + fechaBaja(c.baja.fecha) + (c.baja.motivo ? ' · ' + c.baja.motivo : '') + '</div>');
   parts.push('</div>');
   parts.push('<div style="display:flex;gap:6px;">');
   parts.push('<button class="btn btn-sm" style="background:var(--navy-mid);color:white;" onclick="openClienteModal(window._fichaClienteId)">Editar</button>');
+  parts.push(c.baja ? '<button class="btn btn-sm" style="background:#ECFDF5;color:#065F46;" onclick="reactivarCliente(window._fichaClienteId)">Reactivar</button>' : '<button class="btn btn-sm" style="background:#FFF7ED;color:#9A3412;" onclick="bajaCliente(window._fichaClienteId)">Dar de baja</button>');
   parts.push('<button class="btn btn-sm btn-danger" onclick="deleteCliente(window._fichaClienteId)">Eliminar</button>');
   parts.push('</div></div>');
   parts.push('<div class="ficha-grid">');
@@ -2960,7 +3002,7 @@ async function savePoliza() {
   if (!nombre) return document.getElementById('plNombre').focus();
   const vencimiento = document.getElementById('plVencimiento').value;
   if (!vencimiento) return document.getElementById('plVencimiento').focus();
-  const c = (window.clients || []).find(x => String(x.id) === String(cid));
+  const c = (window.clientsAll||window.clients||[]).find(x => String(x.id) === String(cid));
   if (!c) return;
   if (!c.polizas) c.polizas = [];
   c.polizas.push({
@@ -2977,7 +3019,7 @@ async function savePoliza() {
 
 async function deletePoliza(cid, idx) {
   if (!confirm('\u00bfEliminar esta p\u00f3liza?')) return;
-  const c = (window.clients || []).find(x => String(x.id) === String(cid));
+  const c = (window.clientsAll||window.clients||[]).find(x => String(x.id) === String(cid));
   if (!c) return;
   c.polizas.splice(parseInt(idx), 1);
   await fbSet('clients', cid, c);
@@ -3473,7 +3515,7 @@ function toggleAllExp(abrir) {
 function openExpedienteModal(cid, idx) {
   document.getElementById('expCid').value = cid;
   document.getElementById('expIdx').value = idx !== undefined ? idx : '';
-  const c = (window.clients || []).find(x => String(x.id) === String(cid));
+  const c = (window.clientsAll||window.clients||[]).find(x => String(x.id) === String(cid));
   if (idx !== undefined && c && c.expedientes && c.expedientes[idx]) {
     const exp = c.expedientes[idx];
     document.getElementById('expedienteModalTitle').textContent = 'Editar expediente';
@@ -3503,7 +3545,7 @@ async function saveExpediente() {
   if (!nombre) { alert('El nombre es obligatorio.'); return; }
   const cid = document.getElementById('expCid').value;
   const idx = document.getElementById('expIdx').value;
-  const c = (window.clients || []).find(x => String(x.id) === String(cid));
+  const c = (window.clientsAll||window.clients||[]).find(x => String(x.id) === String(cid));
   if (!c) return;
   if (!c.expedientes) c.expedientes = [];
   const exp = {
@@ -3525,7 +3567,7 @@ async function saveExpediente() {
 
 async function deleteExpediente(cid, idx) {
   if (!confirm('¿Eliminar este expediente y todos sus documentos?')) return;
-  const c = (window.clients || []).find(x => String(x.id) === String(cid));
+  const c = (window.clientsAll||window.clients||[]).find(x => String(x.id) === String(cid));
   if (!c) return;
   c.expedientes.splice(parseInt(idx), 1);
   await fbSet('clients', cid, c);
@@ -3537,7 +3579,7 @@ async function addDocAExpediente(cid, ei) {
   const nombre = document.getElementById('expDocNombre_' + ei).value.trim();
   const url = document.getElementById('expDocUrl_' + ei).value.trim();
   if (!nombre) return;
-  const c = (window.clients || []).find(x => String(x.id) === String(cid));
+  const c = (window.clientsAll||window.clients||[]).find(x => String(x.id) === String(cid));
   if (!c || !c.expedientes || !c.expedientes[eiInt]) return;
   if (!c.expedientes[eiInt].docs) c.expedientes[eiInt].docs = [];
   c.expedientes[eiInt].docs.push({ nombre, url, fecha: new Date().toISOString() });
@@ -3547,7 +3589,7 @@ async function addDocAExpediente(cid, ei) {
 
 async function deleteDocExp(cid, ei, di) {
   if (!confirm('¿Eliminar este documento?')) return;
-  const c = (window.clients || []).find(x => String(x.id) === String(cid));
+  const c = (window.clientsAll||window.clients||[]).find(x => String(x.id) === String(cid));
   if (!c) return;
   c.expedientes[parseInt(ei)].docs.splice(parseInt(di), 1);
   await fbSet('clients', cid, c);
@@ -3560,7 +3602,7 @@ async function addCarpeta(cid, ei) {
   const inp = document.getElementById('nuevaCarpeta_' + ei);
   const nombre = inp ? inp.value.trim() : '';
   if (!nombre) return;
-  const c = (window.clients || []).find(x => String(x.id) === String(cid));
+  const c = (window.clientsAll||window.clients||[]).find(x => String(x.id) === String(cid));
   if (!c || !c.expedientes || !c.expedientes[eiInt]) return;
   if (!c.expedientes[eiInt].carpetas) c.expedientes[eiInt].carpetas = [];
   c.expedientes[eiInt].carpetas.push({ nombre, docs: [], creado: new Date().toISOString() });
@@ -3570,14 +3612,14 @@ async function addCarpeta(cid, ei) {
 }
 async function deleteCarpeta(cid, ei, ci) {
   if (!confirm('¿Eliminar esta subcarpeta y sus documentos?')) return;
-  const c = (window.clients || []).find(x => String(x.id) === String(cid));
+  const c = (window.clientsAll||window.clients||[]).find(x => String(x.id) === String(cid));
   if (!c) return;
   c.expedientes[parseInt(ei)].carpetas.splice(parseInt(ci), 1);
   await fbSet('clients', cid, c);
   showFicha(cid);
 }
 async function addDocACarpeta(cid, ei, ci) {
-  const c = (window.clients || []).find(x => String(x.id) === String(cid));
+  const c = (window.clientsAll||window.clients||[]).find(x => String(x.id) === String(cid));
   if (!c) return;
   const carp = c.expedientes[parseInt(ei)].carpetas[parseInt(ci)];
   const nEl = document.getElementById('carpDocNombre_' + ei + '_' + ci);
@@ -3592,7 +3634,7 @@ async function addDocACarpeta(cid, ei, ci) {
 }
 async function deleteDocCarpeta(cid, ei, ci, di) {
   if (!confirm('¿Eliminar este documento?')) return;
-  const c = (window.clients || []).find(x => String(x.id) === String(cid));
+  const c = (window.clientsAll||window.clients||[]).find(x => String(x.id) === String(cid));
   if (!c) return;
   c.expedientes[parseInt(ei)].carpetas[parseInt(ci)].docs.splice(parseInt(di), 1);
   await fbSet('clients', cid, c);
@@ -3600,7 +3642,7 @@ async function deleteDocCarpeta(cid, ei, ci, di) {
 }
 
 async function saveObligacionesFicha(cid) {
-  const c = (window.clients || []).find(x => String(x.id) === String(cid));
+  const c = (window.clientsAll||window.clients||[]).find(x => String(x.id) === String(cid));
   if (!c) return;
   c.obligaciones = ['111','190','115','180','130','303','390','202','200','349','347'].filter(m => {
     const el = document.getElementById('fichaOblig_' + cid + '_' + m);
@@ -3617,7 +3659,7 @@ async function addDocFicha() {
   const inpNombre = document.getElementById('docNombre_ficha');
   const inpUrl = document.getElementById('docUrl_ficha');
   if (!inpNombre || !inpNombre.value.trim()) return;
-  const c = (window.clients || []).find(x => String(x.id) === String(cid));
+  const c = (window.clientsAll||window.clients||[]).find(x => String(x.id) === String(cid));
   if (!c) return;
   if (!c.docs) c.docs = [];
   c.docs.unshift({ nombre: inpNombre.value.trim(), url: inpUrl ? inpUrl.value.trim() : '', fecha: new Date().toISOString() });
@@ -4735,7 +4777,7 @@ async function toggleTramite(checkbox) {
   const key = checkbox.dataset.key;
   const cid = checkbox.dataset.cid;
   const checked = checkbox.checked;
-  const c = (window.clients||[]).find(x => String(x.id) === String(cid));
+  const c = (window.clientsAll||window.clients||[]).find(x => String(x.id) === String(cid));
   if(!c) return;
   const tramites = Object.assign({}, c.tramites||{});
   if(checked) {
@@ -4915,7 +4957,7 @@ async function analizarPdfExpediente(input, ei, cid) {
 
       // Actualizar planning automáticamente
       if(d.modelo && d.periodo && d.anio) {
-        const c = (window.clients||[]).find(x => String(x.id) === String(cid));
+        const c = (window.clientsAll||window.clients||[]).find(x => String(x.id) === String(cid));
         if(c) {
           // Buscar la clave del planning
           // Normalizar periodo según modelo
@@ -5190,7 +5232,8 @@ const js = (v) => esc(JSON.stringify(String(v == null ? "" : v)));   // texto se
 const fFecha = (iso) => { if (!iso) return ""; const d = new Date(iso); return d.toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "2-digit" }) + " " + d.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }); };
 const fBytes = (b) => b < 1024 * 1024 ? Math.max(1, Math.round(b / 1024)) + " KB" : (b / 1048576).toFixed(1).replace(".", ",") + " MB";
 const clientes = () => (window.clients || []).filter((c) => (c.categoria || "despacho") !== "auxiliar");
-const cliNombre = (id) => (clientes().find((c) => c.id === id) || {}).nombre || P.pcli[id]?.nombre || id;
+const clientesTodos = () => (window.clientsAll || window.clients || []);   // incluye las bajas (para buscar nombres)
+const cliNombre = (id) => (clientesTodos().find((c) => c.id === id) || {}).nombre || P.pcli[id]?.nombre || id;
 const aviso = (t, ok) => (typeof _bkAviso === "function" ? _bkAviso(t, ok) : alert(t.replace(/<[^>]+>/g, "")));
 
 // ---------- Datos en tiempo real ----------
@@ -5356,7 +5399,7 @@ window.ptAudio = async function (btn, path, tipo) {
 function pintaDocumentos(cid) {
   const c = document.getElementById("ptCuerpo");
   const E = P.entregas.filter((e) => e.clienteId === cid);
-  const pc = P.pcli[cid] || {}, cl = clientes().find((x) => x.id === cid) || {};
+  const pc = P.pcli[cid] || {}, cl = clientesTodos().find((x) => x.id === cid) || {};
   const anio = new Date().getFullYear();
   c.innerHTML = (!pc.contratoFirmado ? "<div class='pt-aviso'>El cliente <b>no verá estos documentos</b> hasta que marques el contrato como firmado (pestaña Ajustes).</div>" : "") +
     "<div style='background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:12px;margin-bottom:14px;'>" +
@@ -5406,7 +5449,7 @@ window.ptSubirDocs = async function (cid) {
   if (!files.length) { alert("Elige uno o varios archivos."); return; }
   const cat = document.getElementById("ptCat").value, anio = String(document.getElementById("ptAnio").value || new Date().getFullYear());
   const priv = document.getElementById("ptPriv").checked, cif = document.getElementById("ptCif").checked;
-  const cl = clientes().find((x) => x.id === cid) || {};
+  const cl = clientesTodos().find((x) => x.id === cid) || {};
   if (cif && !cl.claveDocs) { alert("Este cliente no tiene clave de documentos. Créala en la pestaña Ajustes."); return; }
   if (cif && files.some((f) => !/pdf$/i.test(f.type) && !/\.pdf$/i.test(f.name))) { if (!confirm("Solo se pueden proteger con clave los PDF. Los demás archivos se subirán sin clave. ¿Seguir?")) return; }
   const btn = document.getElementById("ptSubir"), est = document.getElementById("ptSubeEst"); btn.disabled = true;
@@ -5445,7 +5488,7 @@ window._ptClave = claveAleatoria;
 function pintaUsuarios(cid) {
   const c = document.getElementById("ptCuerpo");
   const U = P.usuarios.filter((u) => u.clienteId === cid);
-  const cl = clientes().find((x) => x.id === cid) || {};
+  const cl = clientesTodos().find((x) => x.id === cid) || {};
   const vinculados = new Set(P.usuarios.map((u) => (u.email || "").toLowerCase()));
   const cand = [cl.portalEmail].filter((e) => e && /@portal\.facturas$/i.test(e) && !vinculados.has(String(e).toLowerCase()));
   const chk = (id, v, l) => "<label style='display:inline-flex;gap:4px;align-items:center;margin-right:10px;'><input type='checkbox' id='" + id + "'" + (v ? " checked" : "") + "> " + l + "</label>";
@@ -5516,6 +5559,12 @@ window.ptBienvenida = function (uid) { const u = P.usuarios.find((x) => x.uid ==
 window.ptUsrPermisos = async function (uid) { const u = P.usuarios.find((x) => x.uid === uid);
   try { await llamaUsuarios({ accion: "permisos", uid, rol: u.rol, permisos: { mensajes: document.getElementById("pm_" + uid).checked, documentos: document.getElementById("pd_" + uid).checked, privados: document.getElementById("pp_" + uid).checked, fichajes: document.getElementById("pf_" + uid).checked } }); aviso("✓ Permisos guardados", true); }
   catch (e) { alert(e.message); } };
+// Para la baja de un cliente (Clientes › Dar de baja): accesos activos y desactivarlos
+window.ptAccesosCliente = function (cid) { return { usuarios: P.usuarios.filter((u) => u.clienteId === cid && u.activo !== false).length, fichajes: (P.ftrab || []).filter((f) => f.clienteId === cid && f.activo !== false).length }; };
+window.ptDesactivarCliente = async function (cid) {
+  for (const u of P.usuarios.filter((x) => x.clienteId === cid && x.activo !== false)) await llamaUsuarios({ accion: "desactivar", uid: u.uid });
+  for (const f of (P.ftrab || []).filter((x) => x.clienteId === cid && x.activo !== false)) await llamaFichaje({ accion: "desactivar", uid: f.uid });
+};
 window.ptUsrAct = async function (uid, activar) { if (!activar && !confirm("¿Desactivar este usuario? No podrá entrar al portal.")) return;
   try { await llamaUsuarios({ accion: activar ? "activar" : "desactivar", uid }); } catch (e) { alert(e.message); } };
 window.ptUsrClave = async function (uid) { const c = prompt("Nueva contraseña (mínimo 10 caracteres):", claveAleatoria()); if (!c) return;
@@ -5525,7 +5574,7 @@ async function asegurarPcli(cid) { if (!P.pcli[cid]) await setDoc(doc(db, "porta
 // ---------- Ajustes del cliente ----------
 function pintaAjustes(cid) {
   const c = document.getElementById("ptCuerpo");
-  const pc = P.pcli[cid] || {}, cl = clientes().find((x) => x.id === cid) || {};
+  const pc = P.pcli[cid] || {}, cl = clientesTodos().find((x) => x.id === cid) || {};
   c.innerHTML = "<span class='pt-lbl'>Contrato de servicios firmado el</span><input type='date' class='pt-fi' id='ajCont' value='" + esc(pc.contratoFirmado || "") + "'> " +
     "<button class='pt-btn pri' onclick=\"ptGuardaContrato(" + js(cid) + ")\">Guardar</button>" +
     "<div style='font-size:11px;color:var(--gray-400);margin-top:4px;'>Sin esta fecha, el cliente puede escribirte y enviar facturas, pero no ve los documentos que le dejes.</div>" +
@@ -5609,7 +5658,7 @@ async function pintaFichaje(cid) {
   c.innerHTML = h;
 }
 window.ftCrear = async function (cid, tid) {
-  const t = (P.ntrab[cid] || []).find((x) => x.id === tid) || {}, pre = "fn_" + tid + "_", cl = clientes().find((x) => x.id === cid) || {};
+  const t = (P.ntrab[cid] || []).find((x) => x.id === tid) || {}, pre = "fn_" + tid + "_", cl = clientesTodos().find((x) => x.id === cid) || {};
   const usuario = document.getElementById(pre + "usr").value.trim(), clave = document.getElementById(pre + "pwd").value.trim(), pin = document.getElementById(pre + "pin").value.trim();
   try {
     await llamaFichaje({ accion: "crear", clienteId: cid, clienteNombre: cliNombre(cid), clienteNif: cl.nif || cl.cif || cl.NIF || "", trabajadorId: tid, nombre: t.nombre, dni: t.dni || "",
@@ -5670,7 +5719,8 @@ window._DOC = D;
 const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 const js = (v) => esc(JSON.stringify(String(v == null ? "" : v)));
 const clientes = () => (window.clients || []).filter((c) => (c.categoria || "despacho") !== "auxiliar").sort((a, b) => String(a.nombre).localeCompare(String(b.nombre)));
-const cli = (id) => clientes().find((c) => c.id === id) || {};
+const clientesTodos = () => (window.clientsAll || window.clients || []);
+const cli = (id) => clientesTodos().find((c) => c.id === id) || {};
 const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
 const fLarga = (iso) => { if (!iso) return ""; const [y, m, d] = String(iso).slice(0, 10).split("-").map(Number); return d + " de " + MESES[m - 1] + " de " + y; };
 const hoyIso = () => new Date().toLocaleDateString("sv-SE");
